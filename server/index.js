@@ -38,6 +38,22 @@ const WEBHOOK_ALLOWED_ORIGINS = new Set([
 const WEBHOOK_MIN_INTERVAL_MS = Number(process.env.DISCORD_WEBHOOK_MIN_INTERVAL_MS || 45000);
 const webhookLastSubmissionByIp = new Map();
 
+// --- CORS ---
+app.use((req, res, next) => {
+    const origin = typeof req.headers.origin === 'string' ? req.headers.origin.trim() : '';
+    if (WEBHOOK_ALLOWED_ORIGINS.has(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Vary', 'Origin');
+    }
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    if (req.method === 'OPTIONS') {
+        res.sendStatus(204);
+        return;
+    }
+    next();
+});
+
 app.use(express.json({ limit: '1mb' }));
 
 // --- Helpers ---

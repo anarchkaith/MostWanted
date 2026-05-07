@@ -247,8 +247,8 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
               lineHeight: 1.5,
             }}>
               {botDeliveryState?.ok
-                ? `Sincronizado con el bot de Discord${botDeliveryState?.reportId ? ` · Report ID ${botDeliveryState.reportId}` : ''}.`
-                : `No se pudo confirmar el envio al bot de Discord${botDeliveryState?.message ? `: ${botDeliveryState.message}` : '.'}`}
+                ? `Sincronizado con la comunidad de Kaith's Rebels${botDeliveryState?.reportId ? ` → Report ID ${botDeliveryState.reportId}` : ''}`
+                : `No se pudo confirmar el envio a la comunidad${botDeliveryState?.message ? `: ${botDeliveryState.message}` : '.'}`}
             </div>
             <a
               href="https://support.rockstargames.com/request/gta-v/online-play-support/report-another-player/pc"
