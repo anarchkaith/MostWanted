@@ -6,14 +6,21 @@ function extractBase64Payload(dataUrl = '') {
 
 function inferContentType(image = {}) {
   const explicitType = typeof image?.type === 'string' ? image.type.trim().toLowerCase() : '';
-  if (explicitType) return explicitType;
+  if (explicitType && !explicitType.endsWith('/url')) return explicitType;
 
-  const name = String(image?.name || '').toLowerCase();
+  const name = String(image?.name || image?.preview || '').toLowerCase().split('?')[0];
 
   if (name.endsWith('.png')) return 'image/png';
   if (name.endsWith('.jpg') || name.endsWith('.jpeg')) return 'image/jpeg';
   if (name.endsWith('.gif')) return 'image/gif';
   if (name.endsWith('.webp')) return 'image/webp';
+  if (name.endsWith('.mp4')) return 'video/mp4';
+  if (name.endsWith('.webm')) return 'video/webm';
+  if (name.endsWith('.mov')) return 'video/quicktime';
+  if (name.endsWith('.avi')) return 'video/avi';
+  if (name.endsWith('.mkv')) return 'video/x-matroska';
+
+  if (explicitType === 'video/url') return 'video/mp4';
 
   return '';
 }

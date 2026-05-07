@@ -721,7 +721,7 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
                     <div className="rfm-panel__title">
                       📎 Adjuntar Evidencias
                       <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'rgba(0,255,255,0.45)', fontWeight: 400, textTransform: 'none', letterSpacing: '0.05em', marginLeft: '0.4rem' }}>opcional</span>
-                      <Tooltip text="Arrastra imágenes, selecciona archivos o pega con Ctrl+V. Hasta 5 imágenes, máx. 5MB c/u.">
+                      <Tooltip text="Arrastra imágenes, selecciona archivos, pega con Ctrl+V, o cambia a modo URL para adjuntar imágenes o videos por enlace. Hasta 5 evidencias.">
                         <span style={{ cursor: 'help' }}><HelpIcon style={{ width: 16, height: 16 }} /></span>
                       </Tooltip>
                     </div>
