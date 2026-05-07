@@ -1,0 +1,30 @@
+stages:
+  - build
+  - deploy
+
+build:
+  image: node:20
+  stage: build
+  script:
+    - npm ci
+    - npm run build
+  artifacts:
+    paths:
+      - dist/
+
+deploy:
+  image: debian:stable-slim
+  stage: deploy
+  before_script:
+    - apt-get update && apt-get install -y openssh-client rsync
+    - eval "$(ssh-agent -s)"
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh && chmod 700 ~/.ssh
+    - ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+  script:
+    - set -xe
+    - echo "HOST=$SSH_HOST USER=$SSH_USER"
+    - ls -R
+    - rsync -az --delete dist/ "$SSH_USER@$SSH_HOST:/home/u950660407/domains/infinitelabs.tech/public_html/"
+  only:
+    - main

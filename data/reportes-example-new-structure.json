@@ -1,0 +1,112 @@
+﻿[
+  {
+    "id": 1,
+    "nickname": "XLR8R_GAMBR",
+    "crews": "Los Diablos Perdidos",
+    "avatar1": "https://api.imgbb.com/avatar/xxxxx",
+    "avatar2": "",
+    "rid": 1234567890,
+    "ip": "192.168.1.100",
+    "aliases": "GAMBR_ALT, XLR8R_2",
+    "time": 1702300000,
+    "typesOfInfraction": [
+      "Modder",
+      "Aimbot"
+    ],
+    "reason": "Aim botting - Uso confirmado de software de asistencia de puntería en múltiples sesiones. Comportamiento sospechoso detectado en varias partidas consecutivas con precisión imposible.",
+    "labels": [
+      "Aimbot",
+      "Godmode (hack)",
+      "Reincidente"
+    ],
+    "reportedby": "Kaith#1234",
+    "anonymous": false,
+    "source": "mostwanted-web",
+    "reporter": {
+      "id": "discord-123456",
+      "name": "Kaith",
+      "tag": "Kaith#1234"
+    },
+    "evidence": [
+      {
+        "url": "https://api.imgbb.com/1/upload/screenshot_aimbot_001.png",
+        "name": "screenshot_aimbot_001.png",
+        "contentType": "image/png"
+      }
+    ],
+    "estado": "activo",
+    "severidad": "alta",
+    "fechaReporte": "2025-12-10T15:30:00Z"
+  },
+  {
+    "id": 2,
+    "nickname": "NO_SKILL_KIDD",
+    "crews": "The Lost MC",
+    "avatar1": "https://api.imgbb.com/avatar/yyyyy",
+    "avatar2": "",
+    "rid": 9876543210,
+    "ip": "10.0.0.50",
+    "aliases": "KIDD_ALT",
+    "time": 1702270000,
+    "typesOfInfraction": [
+      "Griffer",
+      "Exploiting"
+    ],
+    "reason": "Exploiting glitches - Abuso repetido de bugs del mapa para obtener ventaja injusta. Se esconde en texturas y dispara sin ser visto.",
+    "labels": [
+      "Map Exploit",
+      "Wallhack",
+      "Griefing"
+    ],
+    "reportedby": "Rebel_Scout",
+    "anonymous": false,
+    "source": "mostwanted-web",
+    "reporter": {
+      "id": "discord-789012",
+      "name": "Rebel_Scout",
+      "tag": "Rebel_Scout#5678"
+    },
+    "evidence": [
+      {
+        "url": "https://api.imgbb.com/1/upload/video_glitch_exploit.png",
+        "name": "video_glitch_exploit.png",
+        "contentType": "image/png"
+      }
+    ],
+    "estado": "activo",
+    "severidad": "media",
+    "fechaReporte": "2025-12-09T14:20:00Z"
+  },
+  {
+    "id": 3,
+    "nickname": "LAG_MASTR",
+    "crews": "",
+    "avatar1": "",
+    "avatar2": "",
+    "rid": null,
+    "ip": "",
+    "aliases": "MASTR, LAG_MASTER",
+    "time": 1702240000,
+    "typesOfInfraction": [
+      "Griffer",
+      "Team Killer"
+    ],
+    "reason": "Griefing teammates - Destrucción intencional de vehículos del equipo, team-killing repetido y sabotaje de misiones grupales.",
+    "labels": [
+      "Toxic",
+      "Teamkill",
+      "Sabotaje"
+    ],
+    "reportedby": "Watcher_Prime",
+    "anonymous": true,
+    "source": "mostwanted-web",
+    "reporter": {
+      "id": "anonymous-web",
+      "name": "Anonimo"
+    },
+    "evidence": [],
+    "estado": "activo",
+    "severidad": "alta",
+    "fechaReporte": "2025-12-08T10:15:00Z"
+  }
+]

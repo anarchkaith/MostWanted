@@ -1,0 +1,167 @@
+﻿[
+  {
+    "id": 1,
+    "usuario": "XLR8R_GAMBR",
+    "motivo": "Aim botting - Uso confirmado de software de asistencia de puntería en múltiples sesiones. Comportamiento sospechoso detectado en varias partidas consecutivas con precisión imposible.",
+    "reportadoPor": "Kaith#1234",
+    "categoria": "modder",
+    "fecha": "2025-12-10",
+    "evidencia": "screenshot_aimbot_001.png",
+    "estado": "activo",
+    "severidad": "alta"
+  },
+  {
+    "id": 2,
+    "usuario": "NO_SKILL_KIDD",
+    "motivo": "Exploiting glitches - Abuso repetido de bugs del mapa para obtener ventaja injusta. Se esconde en texturas y dispara sin ser visto.",
+    "reportadoPor": "Rebel_Scout",
+    "categoria": "tramposo",
+    "fecha": "2025-12-09",
+    "evidencia": "video_glitch_exploit.mp4",
+    "estado": "activo",
+    "severidad": "media"
+  },
+  {
+    "id": 3,
+    "usuario": "LAG_MASTR",
+    "motivo": "Griefing teammates - Destrucción intencional de vehículos del equipo, team-killing repetido y sabotaje de misiones grupales.",
+    "reportadoPor": "Watcher_Prime",
+    "categoria": "griffer",
+    "fecha": "2025-12-08",
+    "evidencia": "clip_teamkill_evidence.mp4",
+    "estado": "activo",
+    "severidad": "alta"
+  },
+  {
+    "id": 4,
+    "usuario": "DATA_THIEF_99",
+    "motivo": "Map hacking - Uso de modificaciones para ver a través de paredes y conocer posiciones enemigas en tiempo real. Siempre sabe dónde estás.",
+    "reportadoPor": "Justice_Bot",
+    "categoria": "modder",
+    "fecha": "2025-12-07",
+    "evidencia": "proof_wallhack.png",
+    "estado": "activo",
+    "severidad": "critica"
+  },
+  {
+    "id": 5,
+    "usuario": "PIXEL_GHOUL",
+    "motivo": "DDOS attacks - Ataques de denegación de servicio contra servidores de partidas. Provoca lag masivo cuando va perdiendo.",
+    "reportadoPor": "Enforcer_Delta",
+    "categoria": "modder",
+    "fecha": "2025-12-06",
+    "evidencia": "network_logs_ddos.txt",
+    "estado": "activo",
+    "severidad": "critica"
+  },
+  {
+    "id": 6,
+    "usuario": "CHEATER_BOT",
+    "motivo": "Fake reports - Envío masivo de reportes falsos contra jugadores legítimos para banearlos injustamente. Abuso del sistema.",
+    "reportadoPor": "Crew_Leader",
+    "categoria": "griffer",
+    "fecha": "2025-12-05",
+    "evidencia": "false_reports_log.json",
+    "estado": "activo",
+    "severidad": "media"
+  },
+  {
+    "id": 7,
+    "usuario": "GHOST_RUNNER_X",
+    "motivo": "Speed hacking - Velocidad de movimiento imposible, atraviesa el mapa en segundos. Imposible de alcanzar o perseguir.",
+    "reportadoPor": "Patrol_Unit_7",
+    "categoria": "modder",
+    "fecha": "2025-12-04",
+    "evidencia": "speedhack_clip.mp4",
+    "estado": "activo",
+    "severidad": "alta"
+  },
+  {
+    "id": 8,
+    "usuario": "TOXIC_OVERLORD",
+    "motivo": "Harassment extremo - Acoso verbal constante, amenazas y comportamiento tóxico hacia nuevos jugadores. Expulsado de múltiples sesiones.",
+    "reportadoPor": "Community_Watch",
+    "categoria": "griffer",
+    "fecha": "2025-12-03",
+    "evidencia": "chat_logs_toxic.txt",
+    "estado": "activo",
+    "severidad": "media"
+  },
+  {
+    "id": 9,
+    "usuario": "MONEY_GLITCHER",
+    "motivo": "Duplicación de dinero - Explota bugs para duplicar dinero en el juego y arruinar la economía de la sesión.",
+    "reportadoPor": "Economy_Guard",
+    "categoria": "tramposo",
+    "fecha": "2025-12-02",
+    "evidencia": "money_dupe_proof.png",
+    "estado": "activo",
+    "severidad": "alta"
+  },
+  {
+    "id": 10,
+    "usuario": "INVISIBLE_MENACE",
+    "motivo": "Godmode + Invisibilidad - Combinación de hacks que lo hacen invencible e invisible. Mata sin poder ser tocado.",
+    "reportadoPor": "Alpha_Hunter",
+    "categoria": "modder",
+    "fecha": "2025-12-01",
+    "evidencia": "godmode_invisible.mp4",
+    "estado": "activo",
+    "severidad": "critica"
+  },
+  {
+    "id": 11,
+    "usuario": "RAPTOR_SNIP3R",
+    "motivo": "Aimbot de largo alcance - Impacta tiros imposibles desde distancias extremas sin fallo y con tracking automático.",
+    "reportadoPor": "Scout_Nova",
+    "categoria": "tramposo",
+    "fecha": "2025-11-30",
+    "evidencia": "snipe_aimbot_proof.mp4",
+    "estado": "activo",
+    "severidad": "alta"
+  },
+  {
+    "id": 12,
+    "usuario": "VOID_ENGINE",
+    "motivo": "Teleport exploit - Se teletransporta durante enfrentamientos para evitar daño y emboscar jugadores.",
+    "reportadoPor": "Delta_Observer",
+    "categoria": "modder",
+    "fecha": "2025-11-29",
+    "evidencia": "teleport_trace.gif",
+    "estado": "activo",
+    "severidad": "critica"
+  },
+  {
+    "id": 13,
+    "usuario": "RAGE_CLOWN",
+    "motivo": "Griefing sistematico - Sabotea partidas, bloquea objetivos de equipo y destruye progreso de eventos cooperativos.",
+    "reportadoPor": "Ops_Unit_2",
+    "categoria": "griffer",
+    "fecha": "2025-11-28",
+    "evidencia": "griefing_event_log.txt",
+    "estado": "activo",
+    "severidad": "media"
+  },
+  {
+    "id": 14,
+    "usuario": "NEXUS_BREAKER",
+    "motivo": "Manipulacion de economia - Uso de scripts para inflar recompensas y alterar el mercado interno del servidor.",
+    "reportadoPor": "Market_Guardian",
+    "categoria": "tramposo",
+    "fecha": "2025-11-27",
+    "evidencia": "economy_anomaly_report.json",
+    "estado": "activo",
+    "severidad": "alta"
+  },
+  {
+    "id": 15,
+    "usuario": "OBSIDIAN_ZERO",
+    "motivo": "Wallhack avanzado - Rastreaba escuadras completas a traves de estructuras cerradas durante varias sesiones.",
+    "reportadoPor": "Night_Vigil",
+    "categoria": "modder",
+    "fecha": "2025-11-26",
+    "evidencia": "wallhack_overlay_capture.png",
+    "estado": "activo",
+    "severidad": "critica"
+  }
+]

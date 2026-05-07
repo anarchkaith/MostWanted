@@ -1,0 +1,25 @@
+﻿.help-btn {
+  position: absolute;
+  top: 1.5rem;
+  right: 1.5rem;
+  z-index: 1200;
+  background: var(--color-gray-dark, #222);
+  color: var(--color-cream, #fff);
+  border: 1.5px solid var(--color-gray-light, #888);
+  border-radius: 50%;
+  width: 2.5rem;
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  transition: background 0.2s, color 0.2s, border 0.2s;
+}
+
+.help-btn:hover {
+  background: var(--color-red-alert, #ff3333);
+  color: var(--color-black, #000);
+  border-color: var(--color-red-alert, #ff3333);
+}
