@@ -11,11 +11,17 @@ import { TIPOS_ETIQUETAS } from './tiposEtiquetas';
 import { calcularSeveridadSugerida } from './reportHelpers';
 import PlayerBackgroundPanel from './PlayerBackgroundPanel';
 import { isBlockedReportedUsername } from './blockedUsernames';
-import { submitReportToBackend, uploadEvidenceImages } from '../src/services/reportSubmissionService';
+import { fetchWordpressPlayersSnapshot, submitReportToBackend, uploadEvidenceImages } from '../src/services/reportSubmissionService';
 
 const initialValues = {
+  investigation_status: 'not_attempted',
   // Información del jugador reportado
   nickname: '',
+  crewCurrent: '',
+  crew1: '',
+  crew2: '',
+  crew3: '',
+  crew4: '',
   crews: '',
   avatar1: '',
   avatar2: '',
@@ -32,9 +38,15 @@ const initialValues = {
 };
 
 const demoValues = {
+  investigation_status: 'resolved',
   // Información del jugador reportado
   nickname: '[DEMO] DemoPlayer_GTA',
-  crews: '[DEMO] Demo Crew',
+  crewCurrent: '[DEMO] Rebels Elite [RBLS] https://socialclub.rockstargames.com/crew/rebels_elite',
+  crew1: '[DEMO] Demo Crew 1 [D1] https://socialclub.rockstargames.com/crew/demo_one',
+  crew2: '[DEMO] Demo Crew 2 [D2]',
+  crew3: '',
+  crew4: '',
+  crews: '',
   avatar1: '',
   avatar2: '',
   rid: '12345',
@@ -57,8 +69,11 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
   const [botDeliveryState, setBotDeliveryState] = useState(null);
   const [showOptional, setShowOptional] = useState(false);
   const [investigationToken, setInvestigationToken] = useState(0);
-  const [investigatedUsername, setInvestigatedUsername] = useState('');
   const [isInvestigating, setIsInvestigating] = useState(false);
+  const [investigationGate, setInvestigationGate] = useState({
+    username: '',
+    completed: false,
+  });
   const formikRef = useRef(null);
 
   const handleGlobalPaste = useCallback((e) => {
@@ -247,8 +262,8 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
               lineHeight: 1.5,
             }}>
               {botDeliveryState?.ok
-                ? `Sincronizado con la comunidad de Kaith's Rebels${botDeliveryState?.reportId ? ` → Report ID ${botDeliveryState.reportId}` : ''}`
-                : `No se pudo confirmar el envio a la comunidad${botDeliveryState?.message ? `: ${botDeliveryState.message}` : '.'}`}
+                ? `Sincronizado con el bot de Discord${botDeliveryState?.reportId ? ` · Report ID ${botDeliveryState.reportId}` : ''}.`
+                : `No se pudo confirmar el envio al bot de Discord${botDeliveryState?.message ? `: ${botDeliveryState.message}` : '.'}`}
             </div>
             <a
               href="https://support.rockstargames.com/request/gta-v/online-play-support/report-another-player/pc"
@@ -536,16 +551,30 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
           setSubmitError('');
           setBotDeliveryState(null);
           try {
-            const { nivel: severidadCalculada } = calcularSeveridadSugerida(values.typesOfInfraction, values.labels);
             // No incluir el campo evidence del formulario, se enviarán las imágenes subidas por separado
             const { evidence: _, ...reporteData } = values;
             const nuevoReporte = {
               ...reporteData,
-              severidad: severidadCalculada,
               nickname: (values.nickname || '').toUpperCase(),
             };
             const submissionResult = await crearReporte.mutateAsync(nuevoReporte);
             setBotDeliveryState(submissionResult?.botDelivery || null);
+
+            if (submissionResult?.ok) {
+              try {
+                const playersSnapshot = await fetchWordpressPlayersSnapshot({
+                  perPage: 100,
+                  reportsLimit: 20,
+                });
+
+                console.group('[MostWanted] Snapshot de jugadores en WordPress tras envio exitoso');
+                console.log('Submission result:', submissionResult);
+                console.log('Players snapshot:', playersSnapshot);
+                console.groupEnd();
+              } catch (snapshotError) {
+                console.warn('[MostWanted] El envio fue exitoso, pero no se pudo consultar la API de jugadores de WordPress.', snapshotError);
+              }
+            }
 
             onSubmit?.(nuevoReporte, submissionResult);
             setShowSuccess({ nickname: nuevoReporte.nickname });
@@ -560,9 +589,13 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
           const trimmedUsername = String(values.nickname || '').trim();
           const blockedUsername = isBlockedReportedUsername(trimmedUsername);
           const canInvestigate = trimmedUsername.length >= 2 && !blockedUsername && !isSubmitting && !isInvestigating;
-          const hasUsernameChangedAfterInvestigation = (
-            investigatedUsername
-            && investigatedUsername.toLowerCase() !== trimmedUsername.toLowerCase()
+          const isInvestigationForCurrentUsername = (
+            investigationGate.username
+            && investigationGate.username.toLowerCase() === trimmedUsername.toLowerCase()
+          );
+          const canShowFullForm = isDemo || (
+            investigationGate.completed
+            && isInvestigationForCurrentUsername
           );
 
           return (
@@ -631,17 +664,38 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
                   </div>
                   <div className="form-group" style={{ marginBottom: 0 }}>
                     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: '0.5rem', alignItems: 'stretch' }}>
-                      <Field
-                        type="text"
-                        id="nickname"
-                        name="nickname"
-                        className="form-group__input rfm-input--hero"
-                        placeholder="Ej: CHEATER_123"
-                        maxLength={30}
-                        autoComplete="off"
-                        translate="no"
-                        disabled={isSubmitting}
-                      />
+                      <Field name="nickname">
+                        {({ field }) => (
+                          <input
+                            {...field}
+                            type="text"
+                            id="nickname"
+                            className="form-group__input rfm-input--hero"
+                            placeholder="Ej: CHEATER_123"
+                            maxLength={30}
+                            autoComplete="off"
+                            translate="no"
+                            disabled={isSubmitting}
+                            onChange={(event) => {
+                              const nextValue = event.target.value;
+                              const nextTrimmed = String(nextValue || '').trim();
+                              setFieldValue('nickname', nextValue);
+
+                              const changedFromLastAttempt = (
+                                investigationGate.username
+                                && investigationGate.username.toLowerCase() !== nextTrimmed.toLowerCase()
+                              );
+
+                              if (changedFromLastAttempt) {
+                                setFieldValue('investigation_status', 'not_attempted');
+                                setInvestigationGate({ username: '', completed: false });
+                                setInvestigationToken(0);
+                                setIsInvestigating(false);
+                              }
+                            }}
+                          />
+                        )}
+                      </Field>
                       <button
                         type="button"
                         className="rfm-investigate-btn notranslate"
@@ -649,8 +703,22 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
                         disabled={!canInvestigate}
                         onClick={() => {
                           setIsInvestigating(true);
+                          setFieldValue('investigation_status', 'pending');
+                          setFieldValue('rid', '');
+                          setFieldValue('crewCurrent', '');
+                          setFieldValue('crew1', '');
+                          setFieldValue('crew2', '');
+                          setFieldValue('crew3', '');
+                          setFieldValue('crew4', '');
+                          setFieldValue('crews', '');
+                          setFieldValue('aliases', '');
+                          setFieldValue('avatar1', '');
+                          setFieldValue('avatar2', '');
                           setInvestigationToken((current) => current + 1);
-                          setInvestigatedUsername(trimmedUsername);
+                          setInvestigationGate({
+                            username: trimmedUsername,
+                            completed: false,
+                          });
                         }}
                       >
                         <span className={`rfm-investigate-btn__spinner ${isInvestigating ? '' : 'rfm-investigate-btn__spinner--hidden'}`} aria-hidden="true" />
@@ -662,134 +730,258 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
                 </div>
 
                 {/* Panel de investigación de antecedentes */}
-                {trimmedUsername && !blockedUsername && !hasUsernameChangedAfterInvestigation && investigationToken > 0 && (
+                {trimmedUsername && !blockedUsername && investigationToken > 0 && (
                   <PlayerBackgroundPanel
                     username={trimmedUsername}
                     investigateToken={investigationToken}
                     onInvestigatingChange={setIsInvestigating}
+                    onInvestigationChange={(result) => {
+                      const isCurrentInvestigation = (
+                        isDemo
+                        || (
+                          investigationGate.username
+                          && investigationGate.username.toLowerCase() === String(values.nickname || '').trim().toLowerCase()
+                        )
+                      );
+
+                      if (!isCurrentInvestigation) {
+                        return;
+                      }
+
+                      if (result?.rid) {
+                        setFieldValue('investigation_status', 'resolved');
+                        setFieldValue('rid', String(result.rid));
+
+                        if (Array.isArray(result?.profile?.aliases) && result.profile.aliases.length > 0) {
+                          const aliasText = result.profile.aliases
+                            .map((alias) => String(alias || '').trim())
+                            .filter(Boolean)
+                            .join(', ');
+                          if (aliasText) setFieldValue('aliases', aliasText);
+                        }
+
+                        const avatars = Array.isArray(result?.avatares) ? result.avatares : [];
+                        if (avatars[0]?.avatarUrl) setFieldValue('avatar1', avatars[0].avatarUrl);
+                        if (avatars[1]?.avatarUrl) setFieldValue('avatar2', avatars[1].avatarUrl);
+                        setInvestigationGate((current) => ({ ...current, completed: true }));
+                        return;
+                      }
+
+                      setFieldValue('investigation_status', 'not_found');
+                      setInvestigationGate((current) => ({ ...current, completed: true }));
+                    }}
                   />
                 )}
 
-                <div className="rfm-panel">
-                  <div className="rfm-panel__title">
-                    Tipo(s) de Infracción
-                    <Tooltip text="Selecciona una o varias categorías que describan la infracción.">
-                      <span style={{ cursor: 'help' }}><HelpIcon style={{ width: 15, height: 15, opacity: 0.6 }} /></span>
-                    </Tooltip>
-                  </div>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <TipoInfraccionSelector
-                      value={values.typesOfInfraction}
-                      onChange={nuevas => { setFieldValue('typesOfInfraction', nuevas); setFieldValue('labels', []); }}
-                      options={TIPOS_ETIQUETAS}
-                      disabled={isSubmitting}
-                    />
-                    <div className="rfm-note">Seleccionadas: {values.typesOfInfraction.length} categoría(s)</div>
-                    <ErrorMessage name="typesOfInfraction" component="span" className="form-group__hint" style={{ color: '#ff3333' }} />
-                  </div>
-                </div>
-
-                {/* ── MOTIVO + EVIDENCIAS en la misma fila ── */}
-                <div className="rfm-motivo-row">
-                  <div className="rfm-panel" style={{ display: 'flex', flexDirection: 'column' }}>
-                    <div className="rfm-panel__title">
-                      Motivo del Reporte
-                      <Tooltip text="Describe con detalle lo que sucedió: ¿qué hizo, cuándo, dónde?">
-                        <span style={{ cursor: 'help' }}><HelpIcon style={{ width: 15, height: 15, opacity: 0.6 }} /></span>
-                      </Tooltip>
+                {!canShowFullForm && (
+                  <div className="rfm-panel" style={{ borderLeftColor: 'rgba(0,255,255,0.45)' }}>
+                    <div className="rfm-note" style={{ marginTop: 0, borderTop: 'none', paddingTop: 0 }}>
+                      Primero investiga al jugador para desbloquear el formulario completo. Si no se encuentra RID, podrás continuar igual con RID opcional.
                     </div>
-                    <div className="form-group" style={{ marginBottom: 0, flex: 1, display: 'flex', flexDirection: 'column' }}>
-                      <Field
-                        as="textarea"
-                        id="reason"
-                        name="reason"
-                        className="form-group__textarea"
-                        aria-label="Motivo del Reporte"
-                        placeholder="Describe lo que viste: qué hizo, cuándo, en qué sesión..."
-                        maxLength={500}
+                  </div>
+                )}
+
+                {canShowFullForm && (
+                  <>
+                    <div className="rfm-panel">
+                      <div className="rfm-panel__title">
+                        Datos del jugador (editable)
+                        <Tooltip text="Completa manualmente la crew actual y las crews asociadas usando nombre, tag o URL.">
+                          <span style={{ cursor: 'help' }}><HelpIcon style={{ width: 15, height: 15, opacity: 0.6 }} /></span>
+                        </Tooltip>
+                      </div>
+
+                      <div className="rfm-field-row" style={{ marginBottom: '0.75rem' }}>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label htmlFor="rid" className="form-group__label">RID</label>
+                          <Field
+                            type="text"
+                            id="rid"
+                            name="rid"
+                            className="form-group__input"
+                            placeholder={values.investigation_status === 'not_found' ? 'RID opcional si lo conoces' : 'RID detectado por investigacion'}
+                            autoComplete="off"
+                            disabled={isSubmitting || values.investigation_status === 'resolved'}
+                          />
+                          <div className="form-group__hint" style={{ fontSize: '0.74rem' }}>
+                            {values.investigation_status === 'resolved'
+                              ? 'RID bloqueado: fue asignado por la investigacion.'
+                              : 'RID opcional: solo asignable cuando la investigacion no lo encuentra.'}
+                          </div>
+                          <ErrorMessage name="rid" component="span" className="form-group__hint" style={{ color: '#ff3333' }} />
+                        </div>
+
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label htmlFor="crewCurrent" className="form-group__label">Crew actual</label>
+                          <Field
+                            type="text"
+                            id="crewCurrent"
+                            name="crewCurrent"
+                            className="form-group__input"
+                            placeholder="Ej: Rebels Elite [RBLS] o URL"
+                            autoComplete="off"
+                            disabled={isSubmitting}
+                          />
+                          <ErrorMessage name="crewCurrent" component="span" className="form-group__hint" style={{ color: '#ff3333' }} />
+                        </div>
+                      </div>
+
+                      <div className="rfm-field-row" style={{ marginBottom: '0.75rem' }}>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label htmlFor="crew1" className="form-group__label">Crew asignada #1</label>
+                          <Field type="text" id="crew1" name="crew1" className="form-group__input" placeholder="Nombre, tag o URL" autoComplete="off" disabled={isSubmitting} />
+                          <ErrorMessage name="crew1" component="span" className="form-group__hint" style={{ color: '#ff3333' }} />
+                        </div>
+
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label htmlFor="crew2" className="form-group__label">Crew asignada #2</label>
+                          <Field type="text" id="crew2" name="crew2" className="form-group__input" placeholder="Nombre, tag o URL" autoComplete="off" disabled={isSubmitting} />
+                          <ErrorMessage name="crew2" component="span" className="form-group__hint" style={{ color: '#ff3333' }} />
+                        </div>
+                      </div>
+
+                      <div className="rfm-field-row">
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label htmlFor="crew3" className="form-group__label">Crew asignada #3</label>
+                          <Field type="text" id="crew3" name="crew3" className="form-group__input" placeholder="Nombre, tag o URL" autoComplete="off" disabled={isSubmitting} />
+                          <ErrorMessage name="crew3" component="span" className="form-group__hint" style={{ color: '#ff3333' }} />
+                        </div>
+
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label htmlFor="crew4" className="form-group__label">Crew asignada #4</label>
+                          <Field type="text" id="crew4" name="crew4" className="form-group__input" placeholder="Nombre, tag o URL" autoComplete="off" disabled={isSubmitting} />
+                          <ErrorMessage name="crew4" component="span" className="form-group__hint" style={{ color: '#ff3333' }} />
+                        </div>
+                      </div>
+
+                      <div className="rfm-note" style={{ marginTop: '0.45rem' }}>
+                        Las crews son opcionales. Puedes dejar en blanco cualquier campo.
+                      </div>
+                    </div>
+
+                    <div className="rfm-panel">
+                      <div className="rfm-panel__title">
+                        Tipo(s) de Infracción
+                        <Tooltip text="Selecciona una o varias categorías que describan la infracción.">
+                          <span style={{ cursor: 'help' }}><HelpIcon style={{ width: 15, height: 15, opacity: 0.6 }} /></span>
+                        </Tooltip>
+                      </div>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <TipoInfraccionSelector
+                          value={values.typesOfInfraction}
+                          onChange={nuevas => { setFieldValue('typesOfInfraction', nuevas); setFieldValue('labels', []); }}
+                          options={TIPOS_ETIQUETAS}
+                          disabled={isSubmitting}
+                        />
+                        <div className="rfm-note">Seleccionadas: {values.typesOfInfraction.length} categoría(s)</div>
+                        <ErrorMessage name="typesOfInfraction" component="span" className="form-group__hint" style={{ color: '#ff3333' }} />
+                      </div>
+                    </div>
+
+                    {/* ── MOTIVO + EVIDENCIAS en la misma fila ── */}
+                    <div className="rfm-motivo-row">
+                      <div className="rfm-panel" style={{ display: 'flex', flexDirection: 'column' }}>
+                        <div className="rfm-panel__title">
+                          Motivo del Reporte
+                          <Tooltip text="Describe con detalle lo que sucedió: ¿qué hizo, cuándo, dónde?">
+                            <span style={{ cursor: 'help' }}><HelpIcon style={{ width: 15, height: 15, opacity: 0.6 }} /></span>
+                          </Tooltip>
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0, flex: 1, display: 'flex', flexDirection: 'column' }}>
+                          <Field
+                            as="textarea"
+                            id="reason"
+                            name="reason"
+                            className="form-group__textarea"
+                            aria-label="Motivo del Reporte"
+                            placeholder="Describe lo que viste: qué hizo, cuándo, en qué sesión..."
+                            maxLength={500}
+                            disabled={isSubmitting}
+                            style={{ flex: 1, resize: 'none' }}
+                          />
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <ErrorMessage name="reason" component="span" className="form-group__hint" style={{ color: '#ff3333' }} />
+                            <span className="form-group__hint" style={{ marginLeft: 'auto' }}>{values.reason.length}/500</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="rfm-panel" style={{ display: 'flex', flexDirection: 'column' }}>
+                        <div className="rfm-panel__title">
+                          📎 Adjuntar Evidencias
+                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'rgba(0,255,255,0.45)', fontWeight: 400, textTransform: 'none', letterSpacing: '0.05em', marginLeft: '0.4rem' }}>opcional</span>
+                          <Tooltip text="Arrastra imágenes, selecciona archivos o pega con Ctrl+V. Hasta 5 imágenes, máx. 5MB c/u.">
+                            <span style={{ cursor: 'help' }}><HelpIcon style={{ width: 16, height: 16 }} /></span>
+                          </Tooltip>
+                        </div>
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                          <ImageUpload ref={imageUploadRef} onImagesChange={setImages} maxImages={5} globalPaste={false} disabled={isSubmitting} />
+                        </div>
+                        <span className="form-group__hint" style={{ fontSize: '0.8em', color: '#9a9a9a', fontStyle: 'italic', display: 'block', marginTop: '0.4rem', flexShrink: 0 }}>
+                          JPG, PNG, GIF, WEBP · máx. 5MB
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* ── ETIQUETAS: visibles cuando hay categorías seleccionadas ── */}
+                    {values.typesOfInfraction.length > 0 && (
+                      <div className="rfm-panel">
+                        <div className="rfm-panel__title">Etiquetas de amenaza</div>
+                        <EtiquetasSelector
+                          categorias={values.typesOfInfraction}
+                          etiquetas={values.labels}
+                          setFieldValue={setFieldValue}
+                          tiposEtiquetas={TIPOS_ETIQUETAS}
+                          disabled={isSubmitting}
+                        />
+                      </div>
+                    )}
+
+                    {/* ── DATOS ADICIONALES (COLAPSABLE) ── */}
+                    <button
+                      type="button"
+                      className="rfm-optional-toggle notranslate"
+                      translate="no"
+                      onClick={() => setShowOptional(v => !v)}
+                      disabled={isSubmitting}
+                    >
+                      <span className="rfm-optional-toggle__arrow">{showOptional ? '▾' : '▸'}</span>
+                      Datos adicionales
+                      <span className="rfm-optional-toggle__badge">contacto</span>
+                      <span className="rfm-optional-toggle__label">{showOptional ? 'ocultar' : 'opcional'}</span>
+                    </button>
+
+                    {showOptional && (
+                      <div className="rfm-panel">
+                        <div className="rfm-panel__title">
+                          Tu contacto
+                          <Tooltip text="Opcional. Solo el staff podrá verlo si necesitan contactarte para dar seguimiento.">
+                            <span style={{ cursor: 'help' }}><HelpIcon style={{ width: 15, height: 15, opacity: 0.6 }} /></span>
+                          </Tooltip>
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <Field type="text" id="reportedby" name="reportedby" className="form-group__input" placeholder="Tu Discord, Gamertag, etc." maxLength={50} autoComplete="off" disabled={isSubmitting} />
+                          <div className="form-group__hint form-group__hint--privacy">
+                            Tu identidad está protegida. Solo se usará para seguimiento interno.
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="rfm-submit-wrap">
+                      <button
+                        type="submit"
+                        className="form__submit notranslate"
+                        translate="no"
                         disabled={isSubmitting}
-                        style={{ flex: 1, resize: 'none' }}
-                      />
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <ErrorMessage name="reason" component="span" className="form-group__hint" style={{ color: '#ff3333' }} />
-                        <span className="form-group__hint" style={{ marginLeft: 'auto' }}>{values.reason.length}/500</span>
-                      </div>
+                        style={{ opacity: isSubmitting ? 0.7 : 1, cursor: isSubmitting ? 'wait' : 'pointer' }}
+                      >
+                        <span className="rfm-button-label">{isSubmitting ? '⏳ Enviando...' : '📨 Enviar Reporte a H.E.X.'}</span>
+                      </button>
                     </div>
-                  </div>
 
-                  <div className="rfm-panel" style={{ display: 'flex', flexDirection: 'column' }}>
-                    <div className="rfm-panel__title">
-                      📎 Adjuntar Evidencias
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'rgba(0,255,255,0.45)', fontWeight: 400, textTransform: 'none', letterSpacing: '0.05em', marginLeft: '0.4rem' }}>opcional</span>
-                      <Tooltip text="Arrastra imágenes, selecciona archivos, pega con Ctrl+V, o cambia a modo URL para adjuntar imágenes o videos por enlace. Hasta 5 evidencias.">
-                        <span style={{ cursor: 'help' }}><HelpIcon style={{ width: 16, height: 16 }} /></span>
-                      </Tooltip>
-                    </div>
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                      <ImageUpload ref={imageUploadRef} onImagesChange={setImages} maxImages={5} globalPaste={false} disabled={isSubmitting} />
-                    </div>
-                    <span className="form-group__hint" style={{ fontSize: '0.8em', color: '#9a9a9a', fontStyle: 'italic', display: 'block', marginTop: '0.4rem', flexShrink: 0 }}>
-                      JPG, PNG, GIF, WEBP · máx. 5MB
-                    </span>
-                  </div>
-                </div>
-
-                {/* ── ETIQUETAS: visibles cuando hay categorías seleccionadas ── */}
-                {values.typesOfInfraction.length > 0 && (
-                  <div className="rfm-panel">
-                    <div className="rfm-panel__title">Etiquetas de amenaza</div>
-                    <EtiquetasSelector
-                      categorias={values.typesOfInfraction}
-                      etiquetas={values.labels}
-                      setFieldValue={setFieldValue}
-                      tiposEtiquetas={TIPOS_ETIQUETAS}
-                      disabled={isSubmitting}
-                    />
-                  </div>
+                  </>
                 )}
-
-                {/* ── DATOS ADICIONALES (COLAPSABLE) ── */}
-                <button
-                  type="button"
-                  className="rfm-optional-toggle notranslate"
-                  translate="no"
-                  onClick={() => setShowOptional(v => !v)}
-                  disabled={isSubmitting}
-                >
-                  <span className="rfm-optional-toggle__arrow">{showOptional ? '▾' : '▸'}</span>
-                  Datos adicionales
-                  <span className="rfm-optional-toggle__badge">contacto</span>
-                  <span className="rfm-optional-toggle__label">{showOptional ? 'ocultar' : 'opcional'}</span>
-                </button>
-
-                {showOptional && (
-                  <div className="rfm-panel">
-                    <div className="rfm-panel__title">
-                      Tu contacto
-                      <Tooltip text="Opcional. Solo el staff podrá verlo si necesitan contactarte para dar seguimiento.">
-                        <span style={{ cursor: 'help' }}><HelpIcon style={{ width: 15, height: 15, opacity: 0.6 }} /></span>
-                      </Tooltip>
-                    </div>
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                      <Field type="text" id="reportedby" name="reportedby" className="form-group__input" placeholder="Tu Discord, Gamertag, etc." maxLength={50} autoComplete="off" disabled={isSubmitting} />
-                      <div className="form-group__hint form-group__hint--privacy">
-                        Tu identidad está protegida. Solo se usará para seguimiento interno.
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="rfm-submit-wrap">
-                  <button
-                    type="submit"
-                    className="form__submit notranslate"
-                    translate="no"
-                    disabled={isSubmitting}
-                    style={{ opacity: isSubmitting ? 0.7 : 1, cursor: isSubmitting ? 'wait' : 'pointer' }}
-                  >
-                    <span className="rfm-button-label">{isSubmitting ? '⏳ Enviando...' : '📨 Enviar Reporte a H.E.X.'}</span>
-                  </button>
-                </div>
 
               </div>
             </Form>

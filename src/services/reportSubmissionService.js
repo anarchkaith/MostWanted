@@ -1,26 +1,26 @@
 import { buildApiUrl } from './apiConfig';
 
+const DEFAULT_WORDPRESS_API_BASE_URL = 'https://kaithsrebels.com';
+
+function getWordpressApiBaseUrl() {
+  const configured = String(import.meta.env.VITE_WORDPRESS_API_BASE_URL || '').trim();
+  return (configured || DEFAULT_WORDPRESS_API_BASE_URL).replace(/\/+$/, '');
+}
+
 function extractBase64Payload(dataUrl = '') {
   return String(dataUrl).replace(/^data:image\/\w+;base64,/, '');
 }
 
 function inferContentType(image = {}) {
   const explicitType = typeof image?.type === 'string' ? image.type.trim().toLowerCase() : '';
-  if (explicitType && !explicitType.endsWith('/url')) return explicitType;
+  if (explicitType) return explicitType;
 
-  const name = String(image?.name || image?.preview || '').toLowerCase().split('?')[0];
+  const name = String(image?.name || '').toLowerCase();
 
   if (name.endsWith('.png')) return 'image/png';
   if (name.endsWith('.jpg') || name.endsWith('.jpeg')) return 'image/jpeg';
   if (name.endsWith('.gif')) return 'image/gif';
   if (name.endsWith('.webp')) return 'image/webp';
-  if (name.endsWith('.mp4')) return 'video/mp4';
-  if (name.endsWith('.webm')) return 'video/webm';
-  if (name.endsWith('.mov')) return 'video/quicktime';
-  if (name.endsWith('.avi')) return 'video/avi';
-  if (name.endsWith('.mkv')) return 'video/x-matroska';
-
-  if (explicitType === 'video/url') return 'video/mp4';
 
   return '';
 }
@@ -86,6 +86,77 @@ export async function submitReportToBackend({ report, reporter, evidence }) {
 
   if (!response.ok) {
     throw new Error(payload?.error || 'Error al enviar el reporte al backend.');
+  }
+
+  return payload;
+}
+
+export async function fetchWordpressPlayersSnapshot({ perPage = 100, reportsLimit = 20 } = {}) {
+  const safePerPage = Number.isFinite(perPage) ? Math.max(1, Math.min(100, Number(perPage))) : 100;
+  const safeReportsLimit = Number.isFinite(reportsLimit) ? Math.max(1, Math.min(100, Number(reportsLimit))) : 20;
+
+  const endpoint = `${getWordpressApiBaseUrl()}/wp-json/mostwanted/v1/players?per_page=${safePerPage}&with_reports=1&reports_limit=${safeReportsLimit}`;
+  const response = await fetch(endpoint, {
+    method: 'GET',
+    headers: { Accept: 'application/json' },
+  });
+
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(payload?.message || payload?.error || 'No se pudo consultar la API de jugadores de WordPress.');
+  }
+
+  return payload;
+}
+
+export async function fetchWordpressReportsSnapshot({ perPage = 100, page = 1 } = {}) {
+  const safePerPage = Number.isFinite(perPage) ? Math.max(1, Math.min(100, Number(perPage))) : 100;
+  const safePage = Number.isFinite(page) ? Math.max(1, Number(page)) : 1;
+
+  const endpoint = `${getWordpressApiBaseUrl()}/wp-json/mostwanted/v1/reports?per_page=${safePerPage}&page=${safePage}`;
+  const response = await fetch(endpoint, {
+    method: 'GET',
+    headers: { Accept: 'application/json' },
+  });
+
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(payload?.message || payload?.error || 'No se pudo consultar la API de reportes de WordPress.');
+  }
+
+  return payload;
+}
+
+export async function submitWordpressCommunityVerificationVote({
+  reportId,
+  voteType,
+  reason = '',
+  voterId = '',
+  voterName = '',
+}) {
+  const safeReportId = Number(reportId);
+  if (!Number.isFinite(safeReportId) || safeReportId <= 0) {
+    throw new Error('reportId invalido para verificacion comunitaria.');
+  }
+
+  const endpoint = `${getWordpressApiBaseUrl()}/wp-json/mostwanted/v1/reports/${safeReportId}/community-verification`;
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({
+      voteType,
+      reason,
+      voterId,
+      voterName,
+    }),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(payload?.message || payload?.error || 'No se pudo registrar la verificacion comunitaria en WordPress.');
   }
 
   return payload;

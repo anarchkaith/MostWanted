@@ -1,134 +1,150 @@
-﻿import React, { useState, useEffect } from 'react';
-// import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 
 /**
- * VoteSystem - Sistema de votos comunitarios
- * Permite a la comunidad validar reportes con comentarios opcionales
- * Usa la API /api/votos para persistir en la base de datos
- * 
- * Props:
- * - reporteId: ID del reporte
- * - votos: objeto con { up: number, down: number } (valores iniciales)
- * - onVote: callback (reporteId, nuevosDatos) => void
- * - umbralVerificacion: votos netos para verificar (default: 5)
- * - compact: modo compacto para las tarjetas (default: false)
+ * VoteSystem - Verificacion comunitaria por reporte.
+ * - Persiste votos contra WordPress via onVote (async)
+ * - Requiere motivo para marcar un reporte como falso
  */
 const VoteSystem = ({
   reporteId,
-  votos: votosIniciales = { up: 0, down: 0 },
+  votos: votosIniciales = { up: 0, down: 0, comentarios: [] },
   onVote,
   umbralVerificacion = 5,
   compact = false,
-  userVote: userVoteProp = null
+  userVote: userVoteProp = null,
 }) => {
-  const [isAnimating, setIsAnimating] = useState(false);
-  const [error, setError] = useState(null);
-  const [showCommentForm, setShowCommentForm] = useState(false);
-  const [comentario, setComentario] = useState('');
-  const [mostrarComentarios, setMostrarComentarios] = useState(false);
-  // Estado local para el voto del usuario (persistente)
-  const [userVote, setUserVote] = useState(userVoteProp);
+  const [error, setError] = useState('');
+  const [showFalseReasonForm, setShowFalseReasonForm] = useState(false);
+  const [falseReason, setFalseReason] = useState('');
+  const [falseReporterName, setFalseReporterName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const comentarios = votosIniciales.comentarios || [];
-  const votos = votosIniciales;
-  const votosNetos = votos.up - votos.down;
-  const porcentajePositivo = votos.up + votos.down > 0
-    ? Math.round((votos.up / (votos.up + votos.down)) * 100)
-    : 0;
+  const [userVote, setUserVote] = useState(userVoteProp);
+  const [votos, setVotos] = useState(votosIniciales);
+
+  useEffect(() => {
+    setVotos(votosIniciales || { up: 0, down: 0, comentarios: [] });
+  }, [votosIniciales]);
+
+  useEffect(() => {
+    setUserVote(userVoteProp || null);
+  }, [userVoteProp]);
+
+  const comentarios = Array.isArray(votos?.comentarios) ? votos.comentarios : [];
+  const votosNetos = Number(votos?.up || 0) - Number(votos?.down || 0);
+  const total = Number(votos?.up || 0) + Number(votos?.down || 0);
+  const porcentajePositivo = total > 0 ? Math.round((Number(votos?.up || 0) / total) * 100) : 0;
   const esVerificadoComunidad = votosNetos >= umbralVerificacion;
   const esRechazadoComunidad = votosNetos <= -umbralVerificacion;
 
-  // Leer voto del usuario desde localStorage al montar
-  useEffect(() => {
-    const votosUsuario = JSON.parse(localStorage.getItem('mostwanted_user_votes') || '{}');
-    if (votosUsuario[reporteId]) {
-      setUserVote(votosUsuario[reporteId]);
+  const statusText = useMemo(() => {
+    if (esVerificadoComunidad) return '✅ VERIFICADO POR LA COMUNIDAD';
+    if (esRechazadoComunidad) return '❌ RECHAZADO POR LA COMUNIDAD';
+    return '';
+  }, [esVerificadoComunidad, esRechazadoComunidad]);
+
+  const submitVote = async ({ voteType, reason = '', voterName = '' }) => {
+    if (isLoading || typeof onVote !== 'function') return;
+
+    setError('');
+    setIsLoading(true);
+
+    try {
+      const result = await onVote(reporteId, { voteType, reason, voterName });
+      if (result?.votos) {
+        setVotos(result.votos);
+      }
+      setUserVote(result?.userVote || voteType);
+      setShowFalseReasonForm(false);
+      setFalseReason('');
+      setFalseReporterName('');
+    } catch (err) {
+      setError(err?.message || 'No se pudo registrar tu voto en este momento.');
+    } finally {
+      setIsLoading(false);
     }
-  }, [reporteId]);
-
-  // Sincronizar userVote local con prop
-  useEffect(() => {
-    setUserVote(userVoteProp);
-  }, [userVoteProp]);
-
-  // Manejar voto
-  const handleVote = (tipo) => {
-    if (isLoading || userVote) return; // No permitir votar dos veces
-    setError(null);
-    setIsLoading(true);
-    setTimeout(() => {
-      let nuevosVotos = { ...votos };
-      let nuevoUserVote = userVote;
-      if (tipo === 'up') {
-        nuevosVotos.up = nuevosVotos.up + 1;
-        nuevoUserVote = 'up';
-      } else if (tipo === 'down') {
-        nuevosVotos.down = nuevosVotos.down + 1;
-        nuevoUserVote = 'down';
-      }
-      setUserVote(nuevoUserVote);
-      setIsLoading(false);
-      // Guardar voto en localStorage
-      const votosUsuario = JSON.parse(localStorage.getItem('mostwanted_user_votes') || '{}');
-      votosUsuario[reporteId] = nuevoUserVote;
-      localStorage.setItem('mostwanted_user_votes', JSON.stringify(votosUsuario));
-      if (onVote) {
-        onVote(reporteId, nuevosVotos);
-      }
-    }, 300);
   };
 
-  // Manejar quitar voto
-  const handleRemoveVote = () => {
-    if (!userVote) return;
-    setIsLoading(true);
-    setTimeout(() => {
-      let nuevosVotos = { ...votos };
-      if (userVote === 'up') {
-        nuevosVotos.up = Math.max(0, nuevosVotos.up - 1);
-      } else if (userVote === 'down') {
-        nuevosVotos.down = Math.max(0, nuevosVotos.down - 1);
-      }
-      setUserVote(null);
-      setIsLoading(false);
-      // Quitar voto de localStorage
-      const votosUsuario = JSON.parse(localStorage.getItem('mostwanted_user_votes') || '{}');
-      delete votosUsuario[reporteId];
-      localStorage.setItem('mostwanted_user_votes', JSON.stringify(votosUsuario));
-      if (onVote) {
-        onVote(reporteId, nuevosVotos);
-      }
-    }, 300);
+  const handleLegitVote = () => {
+    submitVote({ voteType: 'up' });
   };
 
-  // Modo compacto para las tarjetas
+  const handleFalseVoteClick = () => {
+    setError('');
+
+    if (compact) {
+      const promptReason = window.prompt('Explica por qué este reporte es falso (minimo 8 caracteres):', '');
+      if (promptReason === null) return;
+      const trimmed = String(promptReason || '').trim();
+      if (trimmed.length < 8) {
+        setError('Debes indicar un motivo valido (minimo 8 caracteres).');
+        return;
+      }
+      const promptName = window.prompt('Indica tu nombre para confirmar este reporte como falso:', '');
+      if (promptName === null) return;
+      const trimmedName = String(promptName || '').trim();
+      if (trimmedName.length < 2) {
+        setError('Debes indicar tu nombre (minimo 2 caracteres).');
+        return;
+      }
+      submitVote({ voteType: 'down', reason: trimmed, voterName: trimmedName });
+      return;
+    }
+
+    setShowFalseReasonForm(true);
+  };
+
+  const confirmFalseVote = () => {
+    const trimmed = String(falseReason || '').trim();
+    const trimmedName = String(falseReporterName || '').trim();
+    if (trimmed.length < 8) {
+      setError('Debes indicar un motivo valido (minimo 8 caracteres).');
+      return;
+    }
+    if (trimmedName.length < 2) {
+      setError('Debes indicar el nombre de quien confirma el reporte falso.');
+      return;
+    }
+    submitVote({ voteType: 'down', reason: trimmed, voterName: trimmedName });
+  };
+
   if (compact) {
     return (
       <div className="vote-system vote-system--compact">
         <button
           className={`vote-btn vote-btn--up ${userVote === 'up' ? 'vote-btn--active' : ''} ${isLoading ? 'vote-btn--loading' : ''}`}
-          onClick={(e) => { e.stopPropagation(); handleVote('up'); }}
-          aria-label="Votar como legítimo"
-          title="Es legítimo"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleLegitVote();
+          }}
+          aria-label="Votar como legitimo"
+          title="Es legitimo"
           disabled={isLoading}
         >
-          {isLoading && userVote !== 'up' ? '⏳' : '👍'} {votos.up}
+          {isLoading ? '⏳' : '👍'} {Number(votos?.up || 0)}
         </button>
+
         <button
           className={`vote-btn vote-btn--down ${userVote === 'down' ? 'vote-btn--active' : ''} ${isLoading ? 'vote-btn--loading' : ''}`}
-          onClick={(e) => { e.stopPropagation(); handleVote('down'); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleFalseVoteClick();
+          }}
           aria-label="Votar como falso"
           title="Es falso"
           disabled={isLoading}
         >
-          {isLoading && userVote !== 'down' ? '⏳' : '👎'} {votos.down}
+          {isLoading ? '⏳' : '👎'} {Number(votos?.down || 0)}
         </button>
+
+        {error && <div className="vote-system__error">⚠️ {error}</div>}
 
         <style>{`
           .vote-system--compact {
             display: flex;
             gap: 0.5rem;
             margin-top: 0.5rem;
+            align-items: center;
+            flex-wrap: wrap;
           }
 
           .vote-system--compact .vote-btn {
@@ -167,165 +183,130 @@ const VoteSystem = ({
     );
   }
 
-  // Modo completo para el modal de detalle
   return (
-    <div className={`vote-system ${isAnimating ? 'vote-system--animating' : ''}`}>
+    <div className="vote-system">
       <div className="vote-system__header">
-        <span className="vote-system__title">🗳️ VERIFICACIÓN COMUNITARIA</span>
-        {esVerificadoComunidad && (
-          <span className="vote-system__badge vote-system__badge--verified">
-            ✅ VERIFICADO POR LA COMUNIDAD
-          </span>
-        )}
-        {esRechazadoComunidad && (
-          <span className="vote-system__badge vote-system__badge--rejected">
-            ❌ RECHAZADO POR LA COMUNIDAD
+        <span className="vote-system__title">🗳️ VERIFICACION COMUNITARIA</span>
+        {statusText && (
+          <span className={`vote-system__badge ${esVerificadoComunidad ? 'vote-system__badge--verified' : 'vote-system__badge--rejected'}`}>
+            {statusText}
           </span>
         )}
       </div>
 
-      <div className="vote-system__question">
-        ¿Este reporte es legítimo?
-      </div>
+      <div className="vote-system__question">¿Este reporte es legitimo?</div>
 
       <div className="vote-system__buttons">
         <button
           className={`vote-btn vote-btn--full vote-btn--up ${userVote === 'up' ? 'vote-btn--active' : ''} ${isLoading ? 'vote-btn--loading' : ''}`}
-          onClick={() => handleVote('up')}
-          aria-label="Votar como legítimo"
+          onClick={handleLegitVote}
+          aria-label="Votar como legitimo"
           disabled={isLoading}
         >
           <span className="vote-btn__icon">{isLoading ? '⏳' : '👍'}</span>
-          <span className="vote-btn__label">SÍ, ES LEGÍTIMO</span>
-          <span className="vote-btn__count">{votos.up}</span>
+          <span className="vote-btn__label">SI, ES LEGITIMO</span>
+          <span className="vote-btn__count">{Number(votos?.up || 0)}</span>
         </button>
 
         <button
           className={`vote-btn vote-btn--full vote-btn--down ${userVote === 'down' ? 'vote-btn--active' : ''} ${isLoading ? 'vote-btn--loading' : ''}`}
-          onClick={() => handleVote('down')}
+          onClick={handleFalseVoteClick}
           aria-label="Votar como falso"
           disabled={isLoading}
         >
           <span className="vote-btn__icon">{isLoading ? '⏳' : '👎'}</span>
           <span className="vote-btn__label">NO, ES FALSO</span>
-          <span className="vote-btn__count">{votos.down}</span>
+          <span className="vote-btn__count">{Number(votos?.down || 0)}</span>
         </button>
       </div>
 
-      {/* Mensaje de error */}
-      {error && (
-        <div className="vote-system__error">
-          ⚠️ {error}
-        </div>
-      )}
-
-      {/* Barra de progreso */}
-      <div className="vote-system__progress">
-        <div className="vote-system__progress-bar">
-          <div
-            className="vote-system__progress-fill vote-system__progress-fill--up"
-            style={{ width: `${porcentajePositivo}%` }}
-          />
-          <div
-            className="vote-system__progress-fill vote-system__progress-fill--down"
-            style={{ width: `${100 - porcentajePositivo}%` }}
-          />
-        </div>
-        <div className="vote-system__progress-labels">
-          <span className="vote-system__progress-label vote-system__progress-label--up">
-            {porcentajePositivo}% legítimo
-          </span>
-          <span className="vote-system__progress-label vote-system__progress-label--down">
-            {100 - porcentajePositivo}% falso
-          </span>
-        </div>
-      </div>
-
-      {/* Info sobre verificación */}
-      <div className="vote-system__info">
-        <span className="vote-system__score">
-          Puntuación: <strong style={{ color: votosNetos >= 0 ? '#22c55e' : '#ef4444' }}>
-            {votosNetos >= 0 ? '+' : ''}{votosNetos}
-          </strong>
-        </span>
-        <span className="vote-system__threshold">
-          {!esVerificadoComunidad && !esRechazadoComunidad && (
-            <>Faltan <strong>{umbralVerificacion - Math.abs(votosNetos)}</strong> votos para verificar</>
-          )}
-        </span>
-      </div>
-
-      {userVote && (
-        <div className="vote-system__user-vote">
-          Tu voto: {userVote === 'up' ? '👍 Legítimo' : '👎 Falso'}
-          <span className="vote-system__change-hint">(clic para cambiar)</span>
-        </div>
-      )}
-
-      {/* Formulario de comentario para voto negativo */}
-      {showCommentForm && (
+      {showFalseReasonForm && (
         <div className="vote-system__comment-form">
-          <div className="vote-system__comment-header">
-            ⚠️ ¿Por qué crees que este reporte es falso?
-          </div>
+          <div className="vote-system__comment-header">⚠️ Explica por que consideras que este reporte es falso</div>
+          <input
+            className="vote-system__comment-input"
+            value={falseReporterName}
+            onChange={(e) => setFalseReporterName(e.target.value)}
+            placeholder="Tu nombre (obligatorio)"
+            maxLength={80}
+            style={{ marginBottom: '0.6rem' }}
+          />
           <textarea
             className="vote-system__comment-input"
-            value={comentario}
-            onChange={(e) => setComentario(e.target.value)}
-            placeholder="Explica tu razón (opcional, máx. 200 caracteres)..."
-            maxLength={200}
-            rows={3}
+            value={falseReason}
+            onChange={(e) => setFalseReason(e.target.value)}
+            placeholder="Detalla el motivo (minimo 8 caracteres)..."
+            maxLength={500}
+            rows={4}
           />
           <div className="vote-system__comment-actions">
             <button
               className="vote-system__comment-btn vote-system__comment-btn--cancel"
-              onClick={handleCancelVote}
+              onClick={() => {
+                setShowFalseReasonForm(false);
+                setFalseReason('');
+                setFalseReporterName('');
+                setError('');
+              }}
+              disabled={isLoading}
             >
               Cancelar
             </button>
             <button
               className="vote-system__comment-btn vote-system__comment-btn--confirm"
-              onClick={handleConfirmVote}
+              onClick={confirmFalseVote}
+              disabled={isLoading}
             >
-              👎 Confirmar voto
+              {isLoading ? '⏳ Guardando...' : '👎 Confirmar voto falso'}
             </button>
           </div>
         </div>
       )}
 
-      {/* Sección de comentarios */}
-      {comentarios.length > 0 && (
-        <div className="vote-system__comments">
-          <button
-            className="vote-system__comments-toggle"
-            onClick={() => setMostrarComentarios(!mostrarComentarios)}
-          >
-            💬 {comentarios.length} comentario{comentarios.length !== 1 ? 's' : ''} de la comunidad
-            <span>{mostrarComentarios ? '▲' : '▼'}</span>
-          </button>
+      {error && <div className="vote-system__error">⚠️ {error}</div>}
 
-          {mostrarComentarios && (
-            <div className="vote-system__comments-list">
-              {comentarios.map((c, index) => (
-                <div key={index} className={`vote-system__comment vote-system__comment--${c.tipo}`}>
-                  <span className="vote-system__comment-icon">
-                    {c.tipo === 'up' ? '👍' : '👎'}
-                  </span>
-                  <span className="vote-system__comment-text">{c.comentario}</span>
-                  <span className="vote-system__comment-date">
-                    {new Date(c.fecha).toLocaleDateString('es-ES')}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
+      <div className="vote-system__progress">
+        <div className="vote-system__progress-bar">
+          <div className="vote-system__progress-fill vote-system__progress-fill--up" style={{ width: `${porcentajePositivo}%` }} />
+          <div className="vote-system__progress-fill vote-system__progress-fill--down" style={{ width: `${100 - porcentajePositivo}%` }} />
         </div>
-      )}
+        <div className="vote-system__progress-labels">
+          <span className="vote-system__progress-label vote-system__progress-label--up">{porcentajePositivo}% legitimo</span>
+          <span className="vote-system__progress-label vote-system__progress-label--down">{100 - porcentajePositivo}% falso</span>
+        </div>
+      </div>
+
+      <div className="vote-system__info">
+        <span className="vote-system__score">
+          Puntuacion: <strong style={{ color: votosNetos >= 0 ? '#22c55e' : '#ef4444' }}>{votosNetos >= 0 ? '+' : ''}{votosNetos}</strong>
+        </span>
+        {!esVerificadoComunidad && !esRechazadoComunidad && (
+          <span className="vote-system__threshold">Faltan <strong>{Math.max(0, umbralVerificacion - Math.abs(votosNetos))}</strong> votos para definir estado</span>
+        )}
+      </div>
 
       {userVote && (
-        <button onClick={handleRemoveVote} disabled={isLoading} className="remove-vote-btn">
-          Quitar voto
-        </button>
+        <div className="vote-system__user-vote">Tu voto actual: {userVote === 'up' ? '👍 Legitimo' : '👎 Falso'}</div>
+      )}
+
+      {comentarios.length > 0 && (
+        <div className="vote-system__comments">
+          <div className="vote-system__comments-title">
+            💬 {comentarios.length} motivo{comentarios.length !== 1 ? 's' : ''} de voto falso
+          </div>
+          <div className="vote-system__comments-list">
+            {comentarios.map((item, index) => (
+              <div key={`${item.fecha || 'f'}-${index}`} className={`vote-system__comment vote-system__comment--${item.tipo || 'down'}`}>
+                <span className="vote-system__comment-icon">{item.tipo === 'up' ? '👍' : '👎'}</span>
+                <div className="vote-system__comment-text">
+                  <div>{item.comentario}</div>
+                  <div className="vote-system__comment-author">por {item.autor || 'Comunidad'}</div>
+                </div>
+                <span className="vote-system__comment-date">{new Date(item.fecha || Date.now()).toLocaleDateString('es-ES')}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       <style>{`
@@ -334,16 +315,6 @@ const VoteSystem = ({
           border: 2px solid var(--color-gray-light, #3a3a3a);
           padding: 1rem;
           margin-top: 1rem;
-        }
-
-        .vote-system--animating {
-          animation: voteShake 0.3s ease;
-        }
-
-        @keyframes voteShake {
-          0%, 100% { transform: translateX(0); }
-          25% { transform: translateX(-2px); }
-          75% { transform: translateX(2px); }
         }
 
         .vote-system__header {
@@ -367,7 +338,6 @@ const VoteSystem = ({
           font-size: 0.7rem;
           padding: 0.25rem 0.5rem;
           font-weight: bold;
-          animation: badgePulse 2s ease-in-out infinite;
         }
 
         .vote-system__badge--verified {
@@ -378,11 +348,6 @@ const VoteSystem = ({
         .vote-system__badge--rejected {
           background: linear-gradient(135deg, #ef4444, #dc2626);
           color: #fff;
-        }
-
-        @keyframes badgePulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.8; }
         }
 
         .vote-system__question {
@@ -451,6 +416,60 @@ const VoteSystem = ({
         .vote-btn--up .vote-btn__count { color: #22c55e; }
         .vote-btn--down .vote-btn__count { color: #ef4444; }
 
+        .vote-system__comment-form {
+          margin-top: 0.25rem;
+          margin-bottom: 1rem;
+          padding: 1rem;
+          background: rgba(239, 68, 68, 0.1);
+          border: 1px solid #ef4444;
+        }
+
+        .vote-system__comment-header {
+          font-family: var(--font-stencil, 'Black Ops One', cursive);
+          font-size: 0.85rem;
+          color: #ef4444;
+          margin-bottom: 0.75rem;
+        }
+
+        .vote-system__comment-input {
+          width: 100%;
+          background: var(--color-black, #0a0a0a);
+          border: 1px solid var(--color-gray-light, #3a3a3a);
+          color: var(--color-cream, #e0e0a0);
+          font-family: var(--font-typewriter, 'Special Elite', monospace);
+          font-size: 0.85rem;
+          padding: 0.75rem;
+          resize: vertical;
+          min-height: 60px;
+        }
+
+        .vote-system__comment-actions {
+          display: flex;
+          gap: 0.5rem;
+          margin-top: 0.75rem;
+          justify-content: flex-end;
+        }
+
+        .vote-system__comment-btn {
+          padding: 0.5rem 1rem;
+          font-family: var(--font-mono, monospace);
+          font-size: 0.8rem;
+          cursor: pointer;
+          border: none;
+          transition: all 0.2s ease;
+        }
+
+        .vote-system__comment-btn--cancel {
+          background: var(--color-gray-dark, #1a1a1a);
+          border: 1px solid var(--color-gray-light, #3a3a3a);
+          color: var(--color-cream, #e0e0a0);
+        }
+
+        .vote-system__comment-btn--confirm {
+          background: #ef4444;
+          color: #fff;
+        }
+
         .vote-system__progress {
           margin-bottom: 0.75rem;
         }
@@ -494,7 +513,9 @@ const VoteSystem = ({
           justify-content: space-between;
           font-family: var(--font-mono, monospace);
           font-size: 0.75rem;
-          color: var(--color-cream-dark, #d0d0a98);
+          color: var(--color-cream-dark, #d0d0a9);
+          gap: 0.5rem;
+          flex-wrap: wrap;
         }
 
         .vote-system__user-vote {
@@ -507,103 +528,18 @@ const VoteSystem = ({
           text-align: center;
         }
 
-        .vote-system__change-hint {
-          opacity: 0.5;
-          margin-left: 0.5rem;
-          font-size: 0.7rem;
-        }
-
-        /* Formulario de comentario */
-        .vote-system__comment-form {
-          margin-top: 1rem;
-          padding: 1rem;
-          background: rgba(239, 68, 68, 0.1);
-          border: 1px solid #ef4444;
-        }
-
-        .vote-system__comment-header {
-          font-family: var(--font-stencil, 'Black Ops One', cursive);
-          font-size: 0.85rem;
-          color: #ef4444;
-          margin-bottom: 0.75rem;
-        }
-
-        .vote-system__comment-input {
-          width: 100%;
-          background: var(--color-black, #0a0a0a);
-          border: 1px solid var(--color-gray-light, #3a3a3a);
-          color: var(--color-cream, #e0e0a0);
-          font-family: var(--font-typewriter, 'Special Elite', monospace);
-          font-size: 0.85rem;
-          padding: 0.75rem;
-          resize: vertical;
-          min-height: 60px;
-        }
-
-        .vote-system__comment-input:focus {
-          outline: none;
-          border-color: #ef4444;
-        }
-
-        .vote-system__comment-actions {
-          display: flex;
-          gap: 0.5rem;
-          margin-top: 0.75rem;
-          justify-content: flex-end;
-        }
-
-        .vote-system__comment-btn {
-          padding: 0.5rem 1rem;
-          font-family: var(--font-mono, monospace);
-          font-size: 0.8rem;
-          cursor: pointer;
-          border: none;
-          transition: all 0.2s ease;
-        }
-
-        .vote-system__comment-btn--cancel {
-          background: var(--color-gray-dark, #1a1a1a);
-          border: 1px solid var(--color-gray-light, #3a3a3a);
-          color: var(--color-cream, #e0e0a0);
-        }
-
-        .vote-system__comment-btn--cancel:hover {
-          background: var(--color-gray-light, #3a3a3a);
-        }
-
-        .vote-system__comment-btn--confirm {
-          background: #ef4444;
-          color: #fff;
-        }
-
-        .vote-system__comment-btn--confirm:hover {
-          background: #dc2626;
-        }
-
-        /* Sección de comentarios */
         .vote-system__comments {
           margin-top: 1rem;
           border-top: 1px dashed var(--color-gray-light, #3a3a3a);
           padding-top: 0.75rem;
         }
 
-        .vote-system__comments-toggle {
+        .vote-system__comments-title {
           width: 100%;
-          background: transparent;
-          border: none;
           color: var(--color-cream, #e0e0a0);
           font-family: var(--font-mono, monospace);
-          font-size: 0.8rem;
-          cursor: pointer;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
+          font-size: 0.82rem;
           padding: 0.5rem;
-          transition: background 0.2s ease;
-        }
-
-        .vote-system__comments-toggle:hover {
-          background: rgba(255, 255, 255, 0.05);
         }
 
         .vote-system__comments-list {
@@ -611,7 +547,7 @@ const VoteSystem = ({
           display: flex;
           flex-direction: column;
           gap: 0.5rem;
-          max-height: 200px;
+          max-height: 220px;
           overflow-y: auto;
         }
 
@@ -642,6 +578,13 @@ const VoteSystem = ({
           font-family: var(--font-typewriter, 'Special Elite', monospace);
         }
 
+        .vote-system__comment-author {
+          opacity: 0.7;
+          margin-top: 0.25rem;
+          font-size: 0.75rem;
+          font-family: var(--font-mono, monospace);
+        }
+
         .vote-system__comment-date {
           flex-shrink: 0;
           font-family: var(--font-mono, monospace);
@@ -649,7 +592,6 @@ const VoteSystem = ({
           opacity: 0.5;
         }
 
-        /* Estados de carga y error */
         .vote-btn--loading {
           opacity: 0.7;
           cursor: wait;
@@ -678,7 +620,6 @@ const VoteSystem = ({
 
           .vote-system__info {
             flex-direction: column;
-            gap: 0.25rem;
             text-align: center;
           }
 

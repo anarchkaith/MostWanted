@@ -1,7 +1,3 @@
-function hasReporterIdentity(reporter = {}) {
-  return Boolean(reporter?.id || reporter?.tag || reporter?.email);
-}
-
 function hasOwnKeys(value) {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length > 0);
 }
@@ -18,10 +14,12 @@ function pickAnalysis(input = {}) {
 
 export function buildHexbotReportPayload(input = {}) {
   const reporter = input?.reporter || {};
-  const anonymous = Boolean(input?.anonymous ?? !hasReporterIdentity(reporter));
-  const reporterName = reporter.name || (anonymous ? 'Anonimo' : 'Formulario web');
+  const reporterName = reporter.name || 'Anónimo';
   const analysis = pickAnalysis(input);
   const nickname = input?.report?.nickname || '';
+  const aliases = Array.isArray(input?.report?.aliases)
+    ? input.report.aliases.filter((item) => typeof item === 'string' && item.trim() !== '')
+    : [];
 
   const reportMetadata = {
     ...(Array.isArray(input?.report?.typesOfInfraction) && input.report.typesOfInfraction.length > 0
@@ -30,8 +28,11 @@ export function buildHexbotReportPayload(input = {}) {
     ...(Array.isArray(input?.report?.labels) && input.report.labels.length > 0
       ? { tags: input.report.labels }
       : {}),
+    ...(Array.isArray(input?.report?.labelIds) && input.report.labelIds.length > 0
+      ? { tagIds: input.report.labelIds }
+      : {}),
     ...(input?.report?.reportedby ? { reportedby: input.report.reportedby } : {}),
-    ...(input?.report?.severity ? { severity: input.report.severity } : {}),
+    ...(input?.report?.investigation_status ? { investigation_status: input.report.investigation_status } : {}),
     ...(analysis ? { analysis } : {}),
   };
 
@@ -39,23 +40,43 @@ export function buildHexbotReportPayload(input = {}) {
     username: nickname,
     // Información del jugador reportado
     nickname,
+    playerId: input?.report?.playerId || '',
+    crewCurrent: input?.report?.crewCurrent || '',
+    crew1: input?.report?.crew1 || '',
+    crew2: input?.report?.crew2 || '',
+    crew3: input?.report?.crew3 || '',
+    crew4: input?.report?.crew4 || '',
+    ...(input?.report?.crewCurrentData && typeof input.report.crewCurrentData === 'object'
+      ? { crewCurrentData: input.report.crewCurrentData }
+      : {}),
+    ...(Array.isArray(input?.report?.crewsAssigned) && input.report.crewsAssigned.length > 0
+      ? { crewsAssigned: input.report.crewsAssigned }
+      : {}),
+    ...(Array.isArray(input?.report?.crewsAssignedData) && input.report.crewsAssignedData.length > 0
+      ? { crewsAssignedData: input.report.crewsAssignedData }
+      : {}),
+    ...(Array.isArray(input?.report?.crewsData) && input.report.crewsData.length > 0
+      ? { crewsData: input.report.crewsData }
+      : {}),
     crews: input?.report?.crews || '',
     avatar1: input?.report?.avatar1 || '',
     avatar2: input?.report?.avatar2 || '',
     rid: input?.report?.rid || null,
     ip: input?.report?.ip || '',
-    aliases: input?.report?.aliases || '',
+    aliases,
     time: input?.report?.time || null,
     // Información del reporte
     reason: input?.report?.reason || '',
     typesOfInfraction: Array.isArray(input?.report?.typesOfInfraction) ? input.report.typesOfInfraction : [],
     labels: Array.isArray(input?.report?.labels) ? input.report.labels : [],
+    ...(Array.isArray(input?.report?.labelIds) && input.report.labelIds.length > 0
+      ? { labelIds: input.report.labelIds }
+      : {}),
     reportedby: input?.report?.reportedby || '',
     // Información de la fuente y reporter
-    anonymous,
     source: input?.source || 'mostwanted-web',
     reporter: {
-      id: reporter.id || (anonymous ? 'anonymous-web' : 'mostwanted-web'),
+      id: reporter.id || 'mostwanted-web',
       name: reporterName,
       ...(reporter.tag ? { tag: reporter.tag } : {}),
     },

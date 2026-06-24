@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import CORSPermission from './CORSPermission';
 import { investigatePlayerBackground } from './backgroundInvestigation';
 import { isBlockedReportedUsername } from './blockedUsernames';
@@ -17,6 +17,16 @@ export default function PlayerBackgroundPanel({
   const [error, setError] = useState(null);
   const [showCorsPermissionPopup, setShowCorsPermissionPopup] = useState(false);
   const [avatarRenderState, setAvatarRenderState] = useState({});
+  const onInvestigationChangeRef = useRef(onInvestigationChange);
+  const onInvestigatingChangeRef = useRef(onInvestigatingChange);
+
+  useEffect(() => {
+    onInvestigationChangeRef.current = onInvestigationChange;
+  }, [onInvestigationChange]);
+
+  useEffect(() => {
+    onInvestigatingChangeRef.current = onInvestigatingChange;
+  }, [onInvestigatingChange]);
 
   const socialClubProfileUrl = useMemo(() => {
     const inputName = typeof username === 'string' ? username.trim() : '';
@@ -32,68 +42,82 @@ export default function PlayerBackgroundPanel({
   };
 
   const crews = useMemo(() => {
-    const profile = investigation?.profile;
-    if (!profile || typeof profile !== 'object') return [];
+    const sourceCrews = Array.isArray(investigation?.reportInsights?.crews)
+      ? investigation.reportInsights.crews
+      : [];
 
-    const source = [
-      profile.crews,
-      profile.crew,
-      profile.clubs,
-      profile.organizations,
-      profile.gtaCrews,
-    ].find(Boolean);
-
-    if (!source) return [];
-    if (Array.isArray(source)) {
-      return source
-        .map((item) => {
-          if (typeof item === 'string') return item;
-          if (item && typeof item === 'object') return item.name || item.tag || item.crewName || '';
-          return '';
-        })
-        .filter(Boolean);
-    }
-
-    if (typeof source === 'string') return [source];
-    if (source && typeof source === 'object') {
-      const objectValues = Object.values(source)
-        .map((item) => {
-          if (typeof item === 'string') return item;
-          if (item && typeof item === 'object') return item.name || item.tag || item.crewName || '';
-          return '';
-        })
-        .filter(Boolean);
-      return objectValues;
-    }
-
-    return [];
+    return Array.from(new Set(sourceCrews.map((item) => String(item || '').trim()).filter(Boolean)));
   }, [investigation]);
 
-  const aliases = useMemo(() => {
-    const profile = investigation?.profile;
-    if (!profile || typeof profile !== 'object') return [];
+  const reportInsights = useMemo(() => {
+    const raw = investigation?.reportInsights;
+    if (!raw || typeof raw !== 'object') return null;
+    return raw;
+  }, [investigation]);
 
-    const source = [profile.aliases, profile.previousNames, profile.names, profile.aka].find(Boolean);
-    if (!source) return [];
-    if (Array.isArray(source)) return source.filter(Boolean).map((item) => String(item));
-    if (typeof source === 'string') return [source];
-    return [];
+  const crewsFromReports = useMemo(() => {
+    return Array.isArray(reportInsights?.crews)
+      ? reportInsights.crews.map((item) => String(item || '').trim()).filter(Boolean)
+      : [];
+  }, [reportInsights]);
+
+  const crewsWithSource = useMemo(() => {
+    return crewsFromReports.map((crew) => ({
+      name: crew,
+      source: 'reportes',
+    }));
+  }, [crewsFromReports]);
+
+  const aliases = useMemo(() => {
+    const aliasesFromReports = Array.isArray(investigation?.reportInsights?.names)
+      ? investigation.reportInsights.names
+        .map((entry) => {
+          if (typeof entry === 'string') return entry;
+          if (entry && typeof entry === 'object') return entry.name || '';
+          return '';
+        })
+        .filter(Boolean)
+      : [];
+
+    return Array.from(new Set(aliasesFromReports.map((item) => String(item || '').trim()).filter(Boolean)));
   }, [investigation]);
 
   const nameHistory = useMemo(() => {
-    const history = investigation?.profile?.nameHistory;
-    if (!Array.isArray(history)) return [];
+    const reportHistory = Array.isArray(investigation?.reportInsights?.names)
+      ? investigation.reportInsights.names
+        .map((entry) => {
+          if (!entry || typeof entry !== 'object') return null;
+          if (!entry.name) return null;
+          return {
+            name: String(entry.name),
+            time: Number.isFinite(Number(entry.time)) ? Number(entry.time) : 0,
+            timeReadable: entry.timeReadable || null,
+            timeIso: entry.timeIso || null,
+          };
+        })
+        .filter(Boolean)
+      : [];
 
-    return [...history]
-      .filter((item) => item && typeof item === 'object' && item.name)
+    const uniqueByName = new Map();
+    for (const item of reportHistory) {
+      const key = String(item.name || '').trim().toLowerCase();
+      if (!key) continue;
+      const existing = uniqueByName.get(key);
+      if (!existing || (Number(item.time) || 0) > (Number(existing.time) || 0)) {
+        uniqueByName.set(key, item);
+      }
+    }
+
+    return Array.from(uniqueByName.values())
       .sort((a, b) => (Number(b.time) || 0) - (Number(a.time) || 0));
   }, [investigation]);
 
   const panelStats = useMemo(() => ([
     { label: 'Alias detectados', value: String(nameHistory.length || aliases.length || 0) },
-    { label: 'Crews', value: String(crews.length || 0) },
-    { label: 'Ultimo registro', value: investigation?.profile?.lastSeenReadable || 'Desconocido' },
-  ]), [aliases.length, crews.length, investigation, nameHistory.length]);
+    { label: 'Crews', value: String(crewsWithSource.length || 0) },
+    { label: 'Reportes previos', value: String(reportInsights?.reportCount || 0) },
+    { label: 'Ultimo registro', value: reportInsights?.lastReportAtReadable || investigation?.profile?.lastSeenReadable || 'Desconocido' },
+  ]), [aliases.length, crewsWithSource.length, investigation, nameHistory.length, reportInsights]);
 
   const avatarSlotsToRender = useMemo(() => {
     const avatars = investigation?.avatares;
@@ -188,22 +212,24 @@ export default function PlayerBackgroundPanel({
       return;
     }
 
-    if (!username || username.trim().length < 2) {
+    const targetUsername = typeof username === 'string' ? username.trim() : '';
+
+    if (!targetUsername || targetUsername.length < 2) {
       setInvestigation(null);
       setError(null);
       setShowCorsPermissionPopup(false);
-      if (onInvestigationChange) {
-        onInvestigationChange(null);
+      if (onInvestigationChangeRef.current) {
+        onInvestigationChangeRef.current(null);
       }
       return;
     }
 
-    if (isBlockedReportedUsername(username)) {
+    if (isBlockedReportedUsername(targetUsername)) {
       setInvestigation(null);
       setError(null);
       setShowCorsPermissionPopup(false);
-      if (onInvestigationChange) {
-        onInvestigationChange(null);
+      if (onInvestigationChangeRef.current) {
+        onInvestigationChangeRef.current(null);
       }
       return;
     }
@@ -211,42 +237,42 @@ export default function PlayerBackgroundPanel({
     const performInvestigation = async () => {
       setIsLoading(true);
       setError(null);
-      if (onInvestigatingChange) {
-        onInvestigatingChange(true);
+      if (onInvestigatingChangeRef.current) {
+        onInvestigatingChangeRef.current(true);
       }
 
       try {
-        const result = await investigatePlayerBackground(username);
+        const result = await investigatePlayerBackground(targetUsername);
         setInvestigation(result);
 
         // Notificar al padre sobre la investigación exitosa
-        if (onInvestigationChange) {
-          onInvestigationChange(result);
+        if (onInvestigationChangeRef.current) {
+          onInvestigationChangeRef.current(result);
         }
       } catch (err) {
         setError(err.message);
         setInvestigation(null);
 
         // Notificar error al padre
-        if (onInvestigationChange) {
-          onInvestigationChange(null);
+        if (onInvestigationChangeRef.current) {
+          onInvestigationChangeRef.current(null);
         }
       } finally {
         setIsLoading(false);
-        if (onInvestigatingChange) {
-          onInvestigatingChange(false);
+        if (onInvestigatingChangeRef.current) {
+          onInvestigatingChangeRef.current(false);
         }
       }
     };
 
     performInvestigation();
-  }, [investigateToken, username, onInvestigationChange, onInvestigatingChange]);
+  }, [investigateToken]);
 
   useEffect(() => () => {
-    if (onInvestigatingChange) {
-      onInvestigatingChange(false);
+    if (onInvestigatingChangeRef.current) {
+      onInvestigatingChangeRef.current(false);
     }
-  }, [onInvestigatingChange]);
+  }, []);
 
   if (!username || username.trim().length === 0) {
     return null;
@@ -793,6 +819,14 @@ export default function PlayerBackgroundPanel({
           white-space: nowrap;
         }
 
+        .pbp-chip__source {
+          margin-left: 0.35rem;
+          font-size: 0.64rem;
+          opacity: 0.7;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+
         .pbp-empty {
           font-family: var(--font-mono, 'Courier New', monospace);
           font-size: 0.74rem;
@@ -957,7 +991,11 @@ export default function PlayerBackgroundPanel({
                   <div className="pbp-identity-header__copy">
                     <div className="pbp-identity-header__eyebrow">Sujeto identificado</div>
                     <div className="pbp-current__name notranslate" translate="no">{investigation.nombre}</div>
-                    <div className="pbp-current__label">Registro de Social Club vinculado al nombre reportado</div>
+                    <div className="pbp-current__label">
+                      {investigation?.rid
+                        ? 'Registro de Social Club vinculado al nombre reportado'
+                        : 'Antecedentes locales encontrados en reportes previos'}
+                    </div>
                   </div>
                   {socialClubProfileUrl && (
                     <a
@@ -1040,10 +1078,13 @@ export default function PlayerBackgroundPanel({
 
                 <div className="pbp-section">
                   <div className="pbp-current__label">Afiliaciones detectadas</div>
-                  {crews.length > 0 ? (
+                  {crewsWithSource.length > 0 ? (
                     <div className="pbp-current__crews">
-                      {crews.map((crew) => (
-                        <span key={crew} className="pbp-chip">{crew}</span>
+                      {crewsWithSource.map((crew) => (
+                        <span key={`${crew.name}-${crew.source}`} className="pbp-chip">
+                          {crew.name}
+                          <span className="pbp-chip__source">{crew.source}</span>
+                        </span>
                       ))}
                     </div>
                   ) : (

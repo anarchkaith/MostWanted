@@ -1,37 +1,12 @@
 import React, { useState, useRef, useCallback, useImperativeHandle, forwardRef } from 'react';
 
-const VIDEO_EXTENSIONS = ['.mp4', '.webm', '.mov', '.avi', '.mkv', '.m4v', '.ogg', '.ogv'];
-const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
-
-function isVideoUrl(url = '') {
-  const lower = url.toLowerCase().split('?')[0];
-  return VIDEO_EXTENSIONS.some(ext => lower.endsWith(ext));
-}
-
-function isImageUrl(url = '') {
-  const lower = url.toLowerCase().split('?')[0];
-  return IMAGE_EXTENSIONS.some(ext => lower.endsWith(ext));
-}
-
-function detectUrlType(url = '') {
-  if (isVideoUrl(url)) return 'video';
-  if (isImageUrl(url)) return 'image';
-  // Heurística por dominio/servicio conocido
-  const lower = url.toLowerCase();
-  if (lower.includes('youtu.be') || lower.includes('youtube.com') || lower.includes('streamable.com') || lower.includes('medal.tv') || lower.includes('clips.twitch.tv')) return 'video';
-  return 'image'; // fallback: tratar como imagen
-}
-
 const ImageUpload = forwardRef(({ onImagesChange, maxImages = 5, globalPaste = false, disabled = false }, ref) => {
   const [images, setImages] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState('');
   const [pasteNotification, setPasteNotification] = useState(false);
-  const [urlMode, setUrlMode] = useState(false);
-  const [urlInput, setUrlInput] = useState('');
   const fileInputRef = useRef(null);
   const dropZoneRef = useRef(null);
-  const urlInputRef = useRef(null);
 
   const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
   const maxSizeBytes = 5 * 1024 * 1024;
@@ -124,32 +99,6 @@ const ImageUpload = forwardRef(({ onImagesChange, maxImages = 5, globalPaste = f
     onImagesChange?.(updatedImages);
   };
 
-  const addUrlEvidence = useCallback(() => {
-    const trimmed = urlInput.trim();
-    if (!trimmed) return;
-    if (!/^https?:\/\/.+/i.test(trimmed)) { setError('La URL debe comenzar con http:// o https://'); return; }
-    if (images.length >= maxImages) { setError(`Máximo ${maxImages} evidencias`); return; }
-    setError('');
-    const urlType = detectUrlType(trimmed);
-    const urlName = trimmed.split('/').pop()?.split('?')[0] || 'evidencia';
-    const newEntry = {
-      id: `url-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      isUrl: true,
-      urlType,
-      file: null,
-      base64: null,
-      name: urlName || 'evidencia',
-      type: urlType === 'video' ? 'video/url' : 'image/url',
-      size: 0,
-      preview: trimmed,
-    };
-    const updated = [...images, newEntry];
-    setImages(updated);
-    onImagesChange?.(updated);
-    setUrlInput('');
-    urlInputRef.current?.focus();
-  }, [urlInput, images, maxImages, onImagesChange]);
-
   const formatSize = (bytes) => {
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
@@ -164,83 +113,42 @@ const ImageUpload = forwardRef(({ onImagesChange, maxImages = 5, globalPaste = f
         <div className="image-upload__paste-notification">✅ ¡Imagen pegada correctamente!</div>
       )}
 
-      {/* Tabs: Archivo / URL */}
-      <div className="image-upload__tabs">
-        <button
-          type="button"
-          className={`image-upload__tab${!urlMode ? ' image-upload__tab--active' : ''}`}
-          onClick={() => { setUrlMode(false); setError(''); }}
-          disabled={disabled}
-        >📁 Archivo</button>
-        <button
-          type="button"
-          className={`image-upload__tab${urlMode ? ' image-upload__tab--active' : ''}`}
-          onClick={() => { setUrlMode(true); setError(''); }}
-          disabled={disabled}
-        >🔗 URL</button>
-      </div>
+      {/* Zona de Drop — se colapsa cuando está llena */}
+      <div
+        ref={dropZoneRef}
+        className={`image-upload__dropzone${isDragging ? ' image-upload__dropzone--active' : ''}${isFull ? ' image-upload__dropzone--full' : ''}${disabled ? ' image-upload__dropzone--disabled' : ''}`}
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+        onClick={() => !disabled && !isFull && fileInputRef.current?.click()}
+        onKeyDown={(e) => { if (!disabled && !isFull && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); fileInputRef.current?.click(); } }}
+        tabIndex={disabled || isFull ? -1 : 0}
+        role="button"
+        aria-label="Zona para subir imágenes"
+      >
+        <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" multiple onChange={handleFileSelect} className="image-upload__input" aria-hidden="true" disabled={disabled} />
 
-      {/* Panel URL */}
-      {urlMode ? (
-        <div className="image-upload__url-panel">
-          <div className="image-upload__url-row">
-            <input
-              ref={urlInputRef}
-              type="url"
-              className="image-upload__url-input"
-              placeholder="https://ejemplo.com/evidencia.mp4 o .jpg ..."
-              value={urlInput}
-              onChange={e => setUrlInput(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addUrlEvidence(); } }}
-              disabled={disabled || images.length >= maxImages}
-            />
-            <button
-              type="button"
-              className="image-upload__url-add"
-              onClick={addUrlEvidence}
-              disabled={disabled || images.length >= maxImages || !urlInput.trim()}
-            >Agregar</button>
-          </div>
-          <span className="image-upload__url-hint">Soporta imágenes y videos · Acepta YouTube, Streamable, Medal.tv, etc.</span>
-        </div>
-      ) : (
-        /* Zona de Drop — se colapsa cuando está llena */
-        <div
-          ref={dropZoneRef}
-          className={`image-upload__dropzone${isDragging ? ' image-upload__dropzone--active' : ''}${isFull ? ' image-upload__dropzone--full' : ''}${disabled ? ' image-upload__dropzone--disabled' : ''}`}
-          onDragEnter={handleDragEnter}
-          onDragLeave={handleDragLeave}
-          onDragOver={handleDragOver}
-          onDrop={handleDrop}
-          onClick={() => !disabled && !isFull && fileInputRef.current?.click()}
-          onKeyDown={(e) => { if (!disabled && !isFull && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); fileInputRef.current?.click(); } }}
-          tabIndex={disabled || isFull ? -1 : 0}
-          role="button"
-          aria-label="Zona para subir imágenes"
-        >
-          <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" multiple onChange={handleFileSelect} className="image-upload__input" aria-hidden="true" disabled={disabled} />
-
-          {isFull ? (
-            <span className="image-upload__full-msg">✔ {maxImages}/{maxImages} — límite alcanzado</span>
-          ) : (
-            <div className="image-upload__content">
-              <div className="image-upload__icon" aria-hidden="true">{isDragging ? '📥' : '📷'}</div>
-              <div className="image-upload__text">
-                {isDragging ? (
-                  <span className="image-upload__text--active">¡Suelta las imágenes aquí!</span>
-                ) : (
-                  <>
-                    <span className="image-upload__text--primary">Arrastra imágenes aquí</span>
-                    <span className="image-upload__text--secondary">o haz clic para seleccionar</span>
-                    <span className="image-upload__text--hint">💡 También puedes usar <kbd>CTRL</kbd>+<kbd>V</kbd> para pegar</span>
-                  </>
-                )}
-              </div>
-              <div className="image-upload__limits">Máx. {maxImages} imágenes • JPG, PNG, GIF, WEBP • 5MB c/u</div>
+        {isFull ? (
+          <span className="image-upload__full-msg">✔ {maxImages}/{maxImages} — límite alcanzado</span>
+        ) : (
+          <div className="image-upload__content">
+            <div className="image-upload__icon" aria-hidden="true">{isDragging ? '📥' : '📷'}</div>
+            <div className="image-upload__text">
+              {isDragging ? (
+                <span className="image-upload__text--active">¡Suelta las imágenes aquí!</span>
+              ) : (
+                <>
+                  <span className="image-upload__text--primary">Arrastra imágenes aquí</span>
+                  <span className="image-upload__text--secondary">o haz clic para seleccionar</span>
+                  <span className="image-upload__text--hint">💡 También puedes usar <kbd>CTRL</kbd>+<kbd>V</kbd> para pegar</span>
+                </>
+              )}
             </div>
-          )}
-        </div>
-      )}
+            <div className="image-upload__limits">Máx. {maxImages} imágenes • JPG, PNG, GIF, WEBP • 5MB c/u</div>
+          </div>
+        )}
+      </div>
 
       {error && <div className="image-upload__error" role="alert">⚠️ {error}</div>}
 
@@ -249,16 +157,12 @@ const ImageUpload = forwardRef(({ onImagesChange, maxImages = 5, globalPaste = f
         <div className="image-upload__preview-grid">
           {images.map((image) => (
             <div key={image.id} className="image-upload__preview-item">
-              {image.isUrl && image.urlType === 'video' ? (
-                <div className="image-upload__preview-video-thumb" title={image.preview}>🎬</div>
-              ) : (
-                <img src={image.preview} alt={`Vista previa: ${image.name}`} className="image-upload__preview-img" />
-              )}
+              <img src={image.preview} alt={`Vista previa: ${image.name}`} className="image-upload__preview-img" />
               <div className="image-upload__preview-overlay">
                 <span className="image-upload__preview-name" title={image.name}>
-                  {image.isUrl ? '🔗 ' : ''}{image.name.length > 15 ? image.name.substring(0, 12) + '...' : image.name}
+                  {image.name.length > 15 ? image.name.substring(0, 12) + '...' : image.name}
                 </span>
-                <span className="image-upload__preview-size">{image.isUrl ? (image.urlType === 'video' ? 'video' : 'imagen') : formatSize(image.size)}</span>
+                <span className="image-upload__preview-size">{formatSize(image.size)}</span>
               </div>
               <button
                 type="button"
@@ -283,95 +187,6 @@ const ImageUpload = forwardRef(({ onImagesChange, maxImages = 5, globalPaste = f
           display: flex;
           flex-direction: column;
           position: relative;
-        }
-
-        /* ── Tabs ── */
-        .image-upload__tabs {
-          display: flex;
-          gap: 0;
-          margin-bottom: 0.5rem;
-          border-bottom: 1px solid var(--color-gray-light, #3a3a3a);
-          flex-shrink: 0;
-        }
-        .image-upload__tab {
-          flex: 1;
-          background: transparent;
-          border: none;
-          border-bottom: 2px solid transparent;
-          color: var(--color-text-muted, #9a9a9a);
-          font-family: var(--font-mono, monospace);
-          font-size: 0.8rem;
-          padding: 0.35rem 0.5rem;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          margin-bottom: -1px;
-        }
-        .image-upload__tab:hover:not(:disabled) { color: var(--color-cream, #e0e0a0); }
-        .image-upload__tab--active {
-          color: var(--color-red-alert, #ff3333);
-          border-bottom-color: var(--color-red-alert, #ff3333);
-        }
-        .image-upload__tab:disabled { opacity: 0.4; cursor: not-allowed; }
-
-        /* ── Panel URL ── */
-        .image-upload__url-panel {
-          display: flex;
-          flex-direction: column;
-          gap: 0.4rem;
-          padding: 0.75rem;
-          border: 1px dashed var(--color-gray-light, #3a3a3a);
-          background: var(--color-black, #0a0a0a);
-          flex: 1;
-          min-height: 80px;
-          justify-content: center;
-        }
-        .image-upload__url-row {
-          display: flex;
-          gap: 0.5rem;
-        }
-        .image-upload__url-input {
-          flex: 1;
-          background: var(--color-gray-dark, #1a1a1a);
-          border: 1px solid var(--color-gray-light, #3a3a3a);
-          color: var(--color-cream, #e0e0a0);
-          font-family: var(--font-mono, monospace);
-          font-size: 0.8rem;
-          padding: 0.4rem 0.6rem;
-          outline: none;
-          transition: border-color 0.2s;
-        }
-        .image-upload__url-input:focus { border-color: var(--color-red-alert, #ff3333); }
-        .image-upload__url-input::placeholder { color: var(--color-text-muted, #9a9a9a); }
-        .image-upload__url-input:disabled { opacity: 0.4; cursor: not-allowed; }
-        .image-upload__url-add {
-          background: var(--color-red-alert, #ff3333);
-          color: #000;
-          border: none;
-          font-family: var(--font-mono, monospace);
-          font-size: 0.8rem;
-          font-weight: bold;
-          padding: 0.4rem 0.9rem;
-          cursor: pointer;
-          transition: background 0.2s;
-          white-space: nowrap;
-        }
-        .image-upload__url-add:hover:not(:disabled) { background: #ff0000; }
-        .image-upload__url-add:disabled { opacity: 0.4; cursor: not-allowed; }
-        .image-upload__url-hint {
-          font-family: var(--font-mono, monospace);
-          font-size: 0.7rem;
-          color: var(--color-text-muted, #9a9a9a);
-        }
-
-        /* ── Thumbnail de video ── */
-        .image-upload__preview-video-thumb {
-          width: 100%;
-          height: 100%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 2rem;
-          background: var(--color-gray-dark, #1a1a1a);
         }
 
         .image-upload__paste-notification {

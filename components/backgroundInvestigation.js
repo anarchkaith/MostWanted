@@ -1,10 +1,105 @@
 ﻿import { BLOCKED_REPORTED_USERNAME_MESSAGE, isBlockedReportedUsername } from './blockedUsernames';
+import { buildApiUrl } from '../src/services/apiConfig';
 
 const CORS_ANYWHERE_BASE_URL = 'https://cors-anywhere.herokuapp.com/';
 const CORS_PERMISSION_URL = `${CORS_ANYWHERE_BASE_URL}https://mostwanted.kaithsrebels.com/`;
 
 function getCorsProxyUrl(url) {
   return `${CORS_ANYWHERE_BASE_URL}${url}`;
+}
+
+function mergeUniqueStrings(...lists) {
+  const seen = new Set();
+  const result = [];
+
+  for (const list of lists) {
+    const source = Array.isArray(list) ? list : [];
+    for (const rawValue of source) {
+      const value = String(rawValue || '').trim();
+      if (!value) continue;
+      const normalized = value.toLowerCase();
+      if (seen.has(normalized)) continue;
+      seen.add(normalized);
+      result.push(value);
+    }
+  }
+
+  return result;
+}
+
+function extractNamesFromInsights(reportInsights = null) {
+  if (!reportInsights || typeof reportInsights !== 'object') return [];
+
+  const unifiedNames = Array.isArray(reportInsights.names)
+    ? reportInsights.names
+      .map((entry) => {
+        if (typeof entry === 'string') return entry;
+        if (entry && typeof entry === 'object') return entry.name;
+        return '';
+      })
+      .filter(Boolean)
+    : [];
+
+  const legacyAliases = Array.isArray(reportInsights.aliases) ? reportInsights.aliases : [];
+  const legacyNicknames = Array.isArray(reportInsights.nicknames) ? reportInsights.nicknames : [];
+
+  return mergeUniqueStrings(unifiedNames, legacyAliases, legacyNicknames);
+}
+
+function extractNameHistoryFromInsights(reportInsights = null) {
+  if (!reportInsights || typeof reportInsights !== 'object') return [];
+
+  if (!Array.isArray(reportInsights.names)) return [];
+
+  return reportInsights.names
+    .map((entry) => {
+      if (!entry || typeof entry !== 'object') return null;
+      const name = String(entry.name || '').trim();
+      if (!name) return null;
+
+      const unix = Number(entry.time);
+      const safeTime = Number.isFinite(unix) && unix > 0 ? Math.floor(unix) : 0;
+
+      return {
+        name,
+        time: safeTime,
+        timeReadable: safeTime > 0 ? formatUnixTimeReadable(safeTime) : 'Fecha desconocida',
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => (Number(b.time) || 0) - (Number(a.time) || 0));
+}
+
+function extractPanelAvatarsFromInsights(reportInsights = null) {
+  if (!reportInsights || typeof reportInsights !== 'object') return [];
+
+  const urls = Array.isArray(reportInsights.avatars)
+    ? reportInsights.avatars
+      .map((item) => (typeof item === 'string' ? item : item?.url || item?.avatarUrl || ''))
+      .map((item) => String(item || '').trim())
+      .filter(Boolean)
+    : [];
+
+  return urls.slice(0, 2).map((avatarUrl, index) => ({
+    index,
+    avatarUrl,
+    proxiedAvatarUrl: getCorsProxyUrl(avatarUrl),
+    available: true,
+  }));
+}
+
+async function getPlayerReportInsights({ username, rid = '' }) {
+  const params = new URLSearchParams();
+  if (username) params.set('username', username);
+  if (rid) params.set('rid', String(rid));
+
+  const response = await fetch(buildApiUrl(`/reports/player-insights?${params.toString()}`));
+  if (!response.ok) {
+    return null;
+  }
+
+  const payload = await response.json().catch(() => ({}));
+  return payload?.ok ? payload.player : null;
 }
 
 function createHttpStatusError(status) {
@@ -292,27 +387,66 @@ export async function investigatePlayerBackground(username) {
 
   try {
     const { rid, usedProxy: ridProxy } = await getPlayerRid(trimmedUsername);
-    const { profile, usedProxy: profileProxy } = await getPlayerProfile(rid);
-    const [avatar0, avatar1, battleye] = await Promise.all([
-      downloadPlayerAvatar(rid, 0),
-      downloadPlayerAvatar(rid, 1),
-      fetchBattleyeAccountStatus(),
-    ]);
-    const avatars = [avatar0.avatar, avatar1.avatar];
+    const reportInsights = await getPlayerReportInsights({ username: trimmedUsername, rid });
+    const nameHistory = extractNameHistoryFromInsights(reportInsights);
+    const aliases = extractNamesFromInsights(reportInsights);
+    const crews = mergeUniqueStrings(reportInsights?.crews);
+    const avatars = extractPanelAvatarsFromInsights(reportInsights);
+    const displayName = nameHistory[0]?.name || aliases[0] || trimmedUsername;
+    const lastSeenReadable = reportInsights?.lastReportAt
+      ? new Date(reportInsights.lastReportAt).toLocaleString('es-ES')
+      : 'Sin datos de API local';
 
     return {
       username: trimmedUsername,
       rid,
-      nombre: profile.name,
+      nombre: displayName,
       avatares: avatars,
-      profile,
-      accountStatus: battleye.status,
+      profile: {
+        name: displayName,
+        aliases,
+        crews,
+        nameHistory,
+        lastSeenReadable,
+      },
+      reportInsights,
+      accountStatus: null,
       corsPermissionRequired: false,
       corsPermissionUrl: CORS_PERMISSION_URL,
-      usedCorsProxy: ridProxy || profileProxy || avatar0.usedProxy || avatar1.usedProxy || battleye.usedProxy,
+      usedCorsProxy: ridProxy,
       timestamp: new Date().toISOString(),
     };
   } catch (error) {
+    const reportInsights = await getPlayerReportInsights({ username: trimmedUsername }).catch(() => null);
+
+    if (reportInsights?.reportCount > 0) {
+      const aliases = extractNamesFromInsights(reportInsights);
+      const nameHistory = extractNameHistoryFromInsights(reportInsights);
+      const avatars = extractPanelAvatarsFromInsights(reportInsights);
+
+      return {
+        username: trimmedUsername,
+        rid: reportInsights.rid || '',
+        nombre: nameHistory[0]?.name || aliases[0] || trimmedUsername,
+        avatares: avatars,
+        profile: {
+          name: nameHistory[0]?.name || aliases[0] || trimmedUsername,
+          aliases: mergeUniqueStrings(aliases),
+          crews: mergeUniqueStrings(reportInsights.crews),
+          nameHistory,
+          lastSeenReadable: reportInsights.lastReportAt
+            ? new Date(reportInsights.lastReportAt).toLocaleString('es-ES')
+            : 'Sin datos de API local',
+        },
+        reportInsights,
+        accountStatus: null,
+        corsPermissionRequired: false,
+        corsPermissionUrl: CORS_PERMISSION_URL,
+        usedCorsProxy: false,
+        timestamp: new Date().toISOString(),
+      };
+    }
+
     console.error('[Investigation] ERROR durante investigacion:', error);
     throw new Error(`No se pudo investigar al jugador "${trimmedUsername}": ${error instanceof Error ? error.message : 'fallo desconocido'}`);
   }

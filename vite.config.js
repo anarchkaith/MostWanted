@@ -34,6 +34,12 @@ export default defineConfig(({ mode }) => {
           timeout: 30000,
           proxyTimeout: 30000,
         },
+        '/api/auth': {
+          target: backendTarget,
+          changeOrigin: true,
+          timeout: 30000,
+          proxyTimeout: 30000,
+        },
         '/api/battleye-status': {
           target: backendTarget,
           changeOrigin: true,

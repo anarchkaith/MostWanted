@@ -34,6 +34,10 @@ function toUpperText(value, fallback = 'NO IDENTIFICADO') {
   return (text || fallback).toUpperCase();
 }
 
+function toTrimmedString(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
 function normalizeTimestamp(value) {
   if (!Number.isFinite(value)) return Date.now();
   return value > 1e12 ? value : value * 1000;
@@ -83,16 +87,48 @@ function buildInfractionField(report = {}) {
 
 function buildThreatCodes(report = {}) {
   const labels = Array.isArray(report.labels) ? report.labels : [];
-  if (labels.length === 0) {
+  const labelIds = Array.isArray(report.labelIds) ? report.labelIds : [];
+
+  if (labels.length === 0 && labelIds.length === 0) {
     return '#Sin etiquetas de amenaza';
   }
 
-  return truncateText(labels.map((label) => `#${label}`).join('\n'), 1024);
+  const labelCodes = [
+    ...labels.map((label) => `#${label}`),
+    ...labelIds.map((id) => `#ID-${id}`),
+  ];
+
+  return truncateText(labelCodes.join('\n'), 1024);
 }
 
 function buildTargetDetails(report = {}) {
   const details = [];
+  const normalizedCrewEntries = Array.isArray(report?.crewsData) ? report.crewsData : [];
+  const assignedCrews = [report.crew1, report.crew2, report.crew3, report.crew4]
+    .map((item) => toTrimmedString(item))
+    .filter(Boolean);
 
+  if (report.crewCurrent) details.push(`Crew actual: ${report.crewCurrent}`);
+  if (assignedCrews[0]) details.push(`Crew asignada #1: ${assignedCrews[0]}`);
+  if (assignedCrews[1]) details.push(`Crew asignada #2: ${assignedCrews[1]}`);
+  if (assignedCrews[2]) details.push(`Crew asignada #3: ${assignedCrews[2]}`);
+  if (assignedCrews[3]) details.push(`Crew asignada #4: ${assignedCrews[3]}`);
+  if (normalizedCrewEntries.length > 0) {
+    for (const entry of normalizedCrewEntries.slice(0, 5)) {
+      const line = [
+        entry?.isActive ? 'Crew estructurada (actual)' : 'Crew estructurada',
+        entry?.name || entry?.raw || '',
+        entry?.tag ? `[${entry.tag}]` : '',
+        entry?.url || '',
+      ]
+        .filter(Boolean)
+        .join(' | ');
+
+      if (line) {
+        details.push(line);
+      }
+    }
+  }
   if (report.crews) details.push(`Crew: ${report.crews}`);
   if (report.rid) details.push(`RID: ${report.rid}`);
   if (report.ip) details.push(`IP: ${report.ip}`);
@@ -102,7 +138,7 @@ function buildTargetDetails(report = {}) {
 }
 
 function buildFooterText(report = {}, reporter = {}) {
-  const actor = toUpperText(report.reportedby || reporter.tag || reporter.name || 'ANONIMO', 'ANONIMO');
+  const actor = toUpperText(report.reportedby || reporter.tag || reporter.name || 'FORMULARIO WEB', 'FORMULARIO WEB');
   return `LOG_BY: ${actor} // NO MERCY FOR TOXICS - ${formatIncidentDate(report.time)}`;
 }
 

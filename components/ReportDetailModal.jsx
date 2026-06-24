@@ -74,17 +74,17 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
 
   if (!reporte) return null;
 
-  // Formatear nombre de usuario para URL (URL-safe)
-  const formatUsuarioURL = (usuario) => {
-    if (!usuario) return '';
-    return encodeURIComponent(usuario.toLowerCase().replace(/\s+/g, '_'));
+  const getExpedienteUrl = (expedienteId) => {
+    const id = Number(expedienteId);
+    if (!Number.isFinite(id) || id <= 0) return window.location.origin;
+    return `${window.location.origin}/expediente/${id}`;
   };
 
   // Número de expediente (mantener para display visual)
-  const numeroExpediente = (reporte.id ?? 0).toString().padStart(4, '0');
+  const numeroExpediente = (reporte.expedienteId ?? reporte.id ?? 0).toString().padStart(4, '0');
 
-  // Generar URL compartible usando el nombre de usuario
-  const urlExpediente = `${window.location.origin}/${formatUsuarioURL(reporte.usuario)}`;
+  // Generar URL compartible usando el id incremental de expediente
+  const urlExpediente = getExpedienteUrl(reporte.expedienteId ?? reporte.id);
 
   // Copiar URL al portapapeles
   const copiarURL = async () => {
@@ -400,6 +400,18 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
                 <span aria-hidden="true">📋</span> EXPEDIENTE #{numeroExpediente}
                 {isEditing && <span style={{ color: '#ffaa00', marginLeft: '0.5rem' }}>(Editando)</span>}
               </h2>
+              <div style={{
+                marginTop: '0.4rem',
+                fontFamily: 'var(--font-mono, monospace)',
+                fontSize: '0.82rem',
+                color: 'var(--color-cream-dark, #bfbf8f)',
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '0.85rem',
+              }}>
+                <span>📅 {formatDate(reporte.fecha)}</span>
+                <span>🎮 Reportado por: <strong>{reporte.reportadoPor || 'ANONIMO'}</strong></span>
+              </div>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 {isAdmin && !isEditing && (
                   <button
@@ -411,13 +423,6 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
                     ✏️ Editar
                   </button>
                 )}
-                <button
-                  className="modal__share-btn"
-                  onClick={copiarURL}
-                  title="Copiar enlace del expediente"
-                >
-                  {urlCopiada ? '✅ ¡Copiado!' : '🔗 Compartir'}
-                </button>
               </div>
             </div>
             <button
@@ -559,32 +564,6 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
                   {reporte.motivo}
                 </div>
               )}
-            </div>
-
-            {/* Reportado por */}
-            <div className="report-detail__field">
-              <div className="report-detail__label">Reportado por</div>
-              {isEditing ? (
-                <input
-                  type="text"
-                  className="report-detail__input"
-                  value={editData.reportadoPor}
-                  onChange={(e) => setEditData({ ...editData, reportadoPor: e.target.value })}
-                  placeholder="Nombre del reportador"
-                />
-              ) : (
-                <div className="report-detail__value">
-                  🎮 {reporte.reportadoPor}
-                </div>
-              )}
-            </div>
-
-            {/* Fecha */}
-            <div className="report-detail__field">
-              <div className="report-detail__label">Fecha del Reporte</div>
-              <div className="report-detail__value">
-                📅 {formatDate(reporte.fecha)}
-              </div>
             </div>
 
             {/* Evidencia Visual */}

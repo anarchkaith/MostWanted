@@ -2,6 +2,10 @@
 import { BLOCKED_REPORTED_USERNAME_MESSAGE, isBlockedReportedUsername } from './blockedUsernames';
 
 export const reportFormValidationSchema = Yup.object({
+  investigation_status: Yup.string()
+    .oneOf(['not_attempted', 'pending', 'resolved', 'not_found'])
+    .required(),
+
   // Información del jugador reportado
   nickname: Yup.string()
     .trim()
@@ -16,6 +20,26 @@ export const reportFormValidationSchema = Yup.object({
     .trim()
     .nullable(),
 
+  crewCurrent: Yup.string()
+    .trim()
+    .nullable(),
+
+  crew1: Yup.string()
+    .trim()
+    .nullable(),
+
+  crew2: Yup.string()
+    .trim()
+    .nullable(),
+
+  crew3: Yup.string()
+    .trim()
+    .nullable(),
+
+  crew4: Yup.string()
+    .trim()
+    .nullable(),
+
   avatar1: Yup.string()
     .trim()
     .nullable(),
@@ -25,8 +49,19 @@ export const reportFormValidationSchema = Yup.object({
     .nullable(),
 
   rid: Yup.number()
+    .transform((value, originalValue) => {
+      if (originalValue === '' || originalValue === null || typeof originalValue === 'undefined') {
+        return null;
+      }
+      return value;
+    })
     .typeError('RID debe ser un número')
-    .nullable(),
+    .nullable()
+    .when('investigation_status', {
+      is: 'resolved',
+      then: (schema) => schema.required('RID obligatorio cuando la investigacion encuentra datos.'),
+      otherwise: (schema) => schema,
+    }),
 
   ip: Yup.string()
     .trim()

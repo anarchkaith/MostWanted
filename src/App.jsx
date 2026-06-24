@@ -1,11 +1,14 @@
 ﻿import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import reportesData from '../data/reportes.json';
 import ReportCard from '../components/ReportCard';
 import ReportDetailModal from '../components/ReportDetailModal';
 import ReportFormModal from '../components/ReportFormModal';
 import HelpModal from '../components/HelpModal';
 import AIAssistantBubble from '../components/AIAssistantBubble';
 import { buildApiUrl, getApiBaseUrl } from './services/apiConfig';
+import {
+  fetchWordpressReportsSnapshot,
+  submitWordpressCommunityVerificationVote,
+} from './services/reportSubmissionService';
 
 /**
  * App - Componente principal de MOST WANTED
@@ -14,35 +17,42 @@ import { buildApiUrl, getApiBaseUrl } from './services/apiConfig';
  * 
  * URLs soportadas:
  * - / - Lista de todos los reportes
- * - /0001 - Ver expediente #0001
+ * - /expediente/:id - Ver expediente por ID incremental
  * - /?admin=1 - Modo administrador
  */
 
-// Formatear ID de expediente usando el nombre de usuario (URL-safe)
-const formatExpediente = (usuario) => {
-  if (!usuario) return '';
-  // Convertir a minúsculas y reemplazar espacios/caracteres especiales
-  return `/usuario/${encodeURIComponent(usuario.toLowerCase().replace(/\s+/g, '_'))}`;
+// Formatear URL del expediente por ID incremental.
+const formatExpediente = (expedienteId) => {
+  const id = Number.isFinite(Number(expedienteId)) ? Number(expedienteId) : 0;
+  if (!id) return '/';
+  return `/expediente/${id}`;
 };
 
 // Base URL de la API (solo desde .env)
 const API_BASE_URL = getApiBaseUrl();
 
-// Obtener usuario desde la URL (solo si ruta es /usuario/:nombre_usuario)
+// Obtener referencia de expediente desde la URL.
 const getExpedienteFromURL = () => {
   const path = window.location.pathname;
-  // Solo buscar si la ruta es /usuario/...
-  const match = path.match(/^\/usuario\/(.+)$/);
-  if (match && match[1]) {
-    // Decodificar y normalizar el nombre
-    return decodeURIComponent(match[1]).replace(/_/g, ' ');
+
+  const byExpedienteId = path.match(/^\/expediente\/(\d+)$/);
+  if (byExpedienteId && byExpedienteId[1]) {
+    return { expedienteId: Number(byExpedienteId[1]), usuario: '' };
   }
-  return null;
+
+  // Compatibilidad con enlaces viejos /usuario/:nombre
+  const byUsuario = path.match(/^\/usuario\/(.+)$/);
+  if (byUsuario && byUsuario[1]) {
+    return {
+      expedienteId: null,
+      usuario: decodeURIComponent(byUsuario[1]).replace(/_/g, ' '),
+    };
+  }
+
+  return { expedienteId: null, usuario: '' };
 };
 
-const DISCORD_CLIENT_ID = import.meta.env.VITE_DISCORD_CLIENT_ID;
-const DISCORD_REDIRECT_URI = import.meta.env.VITE_DISCORD_REDIRECT_URI;
-const DISCORD_AUTH_URL = `https://discord.com/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(DISCORD_REDIRECT_URI)}&response_type=code&scope=identify`;
+const DISCORD_AUTH_URL = buildApiUrl('/auth/discord');
 
 const mapCategoriaLegacy = (categorias = [], categoriaActual = '') => {
   if (categoriaActual) return categoriaActual;
@@ -51,6 +61,86 @@ const mapCategoriaLegacy = (categorias = [], categoriaActual = '') => {
   if (first === 'GRIFFER') return 'griffer';
   if (first === 'GLITCHER' || first === 'ACOSO-RAID') return 'tramposo';
   return 'tramposo';
+};
+
+const mapCategoriaFromWordpressType = (categories = []) => {
+  const firstType = Array.isArray(categories) && categories.length > 0 ? String(categories[0]).toUpperCase() : '';
+  if (firstType === 'MODDER') return 'modder';
+  if (firstType === 'GRIFFER') return 'griffer';
+  return 'tramposo';
+};
+
+const mapSeveridadFromWordpressLabels = (labels = []) => {
+  const merged = Array.isArray(labels)
+    ? labels
+      .map((entry) => {
+        if (typeof entry === 'string') return entry;
+        if (entry && typeof entry === 'object') return `${entry.label || ''} ${entry.detail || ''}`;
+        return '';
+      })
+      .join(' ')
+      .toLowerCase()
+    : '';
+  if (merged.includes('critic')) return 'critica';
+  if (merged.includes('alto') || merged.includes('high')) return 'alta';
+  if (merged.includes('bajo') || merged.includes('low')) return 'baja';
+  return 'media';
+};
+
+const normalizeComentariosFromCommunityVerification = (communityVerification = {}) => {
+  const confirmations = Array.isArray(communityVerification?.confirmations)
+    ? communityVerification.confirmations
+    : [];
+
+  return confirmations
+    .filter((entry) => String(entry?.reason || '').trim() !== '')
+    .map((entry) => ({
+      tipo: 'down',
+      comentario: String(entry?.reason || '').trim(),
+      autor: String(entry?.reporterName || 'Comunidad').trim() || 'Comunidad',
+      fecha: new Date().toISOString(),
+    }));
+};
+
+const mapWordpressReportToReporte = (report = {}) => {
+  const evidence = Array.isArray(report?.evidence) ? report.evidence : [];
+  const usuario = String(report?.nickname || report?.title || '').trim();
+
+  const reportadoPor = String(report?.reporter?.name || '').trim();
+  const communityVerification = report?.communityVerification || {};
+  const normalizedComments = normalizeComentariosFromCommunityVerification(communityVerification);
+
+  return {
+    id: Number(report?.id) || Date.now(),
+    usuario: usuario || 'USUARIO_SIN_NOMBRE',
+    motivo: report?.content || 'Reporte registrado en MostWanted.',
+    reportadoPor: reportadoPor || 'ANONIMO',
+    categoria: mapCategoriaFromWordpressType(report?.categories || []),
+    fecha: report?.createdAt || new Date().toISOString(),
+    evidencia: evidence[0]?.url || '',
+    evidencias: evidence.map((item, index) => ({
+      id: `${report?.id || 'report'}-evidence-${index}`,
+      preview: item?.url || '',
+      nombre: item?.name || `Evidencia ${index + 1}`,
+      tipo: item?.contentType || 'image/png',
+    })).filter((item) => item.preview),
+    estado: 'activo',
+    severidad: mapSeveridadFromWordpressLabels(report?.labels || []),
+    validacion: 'pendiente',
+    votos: {
+      up: Number(communityVerification?.up) || 0,
+      down: Number(communityVerification?.down) || 0,
+      comentarios: normalizedComments,
+    },
+    wpRid: report?.rid || '',
+  };
+};
+
+const assignExpedienteIds = (reportes = []) => {
+  return reportes.map((reporte, index) => ({
+    ...reporte,
+    expedienteId: index + 1,
+  }));
 };
 
 const normalizeReporte = (reporte = {}) => {
@@ -130,9 +220,10 @@ function App() {
   const isAuthCallback = window.location.pathname === '/auth-callback';
   const isHome = window.location.pathname === '/';
   const isUsuario = /^\/usuario\/.+/.test(window.location.pathname);
+  const isExpediente = /^\/expediente\/\d+$/.test(window.location.pathname);
 
   // Mostrar error si la ruta es inválida (no redirigir)
-  if (!isHome && !isUsuario && !isAuthCallback) {
+  if (!isHome && !isUsuario && !isExpediente && !isAuthCallback) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif' }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>🚫</div>
@@ -147,21 +238,23 @@ function App() {
   // Mostrar loader si estamos en /auth-callback
   if (isAuthCallback) {
     useEffect(() => {
-      const url = new URL(window.location.href);
-      const code = url.searchParams.get('code');
-      if (code && !user) {
-        fetch(`${buildApiUrl('/discord-auth')}?code=${encodeURIComponent(code)}`)
-          .then(res => res.json())
-          .then(data => {
-            if (data.user) {
-              setUser(data.user);
-              localStorage.setItem('discord_user', JSON.stringify(data.user));
-            }
-            window.location.href = '/';
-          });
-      } else if (!code) {
-        window.location.href = '/';
-      }
+      fetch(buildApiUrl('/auth/me'), {
+        credentials: 'include',
+      })
+        .then((res) => (res.ok ? res.json() : { authenticated: false, user: null }))
+        .then((data) => {
+          if (data?.authenticated && data?.user) {
+            setUser(data.user);
+            localStorage.setItem('discord_user', JSON.stringify(data.user));
+          } else {
+            localStorage.removeItem('discord_user');
+          }
+          window.location.href = '/';
+        })
+        .catch(() => {
+          localStorage.removeItem('discord_user');
+          window.location.href = '/';
+        });
     }, [user]);
     return (
       <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif' }}>
@@ -174,13 +267,19 @@ function App() {
   // Manejar navegación por URL (abrir expediente desde URL)
   useEffect(() => {
     const abrirExpedienteDesdeURL = () => {
-      const usuarioBuscado = getExpedienteFromURL();
-      if (usuarioBuscado && reportes.length > 0) {
-        // Buscar por nombre de usuario (case-insensitive)
-        const reporte = reportes.find(r =>
-          r.usuario.toLowerCase() === usuarioBuscado.toLowerCase() ||
-          r.usuario.toLowerCase().replace(/\s+/g, '_') === usuarioBuscado.toLowerCase()
-        );
+      const referencia = getExpedienteFromURL();
+      if (reportes.length > 0) {
+        let reporte = null;
+
+        if (referencia?.expedienteId) {
+          reporte = reportes.find(r => Number(r.expedienteId) === Number(referencia.expedienteId));
+        } else if (referencia?.usuario) {
+          reporte = reportes.find(r =>
+            String(r.usuario || '').toLowerCase() === referencia.usuario.toLowerCase() ||
+            String(r.usuario || '').toLowerCase().replace(/\s+/g, '_') === referencia.usuario.toLowerCase()
+          );
+        }
+
         if (reporte) {
           setReporteSeleccionado(reporte);
         }
@@ -194,12 +293,18 @@ function App() {
 
     // Escuchar cambios en la navegación (botón atrás/adelante)
     const handlePopState = () => {
-      const usuarioBuscado = getExpedienteFromURL();
-      if (usuarioBuscado) {
-        const reporte = reportes.find(r =>
-          r.usuario.toLowerCase() === usuarioBuscado.toLowerCase() ||
-          r.usuario.toLowerCase().replace(/\s+/g, '_') === usuarioBuscado.toLowerCase()
-        );
+      const referencia = getExpedienteFromURL();
+      if (referencia?.expedienteId || referencia?.usuario) {
+        const reporte = reportes.find(r => {
+          if (referencia?.expedienteId) {
+            return Number(r.expedienteId) === Number(referencia.expedienteId);
+          }
+
+          return (
+            String(r.usuario || '').toLowerCase() === referencia.usuario.toLowerCase() ||
+            String(r.usuario || '').toLowerCase().replace(/\s+/g, '_') === referencia.usuario.toLowerCase()
+          );
+        });
         setReporteSeleccionado(reporte || null);
       } else {
         setReporteSeleccionado(null);
@@ -277,12 +382,11 @@ function App() {
     );
   };
 
-  // Manejar clic en una tarjeta (actualiza URL con nombre de usuario)
+  // Manejar clic en una tarjeta (actualiza URL con id incremental de expediente)
   const handleCardClick = (reporte) => {
     setReporteSeleccionado(reporte);
-    // Actualizar URL sin recargar la página usando el nombre de usuario
-    const nuevaURL = `${formatExpediente(reporte.usuario)}${window.location.search}`;
-    window.history.pushState({ usuario: reporte.usuario }, '', nuevaURL);
+    const nuevaURL = `${formatExpediente(reporte.expedienteId)}${window.location.search}`;
+    window.history.pushState({ expedienteId: reporte.expedienteId }, '', nuevaURL);
   };
 
   // Cerrar modal de detalle (volver a la lista)
@@ -294,20 +398,43 @@ function App() {
   };
 
   // Manejar nuevo reporte enviado
-  const handleNewReport = (nuevoReporte, submissionResult = null) => {
+  const handleNewReport = async (nuevoReporte, submissionResult = null) => {
+    try {
+      const data = await fetchReportsFromAPI();
+      const userVotes = getUserVotes();
+      const normalizados = assignExpedienteIds(data).map(r => ({
+        ...normalizeReporte(r),
+        userVote: userVotes[r.id] || null,
+      }));
+
+      setReportes(normalizados);
+      return;
+    } catch (error) {
+      console.warn('No se pudo refrescar desde WordPress tras el envio. Se aplicara fallback local.', error);
+    }
+
+    const usuarioFallback = String(nuevoReporte?.nickname || nuevoReporte?.username || nuevoReporte?.usuario || '').trim();
+    const reportadoPorFallback = String(
+      nuevoReporte?.reportedby
+      || nuevoReporte?.contacto
+      || submissionResult?.botDelivery?.reportedby
+      || 'ANONIMO'
+    ).trim();
+
     const nuevoNormalizado = normalizeReporte({
       ...nuevoReporte,
       id: Date.now(),
+      usuario: usuarioFallback || 'USUARIO_SIN_NOMBRE',
       fecha: new Date().toISOString().slice(0, 10),
-      reportadoPor: nuevoReporte.contacto || 'ANONIMO',
+      reportadoPor: reportadoPorFallback || 'ANONIMO',
       botSyncStatus: submissionResult?.botDelivery?.ok ? 'delivered' : 'pending',
       botSyncAt: new Date().toISOString(),
       botSyncReportId: submissionResult?.reportId ?? submissionResult?.botDelivery?.reportId ?? null,
       botSyncError: submissionResult?.botDelivery?.ok ? '' : (submissionResult?.botDelivery?.message || submissionResult?.warning || '')
     });
-    const nuevosReportes = [nuevoNormalizado, ...reportes];
+
+    const nuevosReportes = assignExpedienteIds([nuevoNormalizado, ...reportes]);
     setReportes(nuevosReportes);
-    // Guardar en localStorage para persistencia
     localStorage.setItem('mostwanted_reportes', JSON.stringify(nuevosReportes));
   };
 
@@ -432,20 +559,30 @@ function App() {
     }
   };
 
-  // Carga inicial de reportes para la UI (JSON local + persistencia local)
+  // Carga inicial de reportes para la UI (API WordPress /reports + persistencia local)
   const fetchReportsFromAPI = async () => {
-    const local = localStorage.getItem('mostwanted_reportes');
-    if (local) return JSON.parse(local);
-    return reportesData;
+    try {
+      const snapshot = await fetchWordpressReportsSnapshot({ perPage: 100 });
+      const reports = Array.isArray(snapshot?.items) ? snapshot.items : [];
+      const mapped = reports.map(mapWordpressReportToReporte);
+
+      // Persistencia local para fallback offline y continuidad visual.
+      localStorage.setItem('mostwanted_reportes', JSON.stringify(mapped));
+      return mapped;
+    } catch (error) {
+      console.error('Error consultando WordPress reports snapshot:', error);
+      const local = localStorage.getItem('mostwanted_reportes');
+      if (local) return JSON.parse(local);
+      return [];
+    }
   };
 
   // Al cargar reportes, incluir el voto del usuario en cada uno
   useEffect(() => {
     const fetchReportes = async () => {
-      // Aquí va la lógica real de carga de reportes
+      setIsLoading(true);
       let data = [];
       try {
-        // Si tienes una función fetchReportsFromAPI, úsala aquí
         data = await fetchReportsFromAPI();
       } catch (e) {
         // Si falla, intenta cargar de localStorage
@@ -453,28 +590,89 @@ function App() {
         if (local) {
           data = JSON.parse(local);
         } else {
-          data = reportesData;
+          data = [];
         }
       }
       const userVotes = getUserVotes();
       // Mapear userVote a cada reporte
       data = data.map(r => ({
         ...normalizeReporte(r),
-        userVote: userVotes[r.id] || null
+        userVote: userVotes[r.id] || r.userVote || null
       }));
-      setReportes(data);
+      setReportes(assignExpedienteIds(data));
+      setIsLoading(false);
     };
     fetchReportes();
   }, []);
 
-  // Cuando el usuario vota, actualizar también el userVote en el estado
-  const handleVote = (reporteId, nuevosVotos) => {
-    setReportes(prev => prev.map(r =>
-      r.id === reporteId
-        ? { ...r, votos: nuevosVotos, userVote: getUserVotes()[reporteId] || null }
-        : r
-    ));
-    // ...existing code para guardar en localStorage y/o enviar a API...
+  // Cuando el usuario vota, persistir en WordPress y refrescar el reporte local.
+  const handleVote = async (reporteId, votePayload = {}) => {
+    const reporteActual = reportes.find((item) => item.id === reporteId);
+    if (!reporteActual) {
+      throw new Error('No se encontró el reporte para registrar el voto.');
+    }
+
+    const voteType = votePayload?.voteType;
+    const reason = String(votePayload?.reason || '').trim();
+    const voterNameInput = String(votePayload?.voterName || '').trim();
+
+    if (!['up', 'down'].includes(voteType)) {
+      throw new Error('El tipo de voto es invalido.');
+    }
+
+    if (voteType === 'down' && reason.length < 8) {
+      throw new Error('Debes explicar por qué el reporte es falso (minimo 8 caracteres).');
+    }
+
+    if (voteType === 'down' && voterNameInput.length < 2) {
+      throw new Error('Debes indicar el nombre de quien confirma el reporte falso.');
+    }
+
+    const voterName = voterNameInput || (user?.username
+      ? (user?.discriminator && user.discriminator !== '0'
+        ? `${user.username}#${user.discriminator}`
+        : user.username)
+      : 'Comunidad');
+
+    const voteResponse = await submitWordpressCommunityVerificationVote({
+      reportId: Number(reporteActual?.id),
+      voteType,
+      reason,
+      voterName,
+    });
+
+    const communityVerification = voteResponse?.communityVerification || {};
+    const up = Number(communityVerification?.up) || 0;
+    const down = Number(communityVerification?.down) || 0;
+    const comentarios = normalizeComentariosFromCommunityVerification(communityVerification);
+
+    const votosUsuario = JSON.parse(localStorage.getItem('mostwanted_user_votes') || '{}');
+    votosUsuario[reporteId] = voteType;
+    localStorage.setItem('mostwanted_user_votes', JSON.stringify(votosUsuario));
+
+    let updatedSelected = null;
+    const updatedReportes = reportes.map((item) => {
+      if (item.id !== reporteId) return item;
+      const nextItem = {
+        ...item,
+        votos: { up, down, comentarios },
+        userVote: voteType,
+      };
+      updatedSelected = nextItem;
+      return nextItem;
+    });
+
+    setReportes(updatedReportes);
+    localStorage.setItem('mostwanted_reportes', JSON.stringify(updatedReportes));
+
+    if (updatedSelected && reporteSeleccionado?.id === reporteId) {
+      setReporteSeleccionado(updatedSelected);
+    }
+
+    return {
+      userVote: voteType,
+      votos: { up, down, comentarios },
+    };
   };
 
   // Botón de login/logout
@@ -482,6 +680,10 @@ function App() {
     window.location.href = DISCORD_AUTH_URL;
   };
   const handleLogout = () => {
+    fetch(buildApiUrl('/auth/logout'), {
+      method: 'POST',
+      credentials: 'include',
+    }).catch(() => undefined);
     setUser(null);
     localStorage.removeItem('discord_user');
   };
@@ -543,7 +745,7 @@ function App() {
           />
         </div>
         {/* Información de usuario y botón de login/logout */}
-        {/* <div className="header__user-info" style={{ position: 'absolute', top: 16, right: 16, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
+        <div className="header__user-info" style={{ position: 'absolute', top: 16, right: 16, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
           {user ? (
             <>
               <button onClick={handleLogout} style={{ background: '#5865F2', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 4, fontWeight: 'bold', marginBottom: 4 }}>
@@ -559,7 +761,7 @@ function App() {
               Iniciar sesión con Discord
             </button>
           )}
-        </div> */}
+        </div>
       </header>
       {/* Modal de ayuda */}
       <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />
