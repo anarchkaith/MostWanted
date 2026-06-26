@@ -1,4 +1,4 @@
-import { TIPOS_ETIQUETAS } from '../../components/tiposEtiquetas.js';
+import { TIPOS_ETIQUETAS } from '../shared/constants/tiposEtiquetas.js';
 
 function toTrimmedString(value) {
   return typeof value === 'string' ? value.trim() : '';

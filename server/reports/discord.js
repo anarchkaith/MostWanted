@@ -38,6 +38,19 @@ function toTrimmedString(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+function toArray(value) {
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string' && value.trim()) {
+    return value.split(',').map((item) => item.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+function isImageContentType(contentType) {
+  const value = String(contentType || '').toLowerCase();
+  return value.startsWith('image/');
+}
+
 function normalizeTimestamp(value) {
   if (!Number.isFinite(value)) return Date.now();
   return value > 1e12 ? value : value * 1000;
@@ -142,6 +155,45 @@ function buildFooterText(report = {}, reporter = {}) {
   return `LOG_BY: ${actor} // NO MERCY FOR TOXICS - ${formatIncidentDate(report.time)}`;
 }
 
+function buildReportNotesFieldValue(report = {}) {
+  const notes = Array.isArray(report.notes) ? report.notes : [];
+  if (notes.length === 0) {
+    return 'Sin notas adicionales';
+  }
+
+  const lines = notes.slice(0, 3).map((note) => {
+    const author = toTrimmedString(note?.name) || 'Anónimo';
+    const text = toTrimmedString(note?.text) || 'Sin contenido';
+    const timestamp = note?.timestamp
+      ? new Date(note.timestamp).toLocaleString('es-ES')
+      : formatIncidentDate(report.time);
+    return `${author} (${timestamp})\n${text}`;
+  });
+
+  return truncateText(`\`\`\`${lines.join('\n\n')}\`\`\``, 1024);
+}
+
+function buildVideoEvidenceField(evidence = []) {
+  const videoItems = (Array.isArray(evidence) ? evidence : [])
+    .filter((item) => item?.url && !isImageContentType(item?.contentType));
+
+  if (videoItems.length === 0) {
+    return 'Sin evidencias de video';
+  }
+
+  return truncateText(videoItems
+    .slice(0, 5)
+    .map((item) => item.name || item.url)
+    .join(', '), 1024);
+}
+
+function resolveAvatarUrls(report = {}) {
+  const avatarsFromArray = toArray(report.avatars);
+  const avatarsFromLegacy = [report.avatar1, report.avatar2].map(toTrimmedString).filter(Boolean);
+  const merged = [...avatarsFromArray, ...avatarsFromLegacy].filter(Boolean);
+  return Array.from(new Set(merged));
+}
+
 function getColorByInfraction(infractions = []) {
   const severityMap = {
     'Modder': 0xff0000,      // Rojo
@@ -180,74 +232,105 @@ export async function sendReportToDiscordWebhook(submission = {}) {
   }
 
   const embedColor = getColorByInfraction(report.typesOfInfraction);
-  const targetDetails = buildTargetDetails(report);
+  const aliases = toArray(report.aliases);
+  const crews = toArray(report.crews);
+  const labels = toArray(report.labels);
+  const infractions = toArray(report.typesOfInfraction);
+  const avatars = resolveAvatarUrls(report);
+  const imageEvidence = evidence
+    .filter((item) => item?.url && isImageContentType(item?.contentType))
+    .map((item) => item.url);
+
+  const thumbnailUrl = avatars[0] || imageEvidence[0] || undefined;
 
   const fields = [
     {
-      name: '▌ 👤 SUJETO IDENTIFICADO ▌',
-      value: truncateText(report.nickname, 1024),
+      name: 'RID',
+      value: `||${truncateText(String(report.rid || 'N/A'), 1018)}||`,
       inline: false,
     },
     {
-      name: '🏷 CARGO IMPUTADO',
-      value: buildInfractionField(report),
+      name: '🎭 Aliases',
+      value: truncateText(aliases.join(', ') || 'N/A', 1024),
       inline: true,
     },
     {
-      name: '☣ NIVEL DE CORRUPCIÓN',
-      value: buildCorruptionLevel(report),
+      name: '🕵️ Estado',
+      value: truncateText(String(report.status || 'En investigación'), 1024),
       inline: true,
     },
     {
-      name: '🗒 INFORME DE OPERACIONES',
-      value: `\`\`\`\n"${truncateText(report.reason, 900)}"\n\`\`\``,
+      name: '☣ Riesgo',
+      value: String(report.riskScore ?? 'N/A'),
+      inline: true,
+    },
+    {
+      name: '👥 Crews',
+      value: truncateText(crews.join(', ') || 'N/A', 1024),
       inline: false,
     },
     {
-      name: '🏷 CÓDIGOS DE AMENAZA',
-      value: buildThreatCodes(report),
+      name: '🏷 Etiquetas',
+      value: truncateText(labels.join(', ') || '#Sin etiquetas de amenaza', 1024),
+      inline: false,
+    },
+    {
+      name: '🚥 Tipos de infraccion',
+      value: truncateText(infractions.join(', ') || 'NO ESPECIFICADO', 1024),
+      inline: false,
+    },
+    {
+      name: '📼 Evidencias de Video',
+      value: buildVideoEvidenceField(evidence),
+      inline: false,
+    },
+    {
+      name: '💬 Notas del reporte',
+      value: buildReportNotesFieldValue(report),
       inline: false,
     },
   ];
 
-  if (targetDetails) {
-    fields.push({
-      name: '🧾 FICHA DEL OBJETIVO',
-      value: targetDetails,
-      inline: false,
-    });
-  }
-
   const payload = {
-    username: DISCORD_WEBHOOK_NAME,
-    avatar_url: DISCORD_WEBHOOK_AVATAR,
+    content: '',
+    username: 'H.E.X. | MostWanted',
+    avatar_url: 'https://i.ibb.co/fV98zMbz/HEX-LOGO-RED.png',
+    tts: false,
     embeds: [
       {
         author: {
-          name: '✖ ✖ H.E.X. ✖ ✖',
-          icon_url: HEX_AUTHOR_ICON,
+          name: toTrimmedString(reporter.name) || toTrimmedString(report.reportedby) || '-Kaith_Suki-',
+          url: 'https://mostwanted.kaithsrebels.com',
+          icon_url: 'https://i.ibb.co/sJDdYnPc/Vector-Padding.png',
         },
-        title: '✖ [ TARGET MARKED FOR TERMINATION ] ✖',
+        title: '[ SUJETO MARCADO PARA ELIMINACIÓN ]',
+        description: `\`\`\`${truncateText(report.nickname, 300)}\`\`\`\n## 🗒 Motivo:\n> ${truncateText(report.reason, 900)}`,
+        url: 'https://mostwanted.kaithsrebels.com',
         color: embedColor,
         fields,
+        ...(thumbnailUrl ? { thumbnail: { url: thumbnailUrl } } : {}),
         footer: {
-          text: buildFooterText(report, reporter),
-          icon_url: HEX_FOOTER_ICON,
+          text: 'MostWanted • Sistema de reportes de bad players',
+          icon_url: 'https://i.ibb.co/fV98zMbz/HEX-LOGO-RED.png',
         },
-        timestamp: new Date().toISOString(),
+        timestamp: new Date(normalizeTimestamp(report.time)).toISOString(),
       },
     ],
     allowed_mentions: {
       parse: [],
     },
+    components: [],
+    actions: {},
+    flags: 0,
   };
 
-  for (const item of evidence.slice(0, 4)) {
-    if (!item?.url) continue;
+  const galleryImages = imageEvidence.slice(0, 5);
+  for (const imageUrl of galleryImages) {
     payload.embeds.push({
+      url: 'https://mostwanted.kaithsrebels.com',
       color: embedColor,
       image: {
-        url: item.url,
+        url: imageUrl,
       },
     });
   }

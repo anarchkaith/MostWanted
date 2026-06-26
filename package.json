@@ -11,7 +11,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "start": "node server/index.js",
-    "test:reports": "node server/reports/payload.test.js"
+    "test:reports": "node server/reports/payload.test.js",
+    "webhook:playground": "node server/modules/webhooks/playground/discordEmbedPlayground.js"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.12",

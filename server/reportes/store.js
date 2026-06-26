@@ -154,6 +154,21 @@ function buildScAvatarCandidates(rid = '') {
   return [0, 1].map((slot) => `https://prod.cloud.rockstargames.com/members/sc/6266/${encodeURIComponent(normalizedRid)}/publish/gta5/mpchars/${slot}.png`);
 }
 
+/**
+ * Resume un reporte para exponer antecedentes sin filtrar toda la estructura original.
+ */
+function summarizeReporteMatch(reporte = {}) {
+  return {
+    id: reporte?.id ?? null,
+    usuario: String(reporte?.usuario || reporte?.nickname || reporte?.username || '').trim(),
+    categoria: String(reporte?.categoria || '').trim(),
+    severidad: String(reporte?.severidad || '').trim(),
+    motivo: String(reporte?.motivo || reporte?.reason || '').trim(),
+    fecha: String(reporte?.fecha || reporte?.created_at || reporte?.time || '').trim(),
+    etiquetas: Array.isArray(reporte?.etiquetas) ? reporte.etiquetas.slice(0, 8) : [],
+  };
+}
+
 export function readReportes(rootDir) {
   const filePath = path.join(rootDir, 'data', 'reportes.json');
   if (!fs.existsSync(filePath)) {
@@ -245,6 +260,9 @@ export function buildReportesStats(reportes) {
   };
 }
 
+/**
+ * Genera perfil agregado de jugador desde reportes locales por username o RID.
+ */
 export function buildPlayerInsights(reportes = [], { username = '', rid = '' } = {}) {
   const normalizedUsername = normalizeText(username);
   const normalizedRid = toTrimmedString(rid);
@@ -324,6 +342,7 @@ export function buildPlayerInsights(reportes = [], { username = '', rid = '' } =
     names: mapToSortedNameEntries(nameEntriesMap, 60),
     avatars,
     lastReportAt: latestReportDate ? latestReportDate.toISOString() : null,
+    reportesEncontrados: matches.map(summarizeReporteMatch),
   };
 }
 
@@ -348,6 +367,9 @@ function parseScCacheNamesPayload(payload) {
   return { names };
 }
 
+/**
+ * Consulta aliases en sc-cache con timeout y error controlado.
+ */
 async function fetchScCacheAliases({ rid = '', timeoutMs = 6000 } = {}) {
   const normalizedRid = toTrimmedString(rid);
   if (!/^\d+$/.test(normalizedRid)) {
@@ -400,6 +422,9 @@ async function fetchScCacheAliases({ rid = '', timeoutMs = 6000 } = {}) {
   }
 }
 
+/**
+ * Enriquece antecedentes locales con datos externos de sc-cache.
+ */
 export async function buildPlayerInsightsWithScCache(reportes = [], { username = '', rid = '' } = {}) {
   const base = buildPlayerInsights(reportes, { username, rid });
   const normalizedRid = toTrimmedString(rid) || toTrimmedString(base?.rid);
@@ -424,6 +449,13 @@ export async function buildPlayerInsightsWithScCache(reportes = [], { username =
     ...base,
     names: Array.isArray(scCache?.names) ? scCache.names : [],
     avatars: mergedAvatars,
+    scCache: {
+      rid: scCache?.rid || normalizedRid,
+      fetched: Boolean(scCache?.fetched),
+      source: scCache?.source || 'sc-cache',
+      error: scCache?.error || '',
+      names: Array.isArray(scCache?.names) ? scCache.names : [],
+    },
   };
 }
 
@@ -431,6 +463,9 @@ export async function buildPlayerInsightsWithScCache(reportes = [], { username =
 const _cache = { data: null, expiresAt: 0 };
 const CACHE_TTL_MS = 30_000;
 
+/**
+ * Retorna snapshot cacheado de reportes para reducir lecturas de disco repetidas.
+ */
 export function getReportesSnapshot(rootDir) {
   if (_cache.data && Date.now() < _cache.expiresAt) {
     return _cache.data;
