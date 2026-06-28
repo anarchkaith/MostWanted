@@ -1,13 +1,14 @@
-﻿import { sendReportToHexbot } from '../../../reports/service.js';
-import { sendReportToWordpress } from '../../../reports/wordpressService.js';
-import { sendReportToDiscordWebhook } from '../../../reports/discord.js';
+﻿import { sendReportToWordpress } from '../../../reports/wordpressService.js';
 import { validateIncomingReportSubmission } from '../../../reports/validation.js';
 
 /**
- * Valida y orquesta el envio de un reporte a Discord y al destino principal.
- * Soporta flujo WordPress o HEXBOT segun configuracion del entorno.
+ * Valida y envia un reporte a WordPress.
  */
-export async function submitReport({ body, hexbotConfig, wordpressReportsConfig, logger = console }) {
+export async function submitWordpressReport({
+  body,
+  wordpressReportsConfig,
+  logger = console,
+}) {
   const validation = validateIncomingReportSubmission(body);
 
   if (!validation.ok) {
@@ -17,68 +18,30 @@ export async function submitReport({ body, hexbotConfig, wordpressReportsConfig,
     };
   }
 
-  if (wordpressReportsConfig.enabled) {
-    const [discordDelivery, wordpressResult] = await Promise.all([
-      sendReportToDiscordWebhook(validation.value),
-      sendReportToWordpress({
-        config: wordpressReportsConfig,
-        submission: validation.value,
-        logger,
-      }),
-    ]);
+  const submission = validation.value;
 
-    if (discordDelivery.ok || wordpressResult.delivery.ok) {
-      return {
-        status: 201,
-        payload: {
-          ok: true,
-          destination: 'wordpress',
-          reportId: wordpressResult.delivery.reportId ?? null,
-          playerPostId: wordpressResult.delivery.playerPostId ?? null,
-          player: wordpressResult.delivery.player ?? null,
-          evidenceCount: Array.isArray(wordpressResult.payload?.evidence) ? wordpressResult.payload.evidence.length : 0,
-          discordDelivery,
-          wordpressDelivery: wordpressResult.delivery,
-          botDelivery: wordpressResult.delivery,
-        },
-      };
-    }
-
+  if (!wordpressReportsConfig.enabled) {
     return {
-      status: 202,
+      status: 503,
       payload: {
-        ok: true,
-        destination: 'wordpress',
-        reportId: null,
-        playerPostId: null,
-        evidenceCount: Array.isArray(wordpressResult.payload?.evidence) ? wordpressResult.payload.evidence.length : 0,
-        discordDelivery,
-        wordpressDelivery: wordpressResult.delivery,
-        botDelivery: wordpressResult.delivery,
-        warning: 'El reporte fue aceptado por la web, pero no se pudo confirmar el envio a WordPress y/o Discord.',
+        ok: false,
+        error: 'WordPress no esta configurado en este entorno.',
       },
     };
   }
 
-  const [discordDelivery, hexbotResult] = await Promise.all([
-    sendReportToDiscordWebhook(validation.value),
-    sendReportToHexbot({
-      config: hexbotConfig,
-      submission: validation.value,
-      logger,
-    }),
-  ]);
+  const wordpressResult = await sendReportToWordpress({
+    config: wordpressReportsConfig,
+    submission,
+    logger,
+  });
 
-  if (discordDelivery.ok || hexbotResult.delivery.ok) {
+  if (wordpressResult.delivery.ok) {
     return {
       status: 201,
       payload: {
         ok: true,
-        reportId: hexbotResult.delivery.reportId ?? null,
-        evidenceCount: Array.isArray(hexbotResult.payload?.evidence) ? hexbotResult.payload.evidence.length : 0,
-        discordDelivery,
-        hexbotDelivery: hexbotResult.delivery,
-        botDelivery: hexbotResult.delivery,
+        player: wordpressResult.delivery.player ?? null,
       },
     };
   }
@@ -87,12 +50,7 @@ export async function submitReport({ body, hexbotConfig, wordpressReportsConfig,
     status: 202,
     payload: {
       ok: true,
-      reportId: null,
-      evidenceCount: Array.isArray(hexbotResult.payload?.evidence) ? hexbotResult.payload.evidence.length : 0,
-      discordDelivery,
-      hexbotDelivery: hexbotResult.delivery,
-      botDelivery: hexbotResult.delivery,
-      warning: 'El reporte fue aceptado por la web, pero no se pudo confirmar el envio a todos los destinos configurados.',
+      player: wordpressResult.delivery?.player ?? null,
     },
   };
 }

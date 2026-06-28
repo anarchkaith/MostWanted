@@ -1,22 +1,63 @@
-﻿const BLOCKED_DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1487549131655483583/zYfylIqIqPAM7Oy9icfNAiZb51kQvVD0oVVhq9HAW1UxheTp6U7RMIsoRBh2FIQQrx2O';
+﻿import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { TIPOS_ETIQUETAS } from '../shared/constants/tiposEtiquetas.js';
+
+const BLOCKED_DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1487549131655483583/zYfylIqIqPAM7Oy9icfNAiZb51kQvVD0oVVhq9HAW1UxheTp6U7RMIsoRBh2FIQQrx2O';
 
 const DISCORD_WEBHOOK_NAME = '[SE BUSCA] :: Nueva amenaza detectada...';
 const DISCORD_WEBHOOK_AVATAR = 'https://i.pinimg.com/736x/2b/6e/f6/2b6ef68a43b6b4363dcea23ee5c78421.jpg';
 const HEX_AUTHOR_ICON = 'https://i.ibb.co/zT7r8F2P/X.png';
 const HEX_FOOTER_ICON = 'https://i.ibb.co/v4KTFw0q/Vector.png';
 
+const INFRACTION_NAME_BY_KEY = TIPOS_ETIQUETAS.reduce((acc, item) => {
+  const key = String(item?.key || '').trim().toUpperCase();
+  const name = String(item?.nombre || '').trim();
+  if (key && name) {
+    acc.set(key, name);
+  }
+  return acc;
+}, new Map());
+
 function resolveDiscordWebhookUrl() {
   const configuredUrl = String(process.env.DISCORD_WEBHOOK_URL || '').trim();
+  const fallbackUrl = configuredUrl || readDiscordWebhookFromEnvFile();
 
-  if (!configuredUrl) {
+  if (!fallbackUrl) {
     return { ok: false, reason: 'Webhook de Discord no configurado (DISCORD_WEBHOOK_URL).' };
   }
 
-  if (configuredUrl === BLOCKED_DISCORD_WEBHOOK_URL) {
+  if (fallbackUrl === BLOCKED_DISCORD_WEBHOOK_URL) {
     return { ok: false, reason: 'El webhook anterior fue bloqueado y ya no debe usarse.' };
   }
 
-  return { ok: true, url: configuredUrl };
+  return { ok: true, url: fallbackUrl };
+}
+
+function readDiscordWebhookFromEnvFile() {
+  try {
+    const currentFile = fileURLToPath(import.meta.url);
+    const currentDir = path.dirname(currentFile);
+    const rootDir = path.resolve(currentDir, '..', '..');
+    const envPath = path.join(rootDir, '.env');
+
+    if (!fs.existsSync(envPath)) {
+      return '';
+    }
+
+    const envRaw = fs.readFileSync(envPath, 'utf8');
+    const line = envRaw
+      .split(/\r?\n/)
+      .find((entry) => entry.trim().startsWith('DISCORD_WEBHOOK_URL='));
+
+    if (!line) {
+      return '';
+    }
+
+    return line.replace(/^DISCORD_WEBHOOK_URL=/, '').trim();
+  } catch {
+    return '';
+  }
 }
 
 function truncateText(text, maxLength = 1024) {
@@ -46,9 +87,112 @@ function toArray(value) {
   return [];
 }
 
+function toDisplayText(value) {
+  if (typeof value === 'string') return value.trim();
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (!value || typeof value !== 'object') return '';
+
+  const keys = ['nombre', 'name', 'label', 'value', 'text', 'title', 'content', 'reason'];
+  for (const key of keys) {
+    const candidate = value?.[key];
+    if (typeof candidate === 'string' && candidate.trim()) return candidate.trim();
+    if (typeof candidate === 'number' || typeof candidate === 'boolean') return String(candidate);
+  }
+
+  return '';
+}
+
+function normalizeTextArray(value) {
+  return toArray(value).map((item) => toDisplayText(item)).filter(Boolean);
+}
+
+function normalizeInfractionArray(value) {
+  return toArray(value)
+    .map((item) => {
+      const text = toDisplayText(item);
+      if (!text) return '';
+      return INFRACTION_NAME_BY_KEY.get(text.toUpperCase()) || text;
+    })
+    .filter(Boolean);
+}
+
+function buildCrewUrlFromName(name) {
+  const normalizedName = toTrimmedString(name)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+
+  return normalizedName
+    ? `https://socialclub.rockstargames.com/crew/${normalizedName}/hierarchy`
+    : '';
+}
+
+function extractUrlFromText(value) {
+  const text = toTrimmedString(value);
+  if (!text) return '';
+  const match = text.match(/https?:\/\/[^\s)]+/i);
+  return match ? match[0] : '';
+}
+
+function normalizeCrewEntry(crew) {
+  if (!crew) return null;
+
+  if (typeof crew === 'string') {
+    const raw = crew.trim();
+    if (!raw) return null;
+    const url = extractUrlFromText(raw);
+    const name = raw.replace(/https?:\/\/[^\s)]+/ig, '').trim() || raw;
+    return { name, url: url || buildCrewUrlFromName(name) };
+  }
+
+  if (typeof crew === 'object') {
+    const name = toDisplayText(crew?.nombre) || toDisplayText(crew?.name) || toDisplayText(crew?.raw) || '';
+    if (!name) return null;
+    const url = toTrimmedString(crew?.url) || extractUrlFromText(crew?.raw) || buildCrewUrlFromName(name);
+    return { name, url };
+  }
+
+  return null;
+}
+
 function isImageContentType(contentType) {
   const value = String(contentType || '').toLowerCase();
   return value.startsWith('image/');
+}
+
+function isPlaceholderImageHost(hostname = '') {
+  const host = String(hostname || '').toLowerCase();
+  return host === 'example.com'
+    || host === 'www.example.com'
+    || host === 'example.org'
+    || host === 'www.example.org'
+    || host === 'localhost'
+    || host === '127.0.0.1';
+}
+
+function normalizeRealImageUrl(value) {
+  const raw = toTrimmedString(value);
+  if (!raw) return '';
+
+  try {
+    const parsed = new URL(raw);
+    const protocol = parsed.protocol.toLowerCase();
+    if (protocol !== 'http:' && protocol !== 'https:') {
+      return '';
+    }
+
+    if (isPlaceholderImageHost(parsed.hostname)) {
+      return '';
+    }
+
+    if (parsed.pathname.toLowerCase().includes('fake')) {
+      return '';
+    }
+
+    return parsed.toString();
+  } catch {
+    return '';
+  }
 }
 
 function normalizeTimestamp(value) {
@@ -150,8 +294,32 @@ function buildTargetDetails(report = {}) {
   return truncateText(details.join('\n'), 1024);
 }
 
+function buildCrewFieldValue(crews = []) {
+  if (crews.length === 0) {
+    return 'N/A';
+  }
+
+  const unique = new Set();
+  const lines = crews
+    .map((crew) => normalizeCrewEntry(crew))
+    .filter(Boolean)
+    .filter((crew) => {
+      const key = crew.name.toLowerCase();
+      if (unique.has(key)) return false;
+      unique.add(key);
+      return true;
+    })
+    .map((crew) => (crew.url ? `[${crew.name}](${crew.url})` : crew.name));
+
+  if (lines.length === 0) {
+    return 'N/A';
+  }
+
+  return truncateText(lines.join('\n'), 1024);
+}
+
 function buildFooterText(report = {}, reporter = {}) {
-  const actor = toUpperText(report.reportedby || reporter.tag || reporter.name || 'FORMULARIO WEB', 'FORMULARIO WEB');
+  const actor = toUpperText(reporter.name, 'Anónimo');
   return `LOG_BY: ${actor} // NO MERCY FOR TOXICS - ${formatIncidentDate(report.time)}`;
 }
 
@@ -174,7 +342,7 @@ function buildReportNotesFieldValue(report = {}) {
 }
 
 function buildVideoEvidenceField(evidence = []) {
-  const videoItems = (Array.isArray(evidence) ? evidence : [])
+  const videoItems = evidence
     .filter((item) => item?.url && !isImageContentType(item?.contentType));
 
   if (videoItems.length === 0) {
@@ -187,10 +355,22 @@ function buildVideoEvidenceField(evidence = []) {
     .join(', '), 1024);
 }
 
+function getInvestigationStatusLabel(report = {}) {
+  const status = String(report?.investigation_status || '').trim().toLowerCase();
+
+  if (status === 'resolved') return 'Resuelto';
+  if (status === 'not_found') return 'No encontrado';
+  if (status === 'pending') return 'Pendiente';
+  if (status === 'not_attempted') return 'No iniciado';
+  return 'En investigación';
+}
+
 function resolveAvatarUrls(report = {}) {
   const avatarsFromArray = toArray(report.avatars);
   const avatarsFromLegacy = [report.avatar1, report.avatar2].map(toTrimmedString).filter(Boolean);
-  const merged = [...avatarsFromArray, ...avatarsFromLegacy].filter(Boolean);
+  const merged = [...avatarsFromArray, ...avatarsFromLegacy]
+    .map((url) => normalizeRealImageUrl(url))
+    .filter(Boolean);
   return Array.from(new Set(merged));
 }
 
@@ -213,10 +393,13 @@ function getColorByInfraction(infractions = []) {
 
   return 0xff3333; // Rojo por defecto
 }
+
 export async function sendReportToDiscordWebhook(submission = {}) {
-  const report = submission?.report || {};
-  const reporter = submission?.reporter || {};
-  const evidence = submission?.evidence || [];
+  const {
+    report = {},
+    reporter = {},
+    evidence = [],
+  } = submission;
   const webhookUrlResult = resolveDiscordWebhookUrl();
 
   if (!webhookUrlResult.ok) {
@@ -231,15 +414,20 @@ export async function sendReportToDiscordWebhook(submission = {}) {
     throw new Error('Reporte inválido: falta nickname');
   }
 
-  const embedColor = getColorByInfraction(report.typesOfInfraction);
+  const infractions = normalizeInfractionArray(report.typesOfInfraction);
+  const labels = normalizeTextArray(report.labels);
+  const reasonText = toTrimmedString(report.reason)
+    || toTrimmedString(report.content)
+    || toTrimmedString(report.motivo)
+    || 'Sin motivo especificado';
+  const embedColor = getColorByInfraction(infractions);
   const aliases = toArray(report.aliases);
-  const crews = toArray(report.crews);
-  const labels = toArray(report.labels);
-  const infractions = toArray(report.typesOfInfraction);
+  const crews = report.crews || [];
   const avatars = resolveAvatarUrls(report);
   const imageEvidence = evidence
     .filter((item) => item?.url && isImageContentType(item?.contentType))
-    .map((item) => item.url);
+    .map((item) => normalizeRealImageUrl(item.url))
+    .filter(Boolean);
 
   const thumbnailUrl = avatars[0] || imageEvidence[0] || undefined;
 
@@ -256,7 +444,7 @@ export async function sendReportToDiscordWebhook(submission = {}) {
     },
     {
       name: '🕵️ Estado',
-      value: truncateText(String(report.status || 'En investigación'), 1024),
+      value: truncateText(getInvestigationStatusLabel(report), 1024),
       inline: true,
     },
     {
@@ -266,7 +454,7 @@ export async function sendReportToDiscordWebhook(submission = {}) {
     },
     {
       name: '👥 Crews',
-      value: truncateText(crews.join(', ') || 'N/A', 1024),
+      value: buildCrewFieldValue(crews),
       inline: false,
     },
     {
@@ -299,12 +487,12 @@ export async function sendReportToDiscordWebhook(submission = {}) {
     embeds: [
       {
         author: {
-          name: toTrimmedString(reporter.name) || toTrimmedString(report.reportedby) || '-Kaith_Suki-',
+          name: toTrimmedString(reporter.name) || 'Anónimo',
           url: 'https://mostwanted.kaithsrebels.com',
           icon_url: 'https://i.ibb.co/sJDdYnPc/Vector-Padding.png',
         },
         title: '[ SUJETO MARCADO PARA ELIMINACIÓN ]',
-        description: `\`\`\`${truncateText(report.nickname, 300)}\`\`\`\n## 🗒 Motivo:\n> ${truncateText(report.reason, 900)}`,
+        description: `\`\`\`${truncateText(report.nickname, 300)}\`\`\`\n## 🗒 Motivo:\n> ${truncateText(reasonText, 900)}`,
         url: 'https://mostwanted.kaithsrebels.com',
         color: embedColor,
         fields,

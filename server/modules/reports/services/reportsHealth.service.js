@@ -18,7 +18,6 @@ export async function checkReportsHealth({ hexbotConfig, wordpressReportsConfig,
         payload: {
           ok: true,
           configured: true,
-          destination: 'wordpress',
           upstream: {
             status: result.status,
             payload: result.payload,
@@ -35,7 +34,6 @@ export async function checkReportsHealth({ hexbotConfig, wordpressReportsConfig,
       payload: {
         ok: false,
         configured,
-        destination: 'wordpress',
         error: result.message,
         details: result.details,
         upstreamStatus: result.status,
@@ -54,7 +52,6 @@ export async function checkReportsHealth({ hexbotConfig, wordpressReportsConfig,
       payload: {
         ok: true,
         configured: true,
-        destination: 'hexbot',
         upstream: {
           status: result.status,
           payload: result.payload,
@@ -71,7 +68,6 @@ export async function checkReportsHealth({ hexbotConfig, wordpressReportsConfig,
     payload: {
       ok: false,
       configured,
-      destination: 'hexbot',
       error: result.message,
       details: result.details,
       upstreamStatus: result.status,

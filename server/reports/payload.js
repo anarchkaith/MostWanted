@@ -20,6 +20,17 @@ export function buildHexbotReportPayload(input = {}) {
   const aliases = Array.isArray(input?.report?.aliases)
     ? input.report.aliases.filter((item) => typeof item === 'string' && item.trim() !== '')
     : [];
+  const crews = Array.isArray(input?.report?.crews)
+    ? input.report.crews
+      .map((entry) => {
+        if (!entry || typeof entry !== 'object') return null;
+        const name = typeof entry.name === 'string' ? entry.name.trim() : '';
+        if (!name) return null;
+        const url = typeof entry.url === 'string' ? entry.url.trim() : '';
+        return { name, url };
+      })
+      .filter(Boolean)
+    : [];
 
   const reportMetadata = {
     ...(Array.isArray(input?.report?.typesOfInfraction) && input.report.typesOfInfraction.length > 0
@@ -49,16 +60,7 @@ export function buildHexbotReportPayload(input = {}) {
     ...(input?.report?.crewCurrentData && typeof input.report.crewCurrentData === 'object'
       ? { crewCurrentData: input.report.crewCurrentData }
       : {}),
-    ...(Array.isArray(input?.report?.crewsAssigned) && input.report.crewsAssigned.length > 0
-      ? { crewsAssigned: input.report.crewsAssigned }
-      : {}),
-    ...(Array.isArray(input?.report?.crewsAssignedData) && input.report.crewsAssignedData.length > 0
-      ? { crewsAssignedData: input.report.crewsAssignedData }
-      : {}),
-    ...(Array.isArray(input?.report?.crewsData) && input.report.crewsData.length > 0
-      ? { crewsData: input.report.crewsData }
-      : {}),
-    crews: input?.report?.crews || '',
+    ...(crews.length > 0 ? { crews } : {}),
     avatar1: input?.report?.avatar1 || '',
     avatar2: input?.report?.avatar2 || '',
     rid: input?.report?.rid || null,

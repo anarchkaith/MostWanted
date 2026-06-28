@@ -97,11 +97,15 @@ function mw_int_or_null($value) {
     return null;
 }
 
+function mw_as_array($value) {
+    return is_array($value) ? $value : [];
+}
+
 function mw_unique_strings($values, $limit = 50) {
     $out = [];
     $seen = [];
 
-    foreach ((is_array($values) ? $values : []) as $value) {
+    foreach (mw_as_array($values) as $value) {
         $text = mw_str(is_scalar($value) ? strval($value) : '');
         if ($text === '') {
             continue;
@@ -120,6 +124,61 @@ function mw_unique_strings($values, $limit = 50) {
     return $out;
 }
 
+function mw_payload_object($payload, $key) {
+    $direct = $payload[$key] ?? null;
+    if (is_array($direct)) {
+        return $direct;
+    }
+
+    $report = $payload['report'] ?? null;
+    if (is_array($report) && is_array($report[$key] ?? null)) {
+        return $report[$key];
+    }
+
+    return [];
+}
+
+function mw_payload_str($payload, $key) {
+    $direct = mw_str($payload[$key] ?? '');
+    if ($direct !== '') {
+        return $direct;
+    }
+
+    $report = $payload['report'] ?? null;
+    if (is_array($report)) {
+        return mw_str($report[$key] ?? '');
+    }
+
+    return '';
+}
+
+function mw_payload_int_or_null($payload, $key) {
+    if (array_key_exists($key, $payload)) {
+        return mw_int_or_null($payload[$key]);
+    }
+
+    $report = $payload['report'] ?? null;
+    if (is_array($report) && array_key_exists($key, $report)) {
+        return mw_int_or_null($report[$key]);
+    }
+
+    return null;
+}
+
+function mw_payload_array($payload, $key) {
+    $direct = $payload[$key] ?? null;
+    if (is_array($direct)) {
+        return $direct;
+    }
+
+    $report = $payload['report'] ?? null;
+    if (is_array($report) && is_array($report[$key] ?? null)) {
+        return $report[$key];
+    }
+
+    return [];
+}
+
 function mw_aliases_from_mixed($value) {
     if (is_array($value)) {
         return mw_unique_strings($value);
@@ -132,6 +191,47 @@ function mw_aliases_from_mixed($value) {
 
     $parts = preg_split('/[;,|]/', $raw) ?: [];
     return mw_unique_strings($parts);
+}
+
+function mw_payload_aliases($payload, $key = 'aliases') {
+    if (array_key_exists($key, $payload)) {
+        return mw_aliases_from_mixed($payload[$key]);
+    }
+
+    $report = $payload['report'] ?? null;
+    if (is_array($report) && array_key_exists($key, $report)) {
+        return mw_aliases_from_mixed($report[$key]);
+    }
+
+    return [];
+}
+
+function mw_resolve_nickname_from_payload($payload) {
+    $nickname = mw_payload_str($payload, 'nickname');
+    $username = mw_payload_str($payload, 'username');
+    $aliases = mw_payload_aliases($payload, 'aliases');
+
+    if ($username !== '' && !empty($aliases)) {
+        foreach ($aliases as $alias) {
+            if (mb_strtolower($alias) === mb_strtolower($username)) {
+                return $username;
+            }
+        }
+    }
+
+    if ($nickname !== '') {
+        return $nickname;
+    }
+
+    if ($username !== '') {
+        return $username;
+    }
+
+    if (!empty($aliases)) {
+        return $aliases[0];
+    }
+
+    return '';
 }
 
 function mw_get_request_ip($request) {
@@ -169,8 +269,8 @@ function mw_label_catalog() {
 }
 
 function mw_build_labels_table($labels, $label_ids) {
-    $safe_labels = is_array($labels) ? $labels : [];
-    $safe_ids = is_array($label_ids) ? $label_ids : [];
+    $safe_labels = mw_as_array($labels);
+    $safe_ids = mw_as_array($label_ids);
     $catalog = mw_label_catalog();
 
     $table = [];
@@ -249,7 +349,7 @@ function mw_build_labels_table($labels, $label_ids) {
 }
 
 function mw_normalize_reporter($payload, $reportedby = '') {
-    $reporter = is_array($payload['reporter'] ?? null) ? $payload['reporter'] : [];
+    $reporter = mw_payload_object($payload, 'reporter');
     $name = mw_str($reporter['name'] ?? '');
     if ($name === '') {
         $name = mw_str($reportedby);
@@ -288,6 +388,54 @@ function mw_build_player_display_title($nickname, $rid) {
     }
 
     return $safe_nickname;
+}
+
+function mw_build_report_content($payload, $created_at) {
+    $nickname = mw_resolve_nickname_from_payload($payload);
+    $rid = mw_payload_int_or_null($payload, 'rid');
+    $reason = mw_payload_str($payload, 'reason');
+    $reportedby = mw_payload_str($payload, 'reportedby');
+    $investigation_status = mw_payload_str($payload, 'investigation_status');
+    $types = mw_payload_array($payload, 'typesOfInfraction');
+    $labels = mw_payload_array($payload, 'labels');
+    $label_ids = mw_payload_array($payload, 'labelIds');
+    $evidence = mw_payload_array($payload, 'evidence');
+    $source = mw_payload_str($payload, 'source');
+
+    $evidence_lines = [];
+    foreach ($evidence as $item) {
+        if (!is_array($item)) {
+            continue;
+        }
+        $url = mw_str($item['url'] ?? '');
+        if ($url === '') {
+            continue;
+        }
+        $name = mw_str($item['name'] ?? 'evidence');
+        $content_type = mw_str($item['contentType'] ?? '');
+        $evidence_lines[] = trim(sprintf('- %s %s %s', $name, $content_type !== '' ? "($content_type)" : '', $url));
+    }
+
+    $lines = [
+        'Jugador: ' . mw_build_player_display_title($nickname, $rid),
+        'Fecha: ' . $created_at,
+        'Motivo: ' . ($reason !== '' ? $reason : 'N/A'),
+        'Reportado por: ' . ($reportedby !== '' ? $reportedby : 'N/A'),
+        'Estado investigacion: ' . ($investigation_status !== '' ? $investigation_status : 'N/A'),
+        'Categorias: ' . (!empty($types) ? implode(', ', array_map('strval', $types)) : 'N/A'),
+        'Etiquetas: ' . (!empty($labels) ? implode(', ', array_map('strval', $labels)) : 'N/A'),
+        'Label IDs: ' . (!empty($label_ids) ? implode(', ', array_map('strval', $label_ids)) : 'N/A'),
+        'Origen: ' . ($source !== '' ? $source : 'N/A'),
+        'Evidencias:',
+    ];
+
+    if (!empty($evidence_lines)) {
+        $lines = array_merge($lines, $evidence_lines);
+    } else {
+        $lines[] = '- N/A';
+    }
+
+    return implode("\n", $lines);
 }
 
 function mw_deep_merge_arrays($base, $overrides) {
@@ -499,15 +647,11 @@ function mw_normalize_crews_from_payload($payload) {
             return;
         }
 
-        $key = mb_strtolower($safe_name);
+        $key = mb_strtolower($safe_name . '|' . $safe_url);
         if (isset($seen[$key])) {
-            $index = intval($seen[$key]);
-            if ($safe_url !== '' && mw_str($result[$index]['url'] ?? '') === '') {
-                $result[$index]['url'] = $safe_url;
-            }
             return;
         }
-        $seen[$key] = count($result);
+        $seen[$key] = true;
 
         $result[] = [
             'name' => $safe_name,
@@ -515,7 +659,7 @@ function mw_normalize_crews_from_payload($payload) {
         ];
     };
 
-    $crews_objects = is_array($payload['crews'] ?? null) ? $payload['crews'] : [];
+    $crews_objects = mw_as_array($payload['crews'] ?? []);
     foreach ($crews_objects as $crew) {
         if (!is_array($crew)) {
             continue;
@@ -523,16 +667,41 @@ function mw_normalize_crews_from_payload($payload) {
         $push($crew['name'] ?? '', $crew['url'] ?? '');
     }
 
+    if (!empty($result)) {
+        return $result;
+    }
+
+    $legacy_crews_data = mw_as_array($payload['crewsData'] ?? []);
+    foreach ($legacy_crews_data as $item) {
+        if (!is_array($item)) {
+            continue;
+        }
+        $name = mw_str($item['name'] ?? '') ?: mw_str($item['raw'] ?? '');
+        $push($name, $item['url'] ?? '');
+    }
+
+    $current = mw_str($payload['crewCurrent'] ?? '');
+    if ($current !== '') {
+        $push($current, '');
+    }
+
+    for ($i = 1; $i <= 4; $i += 1) {
+        $slot = mw_str($payload['crew' . $i] ?? '');
+        if ($slot !== '') {
+            $push($slot, '');
+        }
+    }
+
     return $result;
 }
 
 function mw_merge_player_profile($player_post_id, $payload) {
-    $nickname = mw_str($payload['nickname'] ?? '');
-    $rid = mw_int_or_null($payload['rid'] ?? null);
-    $player_id = mw_str($payload['playerId'] ?? '');
-    $aliases_incoming = mw_aliases_from_mixed($payload['aliases'] ?? []);
-    $crew_current = mw_str($payload['crewCurrent'] ?? '');
-    $investigation_status = mw_str($payload['investigation_status'] ?? '');
+    $nickname = mw_resolve_nickname_from_payload($payload);
+    $rid = mw_payload_int_or_null($payload, 'rid');
+    $player_id = mw_payload_str($payload, 'playerId');
+    $aliases_incoming = mw_payload_aliases($payload, 'aliases');
+    $crew_current = mw_payload_str($payload, 'crewCurrent');
+    $investigation_status = mw_payload_str($payload, 'investigation_status');
 
     if ($nickname !== '') {
         array_unshift($aliases_incoming, $nickname);
@@ -541,7 +710,7 @@ function mw_merge_player_profile($player_post_id, $payload) {
     $aliases_existing = mw_safe_meta_array($player_post_id, '_mw_aliases');
     $aliases_merged = mw_unique_strings(array_merge($aliases_existing, $aliases_incoming));
 
-    $alias_time = mw_int_or_null($payload['time'] ?? null);
+    $alias_time = mw_payload_int_or_null($payload, 'time');
     if ($alias_time === null) {
         $alias_time = time();
     }
@@ -589,20 +758,11 @@ function mw_merge_player_profile($player_post_id, $payload) {
         }
         $name = mw_str($crew['name'] ?? '');
         $url = mw_str($crew['url'] ?? '');
-        $key = mb_strtolower($name);
-        if ($key === '') {
+        $key = mb_strtolower($name . '|' . $url);
+        if ($key === '' || isset($seen[$key])) {
             continue;
         }
-
-        if (isset($seen[$key])) {
-            $index = intval($seen[$key]);
-            if ($url !== '' && mw_str($crews_merged[$index]['url'] ?? '') === '') {
-                $crews_merged[$index]['url'] = $url;
-            }
-            continue;
-        }
-
-        $seen[$key] = count($crews_merged);
+        $seen[$key] = true;
         $crews_merged[] = [
             'name' => $name,
             'url' => $url,
@@ -625,34 +785,31 @@ function mw_merge_player_profile($player_post_id, $payload) {
     update_post_meta($player_post_id, '_mw_aliases_history', $aliases_history);
     update_post_meta($player_post_id, '_mw_crew_current', $crew_current);
     update_post_meta($player_post_id, '_mw_crews_data', $crews_merged);
-    update_post_meta($player_post_id, '_mw_avatar_1', mw_str($payload['avatar1'] ?? ''));
-    update_post_meta($player_post_id, '_mw_avatar_2', mw_str($payload['avatar2'] ?? ''));
+    update_post_meta($player_post_id, '_mw_avatar_1', mw_payload_str($payload, 'avatar1'));
+    update_post_meta($player_post_id, '_mw_avatar_2', mw_payload_str($payload, 'avatar2'));
     update_post_meta($player_post_id, '_mw_investigation_status', $investigation_status);
     update_post_meta($player_post_id, '_mw_last_seen_at', current_time('mysql'));
     update_post_meta($player_post_id, '_mw_total_reports', $total_reports);
 }
 
 function mw_store_report($player_post_id, $payload) {
-    $reason = mw_str($payload['reason'] ?? '');
-    $nickname = mw_str($payload['nickname'] ?? '');
-    $rid = mw_int_or_null($payload['rid'] ?? null);
+    $reason = mw_payload_str($payload, 'reason');
+    $nickname = mw_resolve_nickname_from_payload($payload);
+    $rid = mw_payload_int_or_null($payload, 'rid');
     $created_at = current_time('mysql');
     $title = mw_build_player_display_title($nickname, $rid);
-    $investigation_status = mw_str($payload['investigation_status'] ?? '');
-    $reportedby = mw_str($payload['reportedby'] ?? '');
-    $types = is_array($payload['typesOfInfraction'] ?? null)
-        ? $payload['typesOfInfraction']
-        : (is_array($payload['categories'] ?? null) ? $payload['categories'] : []);
-    $labels = is_array($payload['labels'] ?? null) ? $payload['labels'] : [];
-    $label_ids = is_array($payload['labelIds'] ?? null)
-        ? $payload['labelIds']
-        : (is_array($payload['tagIds'] ?? null) ? $payload['tagIds'] : []);
+    $investigation_status = mw_payload_str($payload, 'investigation_status');
+    $reportedby = mw_payload_str($payload, 'reportedby');
+    $types = mw_payload_array($payload, 'categories');
+    if (empty($types)) {
+        $types = mw_payload_array($payload, 'typesOfInfraction');
+    }
+    $labels = mw_payload_array($payload, 'labels');
+    $label_ids = mw_payload_array($payload, 'labelIds');
     $labels_table = mw_build_labels_table($labels, $label_ids);
-    $reporter = is_array($payload['reporter'] ?? null)
-        ? $payload['reporter']
-        : mw_normalize_reporter($payload, $reportedby);
-    $evidence = is_array($payload['evidence'] ?? null) ? $payload['evidence'] : [];
-    $analysis = is_array($payload['analysis'] ?? null) ? $payload['analysis'] : [];
+    $reporter = mw_normalize_reporter($payload, $reportedby);
+    $evidence = mw_payload_array($payload, 'evidence');
+    $analysis = mw_payload_object($payload, 'analysis');
 
     $report_post_id = wp_insert_post([
         'post_type' => 'mw_report',
@@ -672,8 +829,8 @@ function mw_store_report($player_post_id, $payload) {
     update_post_meta($report_post_id, '_mw_rid', $rid !== null ? strval($rid) : '');
     update_post_meta($report_post_id, '_mw_reason', $reason);
     update_post_meta($report_post_id, '_mw_investigation_status', $investigation_status);
-    update_post_meta($report_post_id, '_mw_types', is_array($types) ? $types : []);
-    update_post_meta($report_post_id, '_mw_labels', is_array($labels_table) ? $labels_table : []);
+    update_post_meta($report_post_id, '_mw_types', mw_as_array($types));
+    update_post_meta($report_post_id, '_mw_labels', mw_as_array($labels_table));
     update_post_meta($report_post_id, '_mw_reporter', $reporter);
     update_post_meta($report_post_id, '_mw_evidence', $evidence);
     update_post_meta($report_post_id, '_mw_analysis', $analysis);
@@ -744,24 +901,16 @@ function mw_map_report_item($report_post_id) {
     $payload = get_post_meta($report_post_id, '_mw_report_payload', true);
     $safe_payload = is_array($payload) ? $payload : [];
 
-    $nickname = mw_str($safe_payload['nickname'] ?? get_post_meta($report_post_id, '_mw_nickname', true));
-    $rid = mw_str($safe_payload['rid'] ?? get_post_meta($report_post_id, '_mw_rid', true));
-    $reason = mw_str($safe_payload['reason'] ?? get_post_meta($report_post_id, '_mw_reason', true));
-    $types = is_array($safe_payload['typesOfInfraction'] ?? null)
-        ? $safe_payload['typesOfInfraction']
-        : (is_array($safe_payload['categories'] ?? null)
-            ? $safe_payload['categories']
-            : mw_safe_meta_array($report_post_id, '_mw_types'));
-    $labels = is_array($safe_payload['labels'] ?? null) ? $safe_payload['labels'] : [];
-    $label_ids = is_array($safe_payload['labelIds'] ?? null)
-        ? $safe_payload['labelIds']
-        : (is_array($safe_payload['tagIds'] ?? null) ? $safe_payload['tagIds'] : []);
+    $nickname = mw_str(get_post_meta($report_post_id, '_mw_nickname', true));
+    $rid = mw_str(get_post_meta($report_post_id, '_mw_rid', true));
+    $reason = mw_str(get_post_meta($report_post_id, '_mw_reason', true));
+    $types = mw_safe_meta_array($report_post_id, '_mw_types');
+    $labels = mw_safe_meta_array($report_post_id, '_mw_labels');
+    $label_ids = mw_safe_meta_array($report_post_id, '_mw_label_ids');
     $labels_table = mw_build_labels_table($labels, $label_ids);
-    $reporter = is_array($safe_payload['reporter'] ?? null) ? $safe_payload['reporter'] : mw_safe_meta_array($report_post_id, '_mw_reporter');
-    $evidence = is_array($safe_payload['evidence'] ?? null)
-        ? $safe_payload['evidence']
-        : mw_safe_meta_array($report_post_id, '_mw_evidence');
-    $analysis = is_array($safe_payload['analysis'] ?? null) ? $safe_payload['analysis'] : mw_safe_meta_array($report_post_id, '_mw_analysis');
+    $reporter = mw_safe_meta_array($report_post_id, '_mw_reporter');
+    $evidence = mw_safe_meta_array($report_post_id, '_mw_evidence');
+    $analysis = mw_safe_meta_array($report_post_id, '_mw_analysis');
     $created_at = mw_str(get_post_meta($report_post_id, '_mw_created_at', true));
     $community_verification = mw_get_community_verification($report_post_id);
     $player_post_id = intval(get_post_meta($report_post_id, '_mw_player_post_id', true));
@@ -771,47 +920,58 @@ function mw_map_report_item($report_post_id) {
         $crews = mw_safe_meta_array($player_post_id, '_mw_crews_data');
     }
 
-    if (is_array($crews)) {
-        $normalized_crews = [];
-        $seen_crews = [];
-        foreach ($crews as $crew) {
-            if (!is_array($crew)) {
-                continue;
-            }
-            $name = mw_str($crew['name'] ?? '');
-            if ($name === '') {
-                continue;
-            }
-            $url = mw_str($crew['url'] ?? '');
+    $raw_report = is_array($safe_payload['report'] ?? null) ? $safe_payload['report'] : [];
+    unset($safe_payload['report']);
+    unset($safe_payload['playerId']);
+    unset($safe_payload['source']);
+    unset($safe_payload['tags']);
+    unset($safe_payload['tagIds']);
+    unset($safe_payload['labelIds']);
+    unset($safe_payload['reportedby']);
+    unset($safe_payload['reason']);
+    unset($safe_payload['username']);
+    unset($safe_payload['ip']);
+    unset($safe_payload['crewCurrent']);
+    unset($safe_payload['crewCurrentData']);
+    unset($safe_payload['crews']);
+    unset($safe_payload['crewsData']);
+    unset($safe_payload['types']);
+    unset($safe_payload['typesOfInfraction']);
+    unset($safe_payload['crew1']);
+    unset($safe_payload['crew2']);
+    unset($safe_payload['crew3']);
+    unset($safe_payload['crew4']);
 
-            $key = mb_strtolower($name);
-            if (isset($seen_crews[$key])) {
-                $index = intval($seen_crews[$key]);
-                if ($url !== '' && mw_str($normalized_crews[$index]['url'] ?? '') === '') {
-                    $normalized_crews[$index]['url'] = $url;
-                }
-                continue;
-            }
+    unset($raw_report['tags']);
+    unset($raw_report['tagIds']);
+    unset($raw_report['labelIds']);
+    unset($raw_report['reportedby']);
+    unset($raw_report['reason']);
+    unset($raw_report['username']);
+    unset($raw_report['ip']);
+    unset($raw_report['playerId']);
+    unset($raw_report['source']);
+    unset($raw_report['crewCurrent']);
+    unset($raw_report['crewCurrentData']);
+    unset($raw_report['crews']);
+    unset($raw_report['crewsData']);
+    unset($raw_report['types']);
+    unset($raw_report['typesOfInfraction']);
 
-            $seen_crews[$key] = count($normalized_crews);
-            $normalized_crews[] = [
-                'name' => $name,
-                'url' => $url,
-            ];
-        }
-        $crews = $normalized_crews;
+    $aliases_raw = null;
+    if (array_key_exists('aliases', $safe_payload)) {
+        $aliases_raw = $safe_payload['aliases'];
+    } elseif (array_key_exists('aliases', $raw_report)) {
+        $aliases_raw = $raw_report['aliases'];
     }
-
-    unset($safe_payload['crewsAssigned']);
-    unset($safe_payload['crews_assigned']);
-    $aliases = mw_aliases_from_mixed($safe_payload['aliases'] ?? []);
+    $aliases = mw_aliases_from_mixed($aliases_raw);
 
     $reporter_name = mw_str($reporter['name'] ?? '');
     if (mb_strtolower($reporter_name) === 'formulario web') {
         $reporter['name'] = 'Anónimo';
     }
 
-    $flattened_payload = array_merge($safe_payload, [
+    $flattened_payload = array_merge($safe_payload, $raw_report, [
         'nickname' => $nickname,
         'aliases' => $aliases,
         'rid' => $rid,
@@ -1027,8 +1187,9 @@ function mw_map_player_item($player_post_id, $with_reports = true, $reports_limi
     ]);
 
     $reports = [];
-    foreach ($report_posts as $report_post_id) {
+    foreach ($report_posts as $idx => $report_post_id) {
         $mapped = mw_map_report_item(intval($report_post_id));
+        $mapped['id'] = $idx + 1;
         $reports[] = $mapped;
     }
 
@@ -1136,10 +1297,10 @@ function mw_ingest_payload_array($payload) {
         return new WP_REST_Response(['ok' => false, 'error' => 'Payload JSON invalido.'], 400);
     }
 
-    $nickname = mw_str($payload['nickname'] ?? '');
-    $reason = mw_str($payload['reason'] ?? '');
-    $rid = mw_int_or_null($payload['rid'] ?? null);
-    $player_id = mw_str($payload['playerId'] ?? '');
+    $nickname = mw_resolve_nickname_from_payload($payload);
+    $reason = mw_payload_str($payload, 'reason');
+    $rid = mw_payload_int_or_null($payload, 'rid');
+    $player_id = mw_payload_str($payload, 'playerId');
 
     if ($nickname === '' || $reason === '') {
         return new WP_REST_Response(['ok' => false, 'error' => 'nickname y reason son obligatorios.'], 400);
@@ -1250,7 +1411,7 @@ function mw_rest_players_list($request) {
     ]);
 
     $items = [];
-    foreach ($posts as $post_id) {
+    foreach ($posts as $idx => $post_id) {
         $item = mw_map_player_item(intval($post_id), $with_reports, $reports_limit);
 
         // Por defecto oculta jugadores huerfanos cuando se solicitan reportes.
@@ -1258,6 +1419,7 @@ function mw_rest_players_list($request) {
             continue;
         }
 
+        $item['id'] = $offset + $idx + 1;
         $items[] = $item;
     }
 
@@ -1325,8 +1487,9 @@ function mw_rest_reports_list($request) {
     $posts = get_posts($query_args);
 
     $items = [];
-    foreach ($posts as $post_id) {
+    foreach ($posts as $idx => $post_id) {
         $item = mw_map_report_item(intval($post_id));
+        $item['id'] = $offset + $idx + 1;
         $items[] = $item;
     }
 

@@ -4,6 +4,18 @@ function toTrimmedString(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+function toObjectText(value = {}) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return '';
+  const keys = ['nombre', 'name', 'label', 'value', 'text', 'title'];
+  for (const key of keys) {
+    const candidate = value?.[key];
+    if (typeof candidate === 'string' && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+  return '';
+}
+
 const ALLOWED_EVIDENCE_CONTENT_TYPES = new Set([
   'image/png',
   'image/jpeg',
@@ -33,15 +45,14 @@ const LABEL_ID_BY_NAME = TIPOS_ETIQUETAS.reduce((acc, tipo) => {
 }, new Map());
 
 function sanitizeReporter(reporter = {}, fallbackContact = '') {
-  const name = toTrimmedString(reporter?.name) || 'Anónimo';
+  const contactName = toTrimmedString(fallbackContact);
+  const name = toTrimmedString(reporter?.name) || contactName || 'Anónimo';
   const id = toTrimmedString(reporter?.id);
-  const tag = toTrimmedString(reporter?.tag) || (fallbackContact && fallbackContact !== name ? fallbackContact : '');
   const email = toTrimmedString(reporter?.email);
 
   return {
     id,
     name,
-    tag,
     email,
   };
 }
@@ -73,7 +84,11 @@ function sanitizeStringArray(values = [], maxItems = 25) {
   if (!Array.isArray(values)) return [];
 
   return values
-    .map((value) => toTrimmedString(value))
+    .map((value) => {
+      if (typeof value === 'string') return toTrimmedString(value);
+      if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+      return toObjectText(value);
+    })
     .filter(Boolean)
     .slice(0, maxItems);
 }
@@ -94,7 +109,16 @@ function sanitizeLabels(values = [], maxItems = 25) {
       continue;
     }
 
-    const textValue = toTrimmedString(rawValue);
+    let textValue = toTrimmedString(rawValue);
+    if (!textValue && rawValue && typeof rawValue === 'object' && !Array.isArray(rawValue)) {
+      textValue = toObjectText(rawValue);
+
+      const objectId = Number(rawValue?.id ?? rawValue?.labelId ?? rawValue?.valueId);
+      if (Number.isInteger(objectId) && objectId > 0) {
+        labelIds.push(objectId);
+      }
+    }
+
     if (!textValue) continue;
 
     if (/^\d+$/.test(textValue)) {
@@ -192,6 +216,30 @@ function buildCrewStructures({ crewCurrent = '', crewSlots = [] } = {}) {
   };
 }
 
+function buildCrewLinks(entries = []) {
+  const normalized = [];
+  const unique = new Set();
+
+  for (const entry of Array.isArray(entries) ? entries : []) {
+    if (!entry || typeof entry !== 'object') continue;
+
+    const name = toTrimmedString(entry.name) || toTrimmedString(entry.raw);
+    if (!name) continue;
+
+    const url = toTrimmedString(entry.url);
+    const key = `${name.toLowerCase()}|${url.toLowerCase()}`;
+    if (unique.has(key)) continue;
+    unique.add(key);
+
+    normalized.push({
+      name,
+      url,
+    });
+  }
+
+  return normalized;
+}
+
 function buildPlayerId({ nickname = '', rid = null }) {
   if (Number.isFinite(rid) && rid > 0) {
     return `RID-${Math.trunc(rid)}`;
@@ -277,11 +325,20 @@ export function validateIncomingReportSubmission(body = {}) {
   const ip = toTrimmedString(report?.ip);
   const aliases = sanitizeAliases(report?.aliases);
   const time = Number.isFinite(report?.time) ? report.time : null;
-  const normalizedCrews = crews || crewSlots.join(' | ');
   const crewStructures = buildCrewStructures({
     crewCurrent,
     crewSlots,
   });
+  const fallbackCrewEntries = crews
+    ? crews
+      .split(/\||,/)
+      .map((value) => parseCrewEntry(value, null, false))
+      .filter(Boolean)
+    : [];
+  const crewsCollection = buildCrewLinks([
+    ...crewStructures.allEntries,
+    ...fallbackCrewEntries,
+  ]);
 
   const analysis = sanitizeAnalysis(report?.analysis);
   const source = toTrimmedString(body?.source || report?.source) || 'mostwanted-web';
@@ -368,11 +425,8 @@ export function validateIncomingReportSubmission(body = {}) {
         ...(crewSlots[1] ? { crew2: crewSlots[1] } : {}),
         ...(crewSlots[2] ? { crew3: crewSlots[2] } : {}),
         ...(crewSlots[3] ? { crew4: crewSlots[3] } : {}),
-        ...(crewSlots.length > 0 ? { crewsAssigned: crewSlots } : {}),
         ...(crewStructures.activeCrewEntry ? { crewCurrentData: crewStructures.activeCrewEntry } : {}),
-        ...(crewStructures.assignedEntries.length > 0 ? { crewsAssignedData: crewStructures.assignedEntries } : {}),
-        ...(crewStructures.allEntries.length > 0 ? { crewsData: crewStructures.allEntries } : {}),
-        ...(normalizedCrews ? { crews: normalizedCrews } : {}),
+        ...(crewsCollection.length > 0 ? { crews: crewsCollection } : {}),
         ...(avatar1 ? { avatar1 } : {}),
         ...(avatar2 ? { avatar2 } : {}),
         ...(rid ? { rid } : {}),
@@ -380,7 +434,6 @@ export function validateIncomingReportSubmission(body = {}) {
         ...(aliases.length > 0 ? { aliases } : {}),
         ...(time ? { time } : {}),
         investigation_status: investigationStatus,
-        ...(reportedby ? { reportedby } : {}),
         ...(typesOfInfraction.length > 0 ? { typesOfInfraction } : {}),
         ...(labels.length > 0 ? { labels } : {}),
         ...(labelIds.length > 0 ? { labelIds } : {}),

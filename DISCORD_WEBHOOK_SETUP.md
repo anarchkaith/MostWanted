@@ -8,7 +8,7 @@ Los reportes ahora se envían automáticamente al webhook de Discord cuando se c
 
 **URL del Webhook:**
 ```
-https://discord.com/api/webhooks/1487549131655483583/zYfylIqIqPAM7Oy9icfNAiZb51kQvVD0oVVhq9HAW1UxheTp6U7RMIsoRBh2FIQQrx2O
+https://discord.com/api/webhooks/1485577006493208648/Rct6BSCcnK0M14T4i60kud4mO4MwouGIGKLUyV_c-asJ7PFTvzysoS0Sd3YXm5bdg_ke
 ```
 
 ## Flow del Reporte

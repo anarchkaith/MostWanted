@@ -1,4 +1,6 @@
 ﻿import { sanitizeDiscordWebhookPayload, sendDiscordWebhook } from '../services/discordWebhook.service.js';
+import { sendReportToDiscordWebhook } from '../../../reports/discord.js';
+import { validateIncomingReportSubmission } from '../../../reports/validation.js';
 
 /**
  * Resuelve IP cliente considerando cabeceras de proxy reverso.
@@ -40,12 +42,14 @@ function registerGenericDiscordWebhookPostRoute(routePath, app, deps) {
   app.post(routePath, rateLimits.webhook, maybeRequireSessionAuth, async (req, res) => {
     const clientIp = resolveClientIp(req);
     const now = Date.now();
+    const incomingBody = req.body && typeof req.body === 'object' ? req.body : {};
+    const incomingReport = incomingBody?.report && typeof incomingBody.report === 'object' ? incomingBody.report : null;
 
     if (!discordWebhookUrl) {
       return res.status(503).json({ error: 'Webhook de Discord no configurado en el servidor.' });
     }
 
-    if (!isAllowedWebhookOrigin(req, webhookAllowedOrigins)) {
+    if (!incomingReport && !isAllowedWebhookOrigin(req, webhookAllowedOrigins)) {
       return res.status(403).json({ error: 'Origen no autorizado para este endpoint.' });
     }
 
@@ -71,6 +75,40 @@ function registerGenericDiscordWebhookPostRoute(routePath, app, deps) {
     }
 
     try {
+      if (incomingReport) {
+        const effectiveBody = {
+          ...incomingBody,
+          report: {
+            ...incomingReport,
+            ip: String(incomingReport?.ip || '').trim() || String(clientIp || '').trim(),
+          },
+        };
+
+        const validation = validateIncomingReportSubmission(effectiveBody);
+        if (!validation.ok) {
+          return res.status(validation.status).json({ ok: false, error: validation.error });
+        }
+
+        const submission = validation.value;
+        const discordDelivery = await sendReportToDiscordWebhook(submission);
+
+        if (discordDelivery.ok) {
+          if (!debugMode) {
+            webhookLastSubmissionByIp.set(clientIp, now);
+          }
+
+          return res.status(201).json({
+            ok: true,
+            message: 'Reporte enviado a Discord exitosamente.',
+          });
+        }
+
+        return res.status(202).json({
+          ok: true,
+          warning: 'El reporte fue aceptado por la web, pero no se pudo confirmar el envio a Discord.',
+        });
+      }
+
       const safePayload = sanitizeDiscordWebhookPayload(req.body);
 
       if (!safePayload.content && (!Array.isArray(safePayload.embeds) || safePayload.embeds.length === 0)) {

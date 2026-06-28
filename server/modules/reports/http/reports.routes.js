@@ -1,5 +1,5 @@
 ﻿import { checkReportsHealth } from '../services/reportsHealth.service.js';
-import { submitReport } from '../services/submitReport.service.js';
+import { submitWordpressReport } from '../services/submitReport.service.js';
 import { getPlayerInsights } from '../../background-investigation/services/playerInsights.service.js';
 
 /**
@@ -28,9 +28,8 @@ export function registerReportsRoutes(app, deps) {
   });
 
   app.post('/api/reports', rateLimits.webhook, maybeRequireSessionAuth, requireNonEmptyBody, async (req, res) => {
-    const result = await submitReport({
+    const result = await submitWordpressReport({
       body: req.body,
-      hexbotConfig,
       wordpressReportsConfig,
       logger: console,
     });

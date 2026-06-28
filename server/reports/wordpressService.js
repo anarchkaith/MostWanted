@@ -1,5 +1,5 @@
 ﻿import { buildHexbotReportPayload } from './payload.js';
-import { getWordpressHealth, postWordpressReport } from './wordpressClient.js';
+import { createWordpressCustomPost, getWordpressHealth, postWordpressReport } from './wordpressClient.js';
 import { hasWordpressReportsConfig } from './wordpressConfig.js';
 
 function toErrorDetails(error) {
@@ -32,6 +32,58 @@ function normalizeWordpressError(error) {
       ? error.details
       : toErrorDetails(error),
   };
+}
+
+function toList(values = []) {
+  return Array.isArray(values) && values.length > 0
+    ? values.map((item) => {
+      if (item && typeof item === 'object') {
+        const name = String(item?.name || '').trim();
+        const url = String(item?.url || '').trim();
+        if (name && url) return `${name} (${url})`;
+        return name || url || '';
+      }
+      return String(item);
+    }).filter(Boolean).join(', ')
+    : 'N/A';
+}
+
+function buildMarkdownReportContent(payload = {}) {
+  const evidence = Array.isArray(payload?.evidence) ? payload.evidence : [];
+  const evidenceLines = evidence.length > 0
+    ? evidence.slice(0, 10).map((item, index) => {
+      const name = String(item?.name || `evidencia-${index + 1}`);
+      const url = String(item?.url || '').trim();
+      const contentType = String(item?.contentType || '').trim();
+      return url
+        ? `- [${name}](${url})${contentType ? ` (${contentType})` : ''}`
+        : `- ${name}${contentType ? ` (${contentType})` : ''}`;
+    }).join('\n')
+    : '- Sin evidencias';
+
+  return [
+    `# Reporte MostWanted - ${payload?.nickname || 'Sin nickname'}`,
+    '',
+    '## Resumen',
+    `- **Nickname:** ${payload?.nickname || 'N/A'}`,
+    `- **RID:** ${payload?.rid || 'N/A'}`,
+    `- **Player ID:** ${payload?.playerId || 'N/A'}`,
+    `- **Crews:** ${toList(payload?.crews || payload?.crewsAssigned || [])}`,
+    `- **Aliases:** ${toList(payload?.aliases || [])}`,
+    `- **Tipos de infraccion:** ${toList(payload?.typesOfInfraction || [])}`,
+    `- **Etiquetas:** ${toList(payload?.labels || [])}`,
+    '',
+    '## Motivo',
+    payload?.reason || 'Sin motivo',
+    '',
+    '## Evidencias',
+    evidenceLines,
+    '',
+    '## Metadata',
+    `- **Reported by:** ${payload?.reportedby || payload?.reporter?.name || 'N/A'}`,
+    `- **Source:** ${payload?.source || 'mostwanted-web'}`,
+    `- **Timestamp:** ${payload?.time ? new Date(Number(payload.time)).toISOString() : new Date().toISOString()}`,
+  ].join('\n');
 }
 
 export async function checkWordpressIntegration({ config, logger = console }) {
@@ -100,6 +152,55 @@ export async function sendReportToWordpress({ config, submission, logger = conso
       },
     };
   } catch (error) {
+    const canFallbackToCustomPost = Number(error?.status) === 404 || Number(error?.status) === 405;
+    if (canFallbackToCustomPost) {
+      try {
+        const markdown = buildMarkdownReportContent(payload);
+        const fallback = await createWordpressCustomPost({
+          config,
+          postType: 'mw_report',
+          title: `${payload.nickname || 'Jugador'} - Reporte MostWanted`,
+          content: markdown,
+          status: 'publish',
+          meta: {
+            mw_rid: payload?.rid || null,
+            mw_player_id: payload?.playerId || null,
+            mw_labels: Array.isArray(payload?.labels) ? payload.labels : [],
+          },
+          logger,
+        });
+
+        logger.info('[wordpress] Report delivered using generic custom post fallback', {
+          nickname: payload.nickname,
+          postId: fallback.payload?.id ?? null,
+        });
+
+        return {
+          payload,
+          delivery: {
+            ok: true,
+            status: fallback.status,
+            reportId: fallback.payload?.id ?? null,
+            playerPostId: null,
+            player: {
+              nickname: payload.nickname || null,
+              rid: payload.rid || null,
+            },
+            mode: 'wp_v2_mw_report_fallback',
+          },
+        };
+      } catch (fallbackError) {
+        const delivery = normalizeWordpressError(fallbackError);
+        logger.error('[wordpress] Fallback custom post delivery failed', {
+          nickname: payload.nickname,
+          errorCode: delivery.errorCode,
+          status: delivery.status,
+          details: delivery.details,
+        });
+        return { payload, delivery };
+      }
+    }
+
     const delivery = normalizeWordpressError(error);
     logger.error('[wordpress] Report delivery failed', {
       nickname: payload.nickname,

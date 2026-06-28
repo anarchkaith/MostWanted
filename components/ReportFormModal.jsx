@@ -8,10 +8,14 @@ import { reportFormValidationSchema } from './reportFormValidation';
 import TipoInfraccionSelector from './TipoInfraccionSelector';
 import { useMutation } from '@tanstack/react-query';
 import { TIPOS_ETIQUETAS } from './tiposEtiquetas';
-import { calcularSeveridadSugerida } from './reportHelpers';
 import PlayerBackgroundPanel from './PlayerBackgroundPanel';
 import { isBlockedReportedUsername } from './blockedUsernames';
-import { fetchWordpressPlayersSnapshot, submitReportToBackend, uploadEvidenceImages } from '../src/services/reportSubmissionService';
+import {
+  fetchWordpressPlayersSnapshot,
+  submitDiscordReportFromWordpressResult,
+  submitWordpressReport,
+  uploadEvidenceImages,
+} from '../src/services/reportSubmissionService';
 
 const initialValues = {
   investigation_status: 'not_attempted',
@@ -88,124 +92,38 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
   const crearReporte = useMutation({
     mutationFn: async (nuevoReporte) => {
       const apiKey = import.meta.env.VITE_API_KEY_IMGBB;
-      const evidenciasPublicas = await uploadEvidenceImages(images, apiKey);
-      const reporterTag = currentUser?.discriminator && currentUser.discriminator !== '0'
-        ? `${currentUser.username}#${currentUser.discriminator}`
-        : (currentUser?.username || '');
+      const contactName = String(nuevoReporte?.reportedby || '').trim();
+      const { reportedby: _reportedby, ...reportPayload } = nuevoReporte;
+      const reporter = {
+        id: currentUser?.id || '',
+        name: currentUser?.username || contactName || 'Anónimo',
+        email: currentUser?.email || '',
+      };
+      const evidence = await uploadEvidenceImages(images, apiKey);
 
-      return submitReportToBackend({
-        report: nuevoReporte,
-        reporter: {
-          id: currentUser?.id || '',
-          name: currentUser?.username || 'Formulario web',
-          tag: reporterTag || nuevoReporte.reportedby || '',
-          email: currentUser?.email || '',
-        },
-        evidence: evidenciasPublicas,
+      const wordpressResult = await submitWordpressReport({
+        report: reportPayload,
+        reporter,
+        evidence,
       });
 
-      const severidadColorMap = {
-        baja: 0x2ecc40,
-        media: 0xffe066,
-        alta: 0xffa500,
-        critica: 0xff3333,
-        inviable: 0x000000,
+      let discordResult = null;
+      let discordDelivery = null;
+      try {
+        discordResult = await submitDiscordReportFromWordpressResult(wordpressResult);
+        discordDelivery = discordResult?.discordDelivery || null;
+      } catch (discordError) {
+        discordDelivery = {
+          ok: false,
+          message: discordError?.message || 'No se pudo confirmar el envio a Discord.',
+        };
+      }
+
+      return {
+        ...wordpressResult,
+        discordDelivery,
+        discordResult,
       };
-
-      const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
-      const { nivel: nivelSeveridad, puntaje: puntajeEtiquetas } = calcularSeveridadSugerida(nuevoReporte.typesOfInfraction, nuevoReporte.labels);
-      const baseCorruptionPercent = clamp(Math.round(12 + puntajeEtiquetas * 8), 10, 100);
-      const aiCorruptionPercent = Number.isFinite(iaAnalysis.corruptionPercent)
-        ? clamp(iaAnalysis.corruptionPercent, 0, 100)
-        : clamp(iaAnalysis.threatLevel * 20, 0, 100);
-      const aiWeight = clamp(0.25 + (clamp(iaAnalysis.confidence, 0, 100) / 100) * 0.55, 0.25, 0.8);
-      const hybridCorruptionPercent = clamp(
-        Math.round(baseCorruptionPercent * (1 - aiWeight) + aiCorruptionPercent * aiWeight),
-        0,
-        100
-      );
-      const corruptionBars = clamp(Math.round(hybridCorruptionPercent / 10), 0, 10);
-
-      const embedColor = severidadColorMap[nivelSeveridad] || 16711740;
-
-      const payload = {
-        username: 'SISTEMA DE VIGILANCIA',
-        avatar_url: 'https://i.pinimg.com/736x/2b/6e/f6/2b6ef68a43b6b4363dcea23ee5c78421.jpg',
-        components: [],
-        content: '`⌬` **[SE BUSCA]** :: *Nueva amenaza detectada...*',
-        embeds: [
-          {
-            author: { name: '◢◤ H.E.X. ◢◤', icon_url: 'https://i.ibb.co/zT7r8F2P/X.png' },
-            color: embedColor,
-            title: '✖️ [ TARGET MARKED FOR TERMINATION ] ✖️',
-            url: 'https://discohook.app#default-0Kdv1EiU',
-            timestamp: new Date().toISOString(),
-            fields: [
-              {
-                name: '⟦ 👤 SUJETO IDENTIFICADO ⟧',
-                value: `\`\`\`diff\n${nuevoReporte.nickname}\n\`\`\``,
-                inline: false,
-              },
-              { name: '📡 CARGO IMPUTADO', value: `> ${nuevoReporte.typesOfInfraction.join(', ')}`, inline: true },
-              {
-                name: '☣️ NIVEL DE CORRUPCIÓN',
-                value: `${'▰'.repeat(corruptionBars)}${'▱'.repeat(10 - corruptionBars)} **${hybridCorruptionPercent}%**\n(Base ${baseCorruptionPercent}% + IA ${aiCorruptionPercent}% | conf ${iaAnalysis.confidence}%)`,
-                inline: true,
-              },
-              {
-                name: '🗒️ INFORME DE OPERACIONES',
-                value: `\`\`\`fix\n"${nuevoReporte.reason}"\n\`\`\``,
-                inline: false,
-              },
-              {
-                name: '🧠 RESUMEN POLICIAL',
-                value: `> ${toEmbedText(iaAnalysis.summary)}`,
-                inline: false,
-              },
-              {
-                name: '🎯 RECOMENDACIÓN OPERATIVA',
-                value: `**${recomendacionLabel}** | Riesgo ${iaAnalysis.threatLevel}/5 | Confianza ${iaAnalysis.confidence}%\n${toEmbedText(iaAnalysis.operationalRecommendation)}`,
-                inline: false,
-              },
-              {
-                name: '📎 FUNDAMENTO IA',
-                value: toEmbedText(iaAnalysis.reason),
-                inline: false,
-              },
-              {
-                name: '⚖️ FUNDAMENTO DEL NIVEL DE CORRUPCIÓN',
-                value: toEmbedText(iaAnalysis.corruptionReason),
-                inline: false,
-              },
-              {
-                name: '🧭 DIRECTIVA DE INTERVENCIÓN TÁCTICA',
-                value: toEmbedText(iaAnalysis.tacticalDirective, 'Sin directiva tactica generada.', 900),
-                inline: false,
-              },
-              nuevoReporte.labels.length > 0
-                ? { name: '🏷️ CÓDIGOS DE AMENAZA', value: nuevoReporte.labels.map(e => `#${e}`).join(', '), inline: false }
-                : null,
-            ].filter(Boolean),
-            footer: {
-              text: `LOG_BY: ${nuevoReporte.contacto || 'ANÓNIMO'} // NO MERCY FOR TOXICS`,
-              icon_url: 'https://i.ibb.co/v4KTFw0q/Vector.png',
-            },
-            image: evidenciasUrls[0] ? { url: evidenciasUrls[0] } : {},
-          },
-          ...evidenciasUrls.slice(1).map(url => ({ url: 'https://discohook.app#default-0Kdv1EiU', image: { url } })),
-        ],
-        attachments: [],
-        allowed_mentions: { parse: [] },
-      };
-
-      const res = await fetch('/api/discord-webhook', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) throw new Error('Error al enviar el reporte');
-      return res.status === 204 ? null : res.json();
     },
     onError: (error) => {
       setSubmitError(error.message || 'Error al enviar el reporte. Intenta de nuevo.');
@@ -218,6 +136,14 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
     imageUploadRef.current?.clearImages?.();
     setShowSuccess(null);
     setBotDeliveryState(null);
+  };
+
+  const severidadColorMap = {
+    baja: 0x2ecc40,
+    media: 0xffe066,
+    alta: 0xffa500,
+    critica: 0xff3333,
+    inviable: 0x000000,
   };
 
   return (
@@ -262,7 +188,7 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
               lineHeight: 1.5,
             }}>
               {botDeliveryState?.ok
-                ? `Sincronizado con el bot de Discord${botDeliveryState?.reportId ? ` · Report ID ${botDeliveryState.reportId}` : ''}.`
+                ? 'Sincronizado con el bot de Discord.'
                 : `No se pudo confirmar el envio al bot de Discord${botDeliveryState?.message ? `: ${botDeliveryState.message}` : '.'}`}
             </div>
             <a
@@ -555,10 +481,10 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
             const { evidence: _, ...reporteData } = values;
             const nuevoReporte = {
               ...reporteData,
-              nickname: (values.nickname || '').toUpperCase(),
+              nickname: String(values.nickname || '').trim(),
             };
             const submissionResult = await crearReporte.mutateAsync(nuevoReporte);
-            setBotDeliveryState(submissionResult?.botDelivery || null);
+            setBotDeliveryState(submissionResult?.discordDelivery || null);
 
             if (submissionResult?.ok) {
               try {
@@ -576,7 +502,11 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
               }
             }
 
-            onSubmit?.(nuevoReporte, submissionResult);
+            try {
+              onSubmit?.(nuevoReporte, submissionResult);
+            } catch (callbackError) {
+              console.warn('[MostWanted] onSubmit callback fallo despues del envio exitoso.', callbackError);
+            }
             setShowSuccess({ nickname: nuevoReporte.nickname });
           } catch (error) {
             setSubmitError(error.message || 'Error al enviar el reporte. Intenta de nuevo.');

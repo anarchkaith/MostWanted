@@ -429,7 +429,6 @@ function App() {
       reportadoPor: reportadoPorFallback || 'ANONIMO',
       botSyncStatus: submissionResult?.botDelivery?.ok ? 'delivered' : 'pending',
       botSyncAt: new Date().toISOString(),
-      botSyncReportId: submissionResult?.reportId ?? submissionResult?.botDelivery?.reportId ?? null,
       botSyncError: submissionResult?.botDelivery?.ok ? '' : (submissionResult?.botDelivery?.message || submissionResult?.warning || '')
     });
 

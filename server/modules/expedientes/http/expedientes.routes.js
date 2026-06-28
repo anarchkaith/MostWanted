@@ -1,5 +1,5 @@
 ﻿import { getSessionUser } from '../../../shared/auth/sessionAuth.js';
-import { submitReport } from '../../reports/services/submitReport.service.js';
+import { submitWordpressReport } from '../../reports/services/submitReport.service.js';
 import { getPlayerInsights } from '../../background-investigation/services/playerInsights.service.js';
 import {
   addVoteToExpediente,
@@ -40,7 +40,6 @@ export function registerExpedientesRoutes(app, deps) {
     rootDir,
     rateLimits,
     requireBodyObject,
-    hexbotConfig,
     wordpressReportsConfig,
     getReportesSnapshot,
     buildPlayerInsightsWithScCache,
@@ -92,9 +91,8 @@ export function registerExpedientesRoutes(app, deps) {
 
     let delivery = null;
     if (req.body?.forwardToReportsApi === true) {
-      delivery = await submitReport({
+      delivery = await submitWordpressReport({
         body: req.body,
-        hexbotConfig,
         wordpressReportsConfig,
         logger: console,
       });
