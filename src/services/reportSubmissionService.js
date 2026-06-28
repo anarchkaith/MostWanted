@@ -256,7 +256,7 @@ function buildDiscordReportWebhookPayload({ report = {}, reporter = {}, evidence
         },
         title: '[ SUJETO MARCADO PARA ELIMINACIÓN ]',
         description: `\`\`\`${truncateText(report.nickname, 300)}\`\`\``,
-        url: 'https://mostwanted.kaithsrebels.com',
+        url: `https://socialclub.rockstargames.com/members/${report.nickname}/`,
         color: embedColor,
         fields: [
           { name: 'RID', value: `||${truncateText(String(report.rid || 'N/A'), 1018)}||`, inline: false },

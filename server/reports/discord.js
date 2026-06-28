@@ -493,7 +493,7 @@ export async function sendReportToDiscordWebhook(submission = {}) {
         },
         title: '[ SUJETO MARCADO PARA ELIMINACIÓN ]',
         description: `\`\`\`${truncateText(report.nickname, 300)}\`\`\`\n## 🗒 Motivo:\n> ${truncateText(reasonText, 900)}`,
-        url: 'https://mostwanted.kaithsrebels.com',
+        url: `https://socialclub.rockstargames.com/members/${report.nickname}/`,
         color: embedColor,
         fields,
         ...(thumbnailUrl ? { thumbnail: { url: thumbnailUrl } } : {}),
