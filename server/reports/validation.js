@@ -49,11 +49,13 @@ function sanitizeReporter(reporter = {}, fallbackContact = '') {
   const name = toTrimmedString(reporter?.name) || contactName || 'Anónimo';
   const id = toTrimmedString(reporter?.id);
   const email = toTrimmedString(reporter?.email);
+  const tag = toTrimmedString(reporter?.tag);
 
   return {
     id,
     name,
     email,
+    ...(tag ? { tag } : {}),
   };
 }
 
@@ -143,103 +145,6 @@ function sanitizeLabels(values = [], maxItems = 25) {
   };
 }
 
-function sanitizeCrewSlots(report = {}) {
-  const slots = [
-    toTrimmedString(report?.crew1),
-    toTrimmedString(report?.crew2),
-    toTrimmedString(report?.crew3),
-    toTrimmedString(report?.crew4),
-  ].filter(Boolean);
-
-  return Array.from(new Set(slots)).slice(0, 4);
-}
-
-function parseCrewEntry(rawValue = '', slot = null, isActive = false) {
-  const raw = toTrimmedString(rawValue);
-  if (!raw) return null;
-
-  const urlMatch = raw.match(/https?:\/\/\S+/i);
-  const url = urlMatch ? toTrimmedString(urlMatch[0]) : '';
-
-  const tagMatch = raw.match(/\[([^\]]{1,12})\]/);
-  const tag = tagMatch ? toTrimmedString(tagMatch[1]).toUpperCase() : '';
-
-  let name = raw;
-  if (url) {
-    name = name.replace(url, '');
-  }
-  if (tagMatch?.[0]) {
-    name = name.replace(tagMatch[0], '');
-  }
-
-  name = name
-    .replace(/[|;,-]+$/g, '')
-    .replace(/^[|;,-]+/g, '')
-    .replace(/\s{2,}/g, ' ')
-    .trim();
-
-  if (!name && tag) {
-    name = `Crew ${tag}`;
-  }
-
-  return {
-    raw,
-    name,
-    ...(tag ? { tag } : {}),
-    ...(url ? { url } : {}),
-    ...(Number.isInteger(slot) ? { slot } : {}),
-    isActive,
-  };
-}
-
-function buildCrewStructures({ crewCurrent = '', crewSlots = [] } = {}) {
-  const activeCrewEntry = parseCrewEntry(crewCurrent, null, true);
-
-  const assignedEntries = crewSlots
-    .map((value, index) => parseCrewEntry(value, index + 1, false))
-    .filter(Boolean);
-
-  const uniqueByRaw = new Set();
-  const allEntries = [];
-
-  for (const entry of [activeCrewEntry, ...assignedEntries].filter(Boolean)) {
-    const key = entry.raw.toLowerCase();
-    if (uniqueByRaw.has(key)) continue;
-    uniqueByRaw.add(key);
-    allEntries.push(entry);
-  }
-
-  return {
-    activeCrewEntry,
-    assignedEntries,
-    allEntries,
-  };
-}
-
-function buildCrewLinks(entries = []) {
-  const normalized = [];
-  const unique = new Set();
-
-  for (const entry of Array.isArray(entries) ? entries : []) {
-    if (!entry || typeof entry !== 'object') continue;
-
-    const name = toTrimmedString(entry.name) || toTrimmedString(entry.raw);
-    if (!name) continue;
-
-    const url = toTrimmedString(entry.url);
-    const key = `${name.toLowerCase()}|${url.toLowerCase()}`;
-    if (unique.has(key)) continue;
-    unique.add(key);
-
-    normalized.push({
-      name,
-      url,
-    });
-  }
-
-  return normalized;
-}
-
 function buildPlayerId({ nickname = '', rid = null }) {
   if (Number.isFinite(rid) && rid > 0) {
     return `RID-${Math.trunc(rid)}`;
@@ -288,6 +193,18 @@ function sanitizeAnalysis(analysis = {}) {
   return Object.keys(sanitized).length > 0 ? sanitized : null;
 }
 
+function buildCrewSocialClubUrl(name = '') {
+  const baseName = toTrimmedString(name)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+
+  if (!baseName) return '';
+  return `https://socialclub.rockstargames.com/crew/${baseName}/hierarchy`;
+}
+
 export function validateIncomingReportSubmission(body = {}) {
   const report = body?.report && typeof body.report === 'object' && !Array.isArray(body.report)
     ? body.report
@@ -314,9 +231,6 @@ export function validateIncomingReportSubmission(body = {}) {
   ).toLowerCase();
 
   // Campos opcionales de información del jugador
-  const crews = toTrimmedString(report?.crews);
-  const crewCurrent = toTrimmedString(report?.crewCurrent || report?.crew_current);
-  const crewSlots = sanitizeCrewSlots(report);
   const avatar1 = toTrimmedString(report?.avatar1);
   const avatar2 = toTrimmedString(report?.avatar2);
   const parsedRid = Number(report?.rid);
@@ -325,20 +239,22 @@ export function validateIncomingReportSubmission(body = {}) {
   const ip = toTrimmedString(report?.ip);
   const aliases = sanitizeAliases(report?.aliases);
   const time = Number.isFinite(report?.time) ? report.time : null;
-  const crewStructures = buildCrewStructures({
-    crewCurrent,
-    crewSlots,
-  });
-  const fallbackCrewEntries = crews
-    ? crews
-      .split(/\||,/)
-      .map((value) => parseCrewEntry(value, null, false))
-      .filter(Boolean)
-    : [];
-  const crewsCollection = buildCrewLinks([
-    ...crewStructures.allEntries,
-    ...fallbackCrewEntries,
-  ]);
+  const crewsSource = Array.isArray(report?.crews)
+    ? report.crews
+    : toTrimmedString(report?.crews).split(',');
+  const crewsCollection = Array.from(new Set(crewsSource
+    .map((crew) => {
+      if (typeof crew === 'string') return toTrimmedString(crew);
+      if (crew && typeof crew === 'object') {
+        return toTrimmedString(crew?.name || crew?.nombre || crew?.raw);
+      }
+      return '';
+    })
+    .filter(Boolean)))
+    .map((name) => ({
+      name,
+      url: buildCrewSocialClubUrl(name),
+    }));
 
   const analysis = sanitizeAnalysis(report?.analysis);
   const source = toTrimmedString(body?.source || report?.source) || 'mostwanted-web';
@@ -420,12 +336,6 @@ export function validateIncomingReportSubmission(body = {}) {
         nickname,
         playerId,
         reason,
-        ...(crewCurrent ? { crewCurrent } : {}),
-        ...(crewSlots[0] ? { crew1: crewSlots[0] } : {}),
-        ...(crewSlots[1] ? { crew2: crewSlots[1] } : {}),
-        ...(crewSlots[2] ? { crew3: crewSlots[2] } : {}),
-        ...(crewSlots[3] ? { crew4: crewSlots[3] } : {}),
-        ...(crewStructures.activeCrewEntry ? { crewCurrentData: crewStructures.activeCrewEntry } : {}),
         ...(crewsCollection.length > 0 ? { crews: crewsCollection } : {}),
         ...(avatar1 ? { avatar1 } : {}),
         ...(avatar2 ? { avatar2 } : {}),
@@ -437,6 +347,7 @@ export function validateIncomingReportSubmission(body = {}) {
         ...(typesOfInfraction.length > 0 ? { typesOfInfraction } : {}),
         ...(labels.length > 0 ? { labels } : {}),
         ...(labelIds.length > 0 ? { labelIds } : {}),
+        ...(reportedby ? { reportedby } : {}),
         ...(analysis ? { analysis } : {}),
       },
       reporter: sanitizeReporter(body?.reporter, reportedby),

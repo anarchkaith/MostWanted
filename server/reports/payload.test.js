@@ -63,11 +63,6 @@ runTest('validateIncomingReportSubmission acepta un reporte valido y buildHexbot
     username: 'Jugador123',
     nickname: 'Jugador123',
     playerId: 'TMP-jugador123',
-    crewCurrent: '',
-    crew1: '',
-    crew2: '',
-    crew3: '',
-    crew4: '',
     avatar1: '',
     avatar2: '',
     rid: null,
@@ -130,9 +125,7 @@ runTest('validateIncomingReportSubmission acepta labels por IDs y los expone com
       nickname: 'JugadorConIds',
       reason: 'Comportamiento sospechoso reiterado',
       labels: [7, '12', 'Aimbot'],
-      crewCurrent: 'Crew de Prueba [TAG]',
-      crew1: 'Crew Secundaria #1 [C1]',
-      crew2: 'https://socialclub.rockstargames.com/crew/test_c2',
+      crews: 'Crew de Prueba, Crew Secundaria #1, Kaiths Rebels',
       investigation_status: 'not_found',
     },
   });
@@ -142,18 +135,17 @@ runTest('validateIncomingReportSubmission acepta labels por IDs y los expone com
   assert.deepEqual(validation.value.report.labels, ['Aimbot']);
 
   const payload = buildHexbotReportPayload(validation.value);
-  assert.equal(payload.crewCurrent, 'Crew de Prueba [TAG]');
-  assert.ok(payload.crewCurrentData);
-  assert.equal(payload.crewCurrentData.name, 'Crew de Prueba');
-  assert.equal(payload.crewCurrentData.tag, 'TAG');
-  assert.equal(payload.crew1, 'Crew Secundaria #1 [C1]');
-  assert.equal(payload.crew2, 'https://socialclub.rockstargames.com/crew/test_c2');
+  assert.equal(Object.prototype.hasOwnProperty.call(payload, 'crewCurrent'), false);
+  assert.equal(Object.prototype.hasOwnProperty.call(payload, 'crew1'), false);
   assert.equal(Object.prototype.hasOwnProperty.call(payload, 'crewsAssigned'), false);
   assert.ok(Array.isArray(payload.crews));
   assert.equal(payload.crews.length, 3);
   assert.equal(payload.crews[0].name, 'Crew de Prueba');
   assert.equal(payload.crews[1].name, 'Crew Secundaria #1');
-  assert.equal(payload.crews[2].url, 'https://socialclub.rockstargames.com/crew/test_c2');
+  assert.deepEqual(payload.crews[2], {
+    name: 'Kaiths Rebels',
+    url: 'https://socialclub.rockstargames.com/crew/kaiths_rebels/hierarchy',
+  });
   assert.deepEqual(payload.labelIds, [7, 12, aimbotId]);
   assert.deepEqual(payload.labels, ['Aimbot']);
   assert.deepEqual(payload.report.tagIds, [7, 12, aimbotId]);

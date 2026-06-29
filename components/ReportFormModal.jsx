@@ -21,11 +21,6 @@ const initialValues = {
   investigation_status: 'not_attempted',
   // Información del jugador reportado
   nickname: '',
-  crewCurrent: '',
-  crew1: '',
-  crew2: '',
-  crew3: '',
-  crew4: '',
   crews: '',
   avatar1: '',
   avatar2: '',
@@ -45,12 +40,7 @@ const demoValues = {
   investigation_status: 'resolved',
   // Información del jugador reportado
   nickname: '[DEMO] DemoPlayer_GTA',
-  crewCurrent: '[DEMO] Rebels Elite [RBLS] https://socialclub.rockstargames.com/crew/rebels_elite',
-  crew1: '[DEMO] Demo Crew 1 [D1] https://socialclub.rockstargames.com/crew/demo_one',
-  crew2: '[DEMO] Demo Crew 2 [D2]',
-  crew3: '',
-  crew4: '',
-  crews: '',
+  crews: '[DEMO] Rebels Elite, [DEMO] Demo Crew 1, [DEMO] Demo Crew 2',
   avatar1: '',
   avatar2: '',
   rid: '12345',
@@ -635,11 +625,6 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
                           setIsInvestigating(true);
                           setFieldValue('investigation_status', 'pending');
                           setFieldValue('rid', '');
-                          setFieldValue('crewCurrent', '');
-                          setFieldValue('crew1', '');
-                          setFieldValue('crew2', '');
-                          setFieldValue('crew3', '');
-                          setFieldValue('crew4', '');
                           setFieldValue('crews', '');
                           setFieldValue('aliases', '');
                           setFieldValue('avatar1', '');
@@ -716,7 +701,7 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
                     <div className="rfm-panel">
                       <div className="rfm-panel__title">
                         Datos del jugador (editable)
-                        <Tooltip text="Completa manualmente la crew actual y las crews asociadas usando nombre, tag o URL.">
+                        <Tooltip text="Completa las crews separadas por coma. Se generara un enlace de Social Club para cada una.">
                           <span style={{ cursor: 'help' }}><HelpIcon style={{ width: 15, height: 15, opacity: 0.6 }} /></span>
                         </Tooltip>
                       </div>
@@ -742,50 +727,22 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
                         </div>
 
                         <div className="form-group" style={{ marginBottom: 0 }}>
-                          <label htmlFor="crewCurrent" className="form-group__label">Crew actual</label>
+                          <label htmlFor="crews" className="form-group__label">Crews</label>
                           <Field
                             type="text"
-                            id="crewCurrent"
-                            name="crewCurrent"
+                            id="crews"
+                            name="crews"
                             className="form-group__input"
-                            placeholder="Ej: Rebels Elite [RBLS] o URL"
+                            placeholder="Ej: Kaiths Rebels, Crew Secundaria"
                             autoComplete="off"
                             disabled={isSubmitting}
                           />
-                          <ErrorMessage name="crewCurrent" component="span" className="form-group__hint" style={{ color: '#ff3333' }} />
-                        </div>
-                      </div>
-
-                      <div className="rfm-field-row" style={{ marginBottom: '0.75rem' }}>
-                        <div className="form-group" style={{ marginBottom: 0 }}>
-                          <label htmlFor="crew1" className="form-group__label">Crew asignada #1</label>
-                          <Field type="text" id="crew1" name="crew1" className="form-group__input" placeholder="Nombre, tag o URL" autoComplete="off" disabled={isSubmitting} />
-                          <ErrorMessage name="crew1" component="span" className="form-group__hint" style={{ color: '#ff3333' }} />
-                        </div>
-
-                        <div className="form-group" style={{ marginBottom: 0 }}>
-                          <label htmlFor="crew2" className="form-group__label">Crew asignada #2</label>
-                          <Field type="text" id="crew2" name="crew2" className="form-group__input" placeholder="Nombre, tag o URL" autoComplete="off" disabled={isSubmitting} />
-                          <ErrorMessage name="crew2" component="span" className="form-group__hint" style={{ color: '#ff3333' }} />
-                        </div>
-                      </div>
-
-                      <div className="rfm-field-row">
-                        <div className="form-group" style={{ marginBottom: 0 }}>
-                          <label htmlFor="crew3" className="form-group__label">Crew asignada #3</label>
-                          <Field type="text" id="crew3" name="crew3" className="form-group__input" placeholder="Nombre, tag o URL" autoComplete="off" disabled={isSubmitting} />
-                          <ErrorMessage name="crew3" component="span" className="form-group__hint" style={{ color: '#ff3333' }} />
-                        </div>
-
-                        <div className="form-group" style={{ marginBottom: 0 }}>
-                          <label htmlFor="crew4" className="form-group__label">Crew asignada #4</label>
-                          <Field type="text" id="crew4" name="crew4" className="form-group__input" placeholder="Nombre, tag o URL" autoComplete="off" disabled={isSubmitting} />
-                          <ErrorMessage name="crew4" component="span" className="form-group__hint" style={{ color: '#ff3333' }} />
+                          <ErrorMessage name="crews" component="span" className="form-group__hint" style={{ color: '#ff3333' }} />
                         </div>
                       </div>
 
                       <div className="rfm-note" style={{ marginTop: '0.45rem' }}>
-                        Las crews son opcionales. Puedes dejar en blanco cualquier campo.
+                        Las crews son opcionales. Separa multiples nombres con coma.
                       </div>
                     </div>
 

@@ -52,14 +52,6 @@ export function buildHexbotReportPayload(input = {}) {
     // Información del jugador reportado
     nickname,
     playerId: input?.report?.playerId || '',
-    crewCurrent: input?.report?.crewCurrent || '',
-    crew1: input?.report?.crew1 || '',
-    crew2: input?.report?.crew2 || '',
-    crew3: input?.report?.crew3 || '',
-    crew4: input?.report?.crew4 || '',
-    ...(input?.report?.crewCurrentData && typeof input.report.crewCurrentData === 'object'
-      ? { crewCurrentData: input.report.crewCurrentData }
-      : {}),
     ...(crews.length > 0 ? { crews } : {}),
     avatar1: input?.report?.avatar1 || '',
     avatar2: input?.report?.avatar2 || '',

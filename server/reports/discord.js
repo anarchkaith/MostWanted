@@ -116,17 +116,6 @@ function normalizeInfractionArray(value) {
     .filter(Boolean);
 }
 
-function buildCrewUrlFromName(name) {
-  const normalizedName = toTrimmedString(name)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '');
-
-  return normalizedName
-    ? `https://socialclub.rockstargames.com/crew/${normalizedName}/hierarchy`
-    : '';
-}
-
 function extractUrlFromText(value) {
   const text = toTrimmedString(value);
   if (!text) return '';
@@ -142,13 +131,13 @@ function normalizeCrewEntry(crew) {
     if (!raw) return null;
     const url = extractUrlFromText(raw);
     const name = raw.replace(/https?:\/\/[^\s)]+/ig, '').trim() || raw;
-    return { name, url: url || buildCrewUrlFromName(name) };
+    return { name, url };
   }
 
   if (typeof crew === 'object') {
     const name = toDisplayText(crew?.nombre) || toDisplayText(crew?.name) || toDisplayText(crew?.raw) || '';
     if (!name) return null;
-    const url = toTrimmedString(crew?.url) || extractUrlFromText(crew?.raw) || buildCrewUrlFromName(name);
+    const url = toTrimmedString(crew?.url) || extractUrlFromText(crew?.raw);
     return { name, url };
   }
 
@@ -266,14 +255,9 @@ function buildTargetDetails(report = {}) {
     .filter(Boolean);
 
   if (report.crewCurrent) details.push(`Crew actual: ${report.crewCurrent}`);
-  if (assignedCrews[0]) details.push(`Crew asignada #1: ${assignedCrews[0]}`);
-  if (assignedCrews[1]) details.push(`Crew asignada #2: ${assignedCrews[1]}`);
-  if (assignedCrews[2]) details.push(`Crew asignada #3: ${assignedCrews[2]}`);
-  if (assignedCrews[3]) details.push(`Crew asignada #4: ${assignedCrews[3]}`);
   if (normalizedCrewEntries.length > 0) {
     for (const entry of normalizedCrewEntries.slice(0, 5)) {
       const line = [
-        entry?.isActive ? 'Crew estructurada (actual)' : 'Crew estructurada',
         entry?.name || entry?.raw || '',
         entry?.tag ? `[${entry.tag}]` : '',
         entry?.url || '',
@@ -358,7 +342,7 @@ function buildVideoEvidenceField(evidence = []) {
 function getInvestigationStatusLabel(report = {}) {
   const status = String(report?.investigation_status || '').trim().toLowerCase();
 
-  if (status === 'resolved') return 'Resuelto';
+  if (status === 'resolved') return 'Encontrado';
   if (status === 'not_found') return 'No encontrado';
   if (status === 'pending') return 'Pendiente';
   if (status === 'not_attempted') return 'No iniciado';

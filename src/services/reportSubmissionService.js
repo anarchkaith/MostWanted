@@ -137,7 +137,7 @@ function normalizeTimestamp(value) {
 function getInvestigationStatusLabel(report = {}) {
   const status = String(report?.investigation_status || '').trim().toLowerCase();
 
-  if (status === 'resolved') return 'Resuelto';
+  if (status === 'resolved') return 'Encontrado';
   if (status === 'not_found') return 'No encontrado';
   if (status === 'pending') return 'Pendiente';
   if (status === 'not_attempted') return 'No iniciado';
@@ -168,17 +168,6 @@ function isImageContentType(contentType) {
   return String(contentType || '').toLowerCase().startsWith('image/');
 }
 
-function buildCrewUrlFromName(name) {
-  const normalizedName = toTrimmedString(name)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '');
-
-  return normalizedName
-    ? `https://socialclub.rockstargames.com/crew/${normalizedName}/hierarchy`
-    : '';
-}
-
 function extractUrlFromText(value) {
   const text = toTrimmedString(value);
   if (!text) return '';
@@ -194,13 +183,13 @@ function normalizeCrewEntry(crew) {
     if (!raw) return null;
     const url = extractUrlFromText(raw);
     const name = raw.replace(/https?:\/\/[^\s)]+/ig, '').trim() || raw;
-    return { name, url: url || buildCrewUrlFromName(name) };
+    return { name, url };
   }
 
   if (typeof crew === 'object') {
     const name = toDisplayText(crew?.nombre) || toDisplayText(crew?.name) || toDisplayText(crew?.raw) || '';
     if (!name) return null;
-    const url = toTrimmedString(crew?.url) || extractUrlFromText(crew?.raw) || buildCrewUrlFromName(name);
+    const url = toTrimmedString(crew?.url) || extractUrlFromText(crew?.raw);
     return { name, url };
   }
 

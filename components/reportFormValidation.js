@@ -20,26 +20,6 @@ export const reportFormValidationSchema = Yup.object({
     .trim()
     .nullable(),
 
-  crewCurrent: Yup.string()
-    .trim()
-    .nullable(),
-
-  crew1: Yup.string()
-    .trim()
-    .nullable(),
-
-  crew2: Yup.string()
-    .trim()
-    .nullable(),
-
-  crew3: Yup.string()
-    .trim()
-    .nullable(),
-
-  crew4: Yup.string()
-    .trim()
-    .nullable(),
-
   avatar1: Yup.string()
     .trim()
     .nullable(),
