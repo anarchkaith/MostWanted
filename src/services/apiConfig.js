@@ -21,11 +21,6 @@ export function getApiBaseUrl() {
   const configuredBaseUrl = normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL);
 
   if (configuredBaseUrl) {
-    // In production the frontend should talk to the dedicated API host.
-    // If someone builds with the local `.env` (`/api`), avoid hitting the SPA host.
-    if (!isLocalRuntime() && isRelativeApiBaseUrl(configuredBaseUrl)) {
-      return DEFAULT_REMOTE_API_BASE_URL;
-    }
     return configuredBaseUrl;
   }
 

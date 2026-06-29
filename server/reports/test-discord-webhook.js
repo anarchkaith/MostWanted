@@ -1,6 +1,6 @@
 ﻿// Test script para enviar un reporte de prueba al webhook de Discord
 
-const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1485577006493208648/Rct6BSCcnK0M14T4i60kud4mO4MwouGIGKLUyV_c-asJ7PFTvzysoS0Sd3YXm5bdg_ke';
+const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1520947303907721378/gbo4-Pmh3Q9KmTv2wAvlQsAWiZBYTXWqyoCeVs1sPW5n3neF27I7NWMpmXSr1PAgclOA';
 
 const testReport = {
   report: {
