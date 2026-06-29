@@ -21,6 +21,9 @@ export function getApiBaseUrl() {
   const configuredBaseUrl = normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL);
 
   if (configuredBaseUrl) {
+    if (!isLocalRuntime() && isRelativeApiBaseUrl(configuredBaseUrl)) {
+      return DEFAULT_REMOTE_API_BASE_URL;
+    }
     return configuredBaseUrl;
   }
 
