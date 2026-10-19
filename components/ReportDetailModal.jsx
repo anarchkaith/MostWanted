@@ -109,7 +109,7 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
   const categoryLabels = {
     modder: 'MODDER',
     griffer: 'GRIFFER',
-    tramposo: 'TRAMPOSO'
+    ardido: 'ARDIDO'
   };
 
   // Mapeo de severidad
@@ -511,7 +511,7 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
                   >
                     <option value="modder">MODDER</option>
                     <option value="griffer">GRIFFER</option>
-                    <option value="tramposo">TRAMPOSO</option>
+                    <option value="ardido">ARDIDO</option>
                   </select>
                 ) : (
                   <div className="report-detail__value">

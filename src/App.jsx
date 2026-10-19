@@ -12,7 +12,7 @@ import {
 
 /**
  * App - Componente principal de MOST WANTED
- * SPA para tracking de modders, griffers y tramposos
+ * SPA para tracking de modders, griffers y ardidos
  * Kaith's Rebels Crew
  * 
  * URLs soportadas:
@@ -66,15 +66,15 @@ const mapCategoriaLegacy = (categorias = [], categoriaActual = '') => {
   const first = Array.isArray(categorias) ? categorias[0] : '';
   if (first === 'MODDER') return 'modder';
   if (first === 'GRIFFER') return 'griffer';
-  if (first === 'GLITCHER' || first === 'ACOSO-RAID') return 'tramposo';
-  return 'tramposo';
+  if (first === 'GLITCHER' || first === 'ACOSO-RAID') return 'ardido';
+  return 'ardido';
 };
 
 const mapCategoriaFromWordpressType = (categories = []) => {
   const firstType = Array.isArray(categories) && categories.length > 0 ? String(categories[0]).toUpperCase() : '';
   if (firstType === 'MODDER') return 'modder';
   if (firstType === 'GRIFFER') return 'griffer';
-  return 'tramposo';
+  return 'ardido';
 };
 
 const mapSeveridadFromWordpressLabels = (labels = []) => {
@@ -375,7 +375,7 @@ function App() {
     { id: 'todos', label: 'TODOS', icon: '📋' },
     { id: 'modder', label: 'MODDERS', icon: '🔧' },
     { id: 'griffer', label: 'GRIFFERS', icon: '💀' },
-    { id: 'tramposo', label: 'TRAMPOSOS', icon: '🎯' }
+    { id: 'ardido', label: 'ARDIDOS', icon: '🎯' }
   ];
 
   // Estados de validación para filtros (chips toggle)
@@ -753,7 +753,7 @@ function App() {
       {/* ============ HEADER ============ */}
       <header className="header" style={{ position: 'relative' }}>
         <h1 className="header__title" data-text="MOST WANTED">MOST WANTED</h1>
-        <p className="header__subtitle">Modders, Griffers y Tramposos</p>
+        <p className="header__subtitle">Modders, Griffers y Ardidos</p>
         <div className="header__logo">
           <span className="header__logo-icon" aria-hidden="true">☠️</span>
           <span>KAITH'S REBELS</span>

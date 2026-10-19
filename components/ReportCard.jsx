@@ -10,7 +10,7 @@ const ReportCard = ({ reporte, onClick, onVote }) => {
   const categoryLabels = {
     modder: 'MODDER',
     griffer: 'GRIFFER',
-    tramposo: 'TRAMPOSO'
+    ardido: 'ARDIDO'
   };
 
   // Mapeo de severidad a etiquetas
@@ -47,7 +47,7 @@ const ReportCard = ({ reporte, onClick, onVote }) => {
     });
   };
 
-  const categoria = reporte.categoria || 'tramposo';
+  const categoria = reporte.categoria || 'ardido';
   const severidad = reporte.severidad || 'media';
   const validationStatus = reporte.validacion || 'pendiente';
   const hasEvidencias = (reporte.evidencias && reporte.evidencias.length > 0) || Boolean(reporte.evidencia);

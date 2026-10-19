@@ -51,6 +51,8 @@ const buildFallbackIntent = (userText = '', candidateUsuarios = []) => {
     'griefer',
     'tramposo',
     'tramposos',
+    'ardido',
+    'ardidos',
     'usuarios reportados',
   ];
   const needsReportContext = Boolean(mentionedUsuario) || reportKeywords.some((keyword) => normalizedQuestion.includes(keyword));

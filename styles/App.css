@@ -811,7 +811,7 @@ body::after {
   --accent: #ff8800;
 }
 
-.filter-btn[data-category="tramposo"] {
+.filter-btn[data-category="ardido"] {
   --accent: #ffcc00;
 }
 
@@ -1525,7 +1525,7 @@ body::after {
   border-color: #ff8800;
 }
 
-.report-card__tag--tramposo {
+.report-card__tag--ardido {
   background: rgba(255, 204, 0, 0.2);
   color: #ffcc00;
   border-color: #ffcc00;

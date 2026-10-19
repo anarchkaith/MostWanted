@@ -1,6 +1,6 @@
 ﻿# Most Wanted
 
-Plataforma comunitaria de reportes para rastrear jugadores tóxicos (modders, griefers y tramposos) en **GTA Online**, operada por la crew **Kaith's Rebels**. Funciona como un tablón de "Se Busca" con estética del sistema H.E.X., permitiendo a la comunidad documentar, validar y consultar jugadores problemáticos mediante reportes con evidencia.
+Plataforma comunitaria de reportes para rastrear jugadores tóxicos (modders, griefers y ardidos) en **GTA Online**, operada por la crew **Kaith's Rebels**. Funciona como un tablón de "Se Busca" con estética del sistema H.E.X., permitiendo a la comunidad documentar, validar y consultar jugadores problemáticos mediante reportes con evidencia.
 
 ## Características principales
 

@@ -12,7 +12,7 @@ export default function HelpModal({ open, onClose }) {
           <button className="modal__close" onClick={onClose} aria-label="Cerrar ayuda">✕</button>
         </div>
         <div className="modal__body">
-          <p><b>Most Wanted</b> es una herramienta comunitaria de <b>Kaith's Rebels</b> para reportar, rastrear y compartir información sobre modders, griffers y tramposos en juegos online.</p>
+          <p><b>Most Wanted</b> es una herramienta comunitaria de <b>Kaith's Rebels</b> para reportar, rastrear y compartir información sobre modders, griffers y ardidos en juegos online.</p>
           <ul style={{ margin: '1rem 0 0 1.2rem', fontSize: '0.95em' }}>
             <li>🔍 Busca usuarios reportados por la comunidad.</li>
             <li>📋 Consulta detalles, evidencias y estado de validación.</li>
