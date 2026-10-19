@@ -7,9 +7,9 @@ Plataforma comunitaria de reportes para rastrear jugadores tóxicos (modders, gr
 - **Reportes con evidencia**: formulario completo con nickname, crew, alias, RID, IP, tipo de infracción, nivel de corrupción e imágenes de prueba subidas a ImgBB.
 - **Sistema de votos comunitario**: la comunidad puede validar o rechazar reportes mediante upvotes/downvotes.
 - **Perfiles por jugador**: URL directa por username (`/usuario/{nickname}`) con historial completo de reportes.
-- **Asistente IA**: chat integrado (Qwen2.5 vía Ollama) para consultar rankings, estadísticas, correlaciones y análisis tácticos sobre los reportes.
-- **Integración con Discord**: notificaciones automáticas con embeds enriquecidos al canal del equipo al registrar un reporte.
-- **Integración con HEXBOT**: sincronización server-to-server con la API `hex-api.kaithsrebels.com` para persistencia centralizada de reportes.
+- **Asistente IA**: chat integrado (gateway de IA de H.E.X.; Ollama local opcional) para consultar rankings, estadísticas, correlaciones y análisis tácticos sobre los reportes.
+- **Integración con Discord**: notificaciones automáticas con embeds enriquecidos al canal del equipo al registrar un reporte, con botones de enlace a la web (votar y perfil de Social Club).
+- **Persistencia en WordPress**: reportes, jugadores y votos se guardan como custom post types mediante el plugin `wordpress/mostwanted-cpt-rest/`, que expone la API REST `/wp-json/mostwanted/v1/`.
 - **Moderación de administradores**: capacidades de administración y gestión del estado de los reportes.
 
 ## Estructura del proyecto
@@ -29,9 +29,12 @@ Plataforma comunitaria de reportes para rastrear jugadores tóxicos (modders, gr
 │   └── ...               # Selectores, tooltips, ayuda, etc.
 ├── server/               # Backend Express (Node.js)
 │   ├── index.js          # Entrada principal y rutas
-│   ├── reports/          # Lógica de reportes, Discord y HEXBOT
+│   ├── modules/          # Rutas HTTP por dominio (reports, auth, ai, webhooks, system)
+│   ├── reports/          # Cliente WordPress, validación, payloads y embed de Discord
 │   ├── ai/               # Configuración e integración con IA
 │   └── middleware/       # Rate limiting y validación
+├── wordpress/
+│   └── mostwanted-cpt-rest/  # Plugin WordPress (CPT + REST), base de datos del proyecto
 ├── styles/               # CSS global y variables
 ├── public/               # Archivos estáticos
 └── data/                 # Datos locales de ejemplo
@@ -59,12 +62,20 @@ npm run start
 
 | Endpoint | Método | Descripción |
 |---|---|---|
-| `/api/reports` | POST | Envía un nuevo reporte (valida, notifica Discord y sincroniza con HEXBOT) |
-| `/api/reports/health` | GET | Verifica estado del backend y conectividad con HEXBOT |
+| `/api/reports` | POST | Valida y guarda un reporte en WordPress, luego lo notifica a Discord |
+| `/api/reports/health` | GET | Estado de la integración con WordPress (y HEXBOT, opcional) |
+| `/api/reports/player-insights` | GET | Antecedentes de un jugador (`username`, `rid`) desde WordPress |
+| `/api/battleye-status` | GET | Estado de BattlEye |
+| `/api/auth/discord` | GET | Inicia el login con Discord (OAuth) |
+| `/auth/discord/callback` | GET | Callback de OAuth; redirige al frontend |
+| `/api/auth/me` | GET | Usuario de la sesión actual |
+| `/api/auth/logout` | POST | Cierra la sesión |
 | `/api/ia-chat` | POST | Chat con el asistente IA sobre reportes |
 | `/api/ia-intent` | POST | Clasificación de intención del usuario |
 | `/api/ia-report-correlation` | POST | Análisis de correlaciones entre reportes |
-| `/api/discord-webhook` | POST | Endpoint de webhook para Discord |
+| `/api/discord-webhook` | POST | Webhook genérico para Discord (también `/api/webhooks/discord`) |
+
+Las rutas `/api/expedientes/*` y `/api/players/investigate` son anteriores a WordPress y el frontend actual no las usa.
 
 ## Variables de entorno
 
@@ -72,40 +83,57 @@ npm run start
 
 | Variable | Descripción |
 |---|---|
-| `VITE_API_BASE_URL` | URL base del backend (ej. `http://localhost:3001`) |
-| `VITE_IA_INTENT_ENDPOINT` | Endpoint de clasificación de intención |
-| `VITE_IA_REPORT_CORRELATION_ENDPOINT` | Endpoint de correlación de reportes |
+| `VITE_API_BASE_URL` | URL base del backend. Vacía o relativa en producción |
+| `VITE_WORDPRESS_API_BASE_URL` | URL base de WordPress (lecturas, insights y votos desde el navegador) |
+| `VITE_API_KEY_IMGBB` | API key de ImgBB para subir evidencias |
+| `VITE_IA_INTENT_ENDPOINT` | Endpoint de clasificación de intención (opcional; por defecto `/api/ia-intent`) |
+| `VITE_IA_REPORT_CORRELATION_ENDPOINT` | Endpoint de correlación de reportes (opcional; por defecto `/api/ia-report-correlation`) |
+| `VITE_DISCORD_ID_CHANNEL` | ID del canal de Discord del equipo (opcional) |
+| `VITE_DEV_PORT` | Puerto del servidor Vite en desarrollo. Por defecto `5180` |
 
-### Backend (servidor Node)
+Solo se documentan las variables privadas o sensibles. Las demás tienen valores por defecto en `server/`.
 
 | Variable | Descripción |
 |---|---|
-| `KAITH_AI_GATEWAY_TOKEN` | Token `X-API-Token` del gateway de IA de H.E.X. (`https://api.kaithsrebels.com/v1/text`) |
-| `KAITH_AI_USE_LOCAL_OLLAMA` | `true` para usar Ollama local como primer proveedor (desarrollo). Por defecto `false`; si falla, el sistema usa el gateway |
-| `KAITH_OLLAMA_ENDPOINT` | Endpoint de Ollama. Por defecto: `http://127.0.0.1:11434/api/generate` |
-| `KAITH_OLLAMA_MODEL` | Modelo Ollama a usar (ej. `qwen2.5`) |
-| `KAITH_AI_ENDPOINT` | Endpoint de IA en producción |
-| `KAITH_AI_USER` | Usuario para autenticación con IA en producción |
-| `KAITH_AI_PASSWORD` | Contraseña para autenticación con IA en producción |
-| `KAITH_AI_MODEL` | Nombre del modelo (opcional) |
-| `HEXBOT_API_SECRET` | Token Bearer para autenticación con HEXBOT |
-| `HEXBOT_API_BASE_URL` | URL de HEXBOT. Por defecto: `https://hex-api.kaithsrebels.com` |
-| `HEXBOT_API_TIMEOUT_MS` | Timeout en ms para peticiones a HEXBOT. Recomendado: `8000` |
-| `DISCORD_WEBHOOK_URL` | URL del webhook de Discord para notificaciones |
+| `PORT` | Puerto del backend. Por defecto `5000` |
+| `DISCORD_WEBHOOK_URL` | Webhook donde se publican los reportes |
+| `DISCORD_WEBHOOK_MIN_INTERVAL_MS` | Intervalo mínimo entre notificaciones. Por defecto `45000` |
+| `CLIENT_ID` / `CLIENT_SECRET` | Credenciales de la aplicación de Discord para OAuth |
+| `CALLBACK_URL` | URL de callback de OAuth (`DISCORD_REDIRECT_URI` como alias) |
+| `AUTH_FRONTEND_SUCCESS_URL` / `AUTH_FRONTEND_FAILURE_URL` | Destinos del frontend tras el login |
+| `AUTH_REQUIRE_LOGIN` | `false` desactiva la exigencia de login para reportar y votar |
+| `AUTH_ALLOWED_DISCORD_USER_IDS` | IDs de Discord permitidos (lista separada por comas) |
+| `SESSION_SECRET` | Secreto de la cookie de sesión |
+| `DEBUG_MODE` | `true` omite el rate limiter de webhooks (solo desarrollo) |
+| `WEBHOOK_ALLOWED_ORIGINS` | Orígenes permitidos para CORS del webhook |
+| `WORDPRESS_REPORTS_ENABLED` | `true` (por defecto) para enviar reportes a WordPress |
+| `WORDPRESS_API_BASE_URL` | Sitio WordPress. Por defecto `https://kaithsrebels.com` |
+| `WORDPRESS_API_SECRET` | Secreto del plugin para escrituras desde el backend |
+| `WORDPRESS_API_TIMEOUT_MS` | Timeout de WordPress en ms. Por defecto `9000` |
+| `KAITH_AI_GATEWAY_TOKEN` | Token `X-API-Token` del gateway de IA de H.E.X. |
+| `KAITH_AI_GATEWAY_ENDPOINT` | Endpoint del gateway. Por defecto `https://api.kaithsrebels.com/v1/text` |
+| `KAITH_AI_USE_LOCAL_OLLAMA` | `true` activa Ollama local como proveedor. Por defecto `false` |
+| `KAITH_OLLAMA_ENDPOINT` / `KAITH_OLLAMA_MODEL` | Endpoint y modelo de Ollama local (solo si está activo) |
+| `KAITH_AI_ENDPOINT` / `KAITH_AI_USER` / `KAITH_AI_PASSWORD` | Proveedor de IA de producción |
+| `HEXBOT_API_SECRET` | Secreto de HEXBOT (legacy, solo para el healthcheck) |
+| `HEXBOT_API_BASE_URL` / `HEXBOT_API_TIMEOUT_MS` | HEXBOT (legacy). Solo se usa en el healthcheck |
+| `HEXBOT_API_SECRET` | Secreto de HEXBOT (legacy, solo para el healthcheck) |
+| `HEXBOT_API_BASE_URL` / `HEXBOT_API_TIMEOUT_MS` | HEXBOT (legacy). Solo se usa en el healthcheck |
 
-## Integración con HEXBOT
+## Persistencia en WordPress
 
-Los reportes no se envían a HEXBOT desde el navegador. El flujo es:
+Los reportes se guardan en WordPress, no en HEXBOT. El flujo es:
 
 1. El formulario sube las imágenes a ImgBB para obtener URLs públicas.
 2. El frontend llama a `POST /api/reports` con los datos del reporte y las URLs de evidencia.
-3. El backend reenvía el reporte server-to-server a HEXBOT con autenticación Bearer.
-4. Si HEXBOT falla o no está configurado, el reporte se acepta igualmente (status 202) y el backend retorna un estado de sincronización para mostrar una advertencia en la UI.
+3. El backend valida el reporte y lo envía al plugin de WordPress con `WORDPRESS_API_SECRET`.
+4. Con el jugador resultante, el backend publica el embed en Discord.
+5. Listados, antecedentes y votos se leen y escriben directamente contra la API REST de WordPress desde el frontend.
 
 Para verificar la integración localmente:
 
 ```bash
-# Comprueba si el backend tiene configuración y si HEXBOT responde
+# Comprueba la configuración y la conexión con WordPress
 GET /api/reports/health
 
 # Valida el mapeo del payload sin depender de red
@@ -114,18 +142,20 @@ npm run test:reports
 
 ## Integración con Discord
 
-Cuando se envía un reporte, el backend publica automáticamente un embed enriquecido en Discord con:
+Cuando se envía un reporte, el backend publica un embed en Discord con la ficha del jugador: apodo, crews, estado, RID (oculto como spoiler), aliases (solo si son distintos del apodo), etiquetas, tipos de infracción, motivo y "Evidencias de Video" (solo si hay evidencias de video). Las imágenes van en una galería de embeds que comparten la misma URL, y las etiquetas se muestran en texto pequeño (`-# `).
 
-- Nombre del jugador reportado y crew
-- Tipo de infracción y nivel de corrupción (barra visual)
-- Resumen del motivo y análisis IA
-- Datos del reportero y número de evidencias
+El mensaje incluye dos botones de enlace:
 
-El envío está limitado a un mínimo de 45 segundos entre reportes por IP para evitar spam (`DISCORD_WEBHOOK_MIN_INTERVAL_MS`).
+- **Votar en la web**: abre `https://mostwanted.kaithsrebels.com/reporte/<id>`. Si el login es necesario, la web vuelve a esa ruta después de iniciar sesión.
+- **Perfil de Social Club**: abre el perfil del jugador en Rockstar Social Club.
+
+Los botones de enlace no requieren bot. Votar desde Discord no está disponible; el voto se hace en la web.
+
+El envío de notificaciones está limitado por `DISCORD_WEBHOOK_MIN_INTERVAL_MS` (por defecto 45 segundos).
 
 ## Integración con IA
 
-El asistente usa **Qwen2.5** a través de Ollama (local en desarrollo, endpoint configurado en producción). Soporta tres modos:
+El asistente usa el gateway de IA de H.E.X. (`KAITH_AI_GATEWAY_TOKEN`, por defecto `https://api.kaithsrebels.com/v1/text`). Ollama local con `qwen2.5` solo se usa si `KAITH_AI_USE_LOCAL_OLLAMA=true`. El orden de proveedores es: hex-gateway, luego ollama-local (si está activo) y por último production-api. Soporta tres modos:
 
 - **Chat**: responde preguntas sobre reportes, rankings y estadísticas.
 - **Clasificación de intención**: determina si la consulta es sobre un reporte específico o una pregunta general.

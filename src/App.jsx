@@ -52,7 +52,14 @@ const getExpedienteFromURL = () => {
   return { expedienteId: null, usuario: '' };
 };
 
+// Enlace estable a un reporte por su ID de WordPress (lo usan los botones del embed de Discord).
+const getReporteIdFromURL = () => {
+  const match = window.location.pathname.match(/^\/reporte\/(\d+)$/);
+  return match ? Number(match[1]) : null;
+};
+
 const DISCORD_AUTH_URL = buildApiUrl('/auth/discord');
+const RETURN_PATH_STORAGE_KEY = 'mostwanted_return_path';
 
 const mapCategoriaLegacy = (categorias = [], categoriaActual = '') => {
   if (categoriaActual) return categoriaActual;
@@ -221,9 +228,10 @@ function App() {
   const isHome = window.location.pathname === '/';
   const isUsuario = /^\/usuario\/.+/.test(window.location.pathname);
   const isExpediente = /^\/expediente\/\d+$/.test(window.location.pathname);
+  const isReporte = /^\/reporte\/\d+$/.test(window.location.pathname);
 
   // Mostrar error si la ruta es inválida (no redirigir)
-  if (!isHome && !isUsuario && !isExpediente && !isAuthCallback) {
+  if (!isHome && !isUsuario && !isExpediente && !isReporte && !isAuthCallback) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif' }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>🚫</div>
@@ -249,11 +257,13 @@ function App() {
           } else {
             localStorage.removeItem('discord_user');
           }
-          window.location.href = '/';
+          window.location.href = sessionStorage.getItem(RETURN_PATH_STORAGE_KEY) || '/';
+          sessionStorage.removeItem(RETURN_PATH_STORAGE_KEY);
         })
         .catch(() => {
           localStorage.removeItem('discord_user');
-          window.location.href = '/';
+          window.location.href = sessionStorage.getItem(RETURN_PATH_STORAGE_KEY) || '/';
+          sessionStorage.removeItem(RETURN_PATH_STORAGE_KEY);
         });
     }, [user]);
     return (
@@ -271,7 +281,10 @@ function App() {
       if (reportes.length > 0) {
         let reporte = null;
 
-        if (referencia?.expedienteId) {
+        const reporteId = getReporteIdFromURL();
+        if (reporteId) {
+          reporte = reportes.find(r => Number(r.id) === reporteId);
+        } else if (referencia?.expedienteId) {
           reporte = reportes.find(r => Number(r.expedienteId) === Number(referencia.expedienteId));
         } else if (referencia?.usuario) {
           reporte = reportes.find(r =>
@@ -675,6 +688,10 @@ function App() {
 
   // Botón de login/logout
   const handleLogin = () => {
+    const currentPath = `${window.location.pathname}${window.location.search}`;
+    if (currentPath !== '/') {
+      sessionStorage.setItem(RETURN_PATH_STORAGE_KEY, currentPath);
+    }
     window.location.href = DISCORD_AUTH_URL;
   };
   const handleLogout = () => {

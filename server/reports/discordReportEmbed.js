@@ -2,6 +2,7 @@ import { TIPOS_ETIQUETAS } from '../shared/constants/tiposEtiquetas.js';
 import { buildCrewLink } from './crewLink.js';
 
 const MAX_DISCORD_EMBEDS_PER_MESSAGE = 10;
+const MOSTWANTED_WEB_URL = 'https://mostwanted.kaithsrebels.com';
 
 const INFRACTION_NAME_BY_KEY = TIPOS_ETIQUETAS.reduce((acc, item) => {
   const key = String(item?.key || '').trim().toUpperCase();
@@ -216,7 +217,11 @@ export function buildDiscordReportPayload({ report = {}, reporter = {}, evidence
     .filter((url) => /^https?:\/\//i.test(url));
   const imageUrls = [...avatarUrls, ...imageEvidence];
   const [mainImageUrl, ...galleryImageUrls] = imageUrls;
-  const profileUrl = `https://socialclub.rockstargames.com/members/${report.nickname}/`;
+  const profileUrl = `https://socialclub.rockstargames.com/members/${encodeURIComponent(toTrimmedString(report.nickname))}/`;
+  const reportId = Number(report.id);
+  const reportUrl = Number.isInteger(reportId) && reportId > 0
+    ? `${MOSTWANTED_WEB_URL}/reporte/${reportId}`
+    : MOSTWANTED_WEB_URL;
 
   const fields = [
     { name: 'RID', value: `||${truncateText(String(report.rid || 'N/A'), 1018)}||`, inline: false },
@@ -265,6 +270,15 @@ export function buildDiscordReportPayload({ report = {}, reporter = {}, evidence
         timestamp: new Date(normalizeTimestamp(report.time)).toISOString(),
       },
       ...galleryEmbeds,
+    ],
+    components: [
+      {
+        type: 1,
+        components: [
+          { type: 2, style: 5, label: '🗳 Votar en la web', url: reportUrl },
+          { type: 2, style: 5, label: '🎮 Perfil de Social Club', url: profileUrl },
+        ],
+      },
     ],
     allowed_mentions: { parse: [] },
   };
