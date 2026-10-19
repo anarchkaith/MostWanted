@@ -1,6 +1,8 @@
 import { TIPOS_ETIQUETAS } from '../shared/constants/tiposEtiquetas.js';
 import { buildCrewLink } from './crewLink.js';
 
+const MAX_DISCORD_EMBEDS_PER_MESSAGE = 10;
+
 const INFRACTION_NAME_BY_KEY = TIPOS_ETIQUETAS.reduce((acc, item) => {
   const key = String(item?.key || '').trim().toUpperCase();
   const name = String(item?.nombre || '').trim();
@@ -209,11 +211,8 @@ export function buildDiscordReportPayload({ report = {}, reporter = {}, evidence
   const avatarUrls = [report.avatar1, report.avatar2]
     .map((url) => toTrimmedString(url))
     .filter((url) => /^https?:\/\//i.test(url));
-  const imageItems = [
-    ...avatarUrls.map((url, index) => ({ label: `Avatar ${index + 1}`, url })),
-    ...imageEvidence.map((url, index) => ({ label: `Evidencia ${index + 1}`, url })),
-  ];
-  const [mainImage, ...otherImages] = imageItems;
+  const imageUrls = [...avatarUrls, ...imageEvidence];
+  const [mainImageUrl, ...galleryImageUrls] = imageUrls;
   const profileUrl = `https://socialclub.rockstargames.com/members/${report.nickname}/`;
 
   const fields = [
@@ -226,7 +225,7 @@ export function buildDiscordReportPayload({ report = {}, reporter = {}, evidence
   fields.push(
     { name: '🕵️ Estado', value: truncateText(getInvestigationStatusLabel(report), 1024), inline: true },
     { name: '👥 Crews', value: buildCrewFieldValue(crews), inline: false },
-    { name: '🏷 Etiquetas', value: truncateText(labels.join(', ') || '#Sin etiquetas de amenaza', 1024), inline: false },
+    { name: '🏷 Etiquetas', value: truncateText(`-# ${labels.join(', ') || '#Sin etiquetas de amenaza'}`, 1024), inline: false },
     { name: '🚥 Tipos de infraccion', value: truncateText(infractions.join(', ') || 'NO ESPECIFICADO', 1024), inline: false },
   );
   const videoValue = buildVideoEvidenceField(evidence);
@@ -234,13 +233,10 @@ export function buildDiscordReportPayload({ report = {}, reporter = {}, evidence
     fields.push({ name: '📼 Evidencias de Video', value: videoValue, inline: false });
   }
 
-  if (otherImages.length > 0) {
-    fields.push({
-      name: '🖼 Imágenes',
-      value: truncateText(otherImages.map((item) => `[${item.label}](${item.url})`).join('\n'), 1024),
-      inline: false,
-    });
-  }
+  // Discord agrupa en una galería los embeds de un mismo mensaje que comparten la misma url.
+  const galleryEmbeds = galleryImageUrls
+    .slice(0, MAX_DISCORD_EMBEDS_PER_MESSAGE - 1)
+    .map((url) => ({ url: profileUrl, color: embedColor, image: { url } }));
 
   const payload = {
     content: '',
@@ -258,13 +254,14 @@ export function buildDiscordReportPayload({ report = {}, reporter = {}, evidence
         url: profileUrl,
         color: embedColor,
         fields,
-        ...(mainImage ? { image: { url: mainImage.url } } : {}),
+        ...(mainImageUrl ? { image: { url: mainImageUrl } } : {}),
         footer: {
           text: 'MostWanted • Sistema de reportes de bad players',
           icon_url: 'https://i.ibb.co/fV98zMbz/HEX-LOGO-RED.png',
         },
         timestamp: new Date(normalizeTimestamp(report.time)).toISOString(),
       },
+      ...galleryEmbeds,
     ],
     allowed_mentions: { parse: [] },
   };
