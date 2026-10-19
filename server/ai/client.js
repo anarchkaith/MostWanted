@@ -31,7 +31,6 @@ function buildProviders(config) {
       model: config.localModel || config.model,
       requiresAuth: false,
     });
-    return providers;
   }
 
   if (config?.endpoint && hasAiCredentials(config)) {

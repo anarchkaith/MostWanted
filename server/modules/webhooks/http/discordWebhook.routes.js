@@ -1,5 +1,5 @@
 ﻿import { sanitizeDiscordWebhookPayload, sendDiscordWebhook } from '../services/discordWebhook.service.js';
-import { sendReportToDiscordWebhook } from '../../../reports/discord.js';
+import { sendReportToDiscordWebhook } from '../../../reports/discordReportEmbed.js';
 import { validateIncomingReportSubmission } from '../../../reports/validation.js';
 
 /**

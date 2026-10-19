@@ -60,7 +60,7 @@ function readString(env, key, fallback = '') {
 }
 
 export function createAiConfig(env = process.env) {
-  const useLocalOllama = readBool(env, 'KAITH_AI_USE_LOCAL_OLLAMA', true);
+  const useLocalOllama = readBool(env, 'KAITH_AI_USE_LOCAL_OLLAMA', false);
 
   return {
     useLocalOllama,

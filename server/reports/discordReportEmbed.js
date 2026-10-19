@@ -97,6 +97,10 @@ function isImageContentType(contentType) {
   return String(contentType || '').toLowerCase().startsWith('image/');
 }
 
+function isVideoContentType(contentType) {
+  return String(contentType || '').toLowerCase().startsWith('video/');
+}
+
 function normalizeCrewEntry(crew) {
   const raw = typeof crew === 'string'
     ? crew.trim()
@@ -123,14 +127,13 @@ function buildCrewFieldValue(crews = []) {
 }
 
 function buildVideoEvidenceField(evidence = []) {
-  const items = evidence.filter((item) => item?.url && !isImageContentType(item?.contentType));
+  const items = evidence.filter((item) => item?.url && isVideoContentType(item?.contentType));
   if (items.length === 0) return '';
-  return truncateText(items.slice(0, 5).map((item) => item.name || item.url).join(', '), 1024);
+  return truncateText(items.slice(0, 5).map((item) => `[${item.name || 'Video'}](${item.url})`).join('\n'), 1024);
 }
 
 function buildReasonQuote(text, maxLength = 1024) {
-  const quoted = text.split(/\r?\n/).map((line) => `> ${line}`).join('\n');
-  return truncateText(quoted, maxLength);
+  return truncateText(`>>> ${text}`, maxLength);
 }
 
 function getWordpressReportFromPlayer(player = {}) {
@@ -206,7 +209,11 @@ export function buildDiscordReportPayload({ report = {}, reporter = {}, evidence
   const avatarUrls = [report.avatar1, report.avatar2]
     .map((url) => toTrimmedString(url))
     .filter((url) => /^https?:\/\//i.test(url));
-  const imageUrls = [...new Set([...avatarUrls, ...imageEvidence])];
+  const imageItems = [
+    ...avatarUrls.map((url, index) => ({ label: `Avatar ${index + 1}`, url })),
+    ...imageEvidence.map((url, index) => ({ label: `Evidencia ${index + 1}`, url })),
+  ];
+  const [mainImage, ...otherImages] = imageItems;
   const profileUrl = `https://socialclub.rockstargames.com/members/${report.nickname}/`;
 
   const fields = [
@@ -227,6 +234,14 @@ export function buildDiscordReportPayload({ report = {}, reporter = {}, evidence
     fields.push({ name: '📼 Evidencias de Video', value: videoValue, inline: false });
   }
 
+  if (otherImages.length > 0) {
+    fields.push({
+      name: '🖼 Imágenes',
+      value: truncateText(otherImages.map((item) => `[${item.label}](${item.url})`).join('\n'), 1024),
+      inline: false,
+    });
+  }
+
   const payload = {
     content: '',
     username: 'H.E.X. | MostWanted',
@@ -243,7 +258,7 @@ export function buildDiscordReportPayload({ report = {}, reporter = {}, evidence
         url: profileUrl,
         color: embedColor,
         fields,
-        ...(imageUrls[0] ? { image: { url: imageUrls[0] } } : {}),
+        ...(mainImage ? { image: { url: mainImage.url } } : {}),
         footer: {
           text: 'MostWanted • Sistema de reportes de bad players',
           icon_url: 'https://i.ibb.co/fV98zMbz/HEX-LOGO-RED.png',
@@ -254,15 +269,27 @@ export function buildDiscordReportPayload({ report = {}, reporter = {}, evidence
     allowed_mentions: { parse: [] },
   };
 
-  for (const imageUrl of imageUrls.slice(1, 10)) {
-    payload.embeds.push({
-      url: profileUrl,
-      color: embedColor,
-      image: { url: imageUrl },
-    });
+  return payload;
+}
+
+/**
+ * Envía un reporte (report, reporter, evidence) al webhook de DISCORD_WEBHOOK_URL.
+ */
+export async function sendReportToDiscordWebhook(submission = {}, { fetchImpl = globalThis.fetch } = {}) {
+  const webhookUrl = String(process.env.DISCORD_WEBHOOK_URL || '').trim();
+  if (!webhookUrl) {
+    return {
+      ok: false,
+      errorCode: 'integration_not_configured',
+      message: 'Webhook de Discord no configurado (DISCORD_WEBHOOK_URL).',
+    };
   }
 
-  return payload;
+  if (!submission.report?.nickname) {
+    throw new Error('Reporte inválido: falta nickname');
+  }
+
+  return postDiscordPayload({ webhookUrl, payload: buildDiscordReportPayload(submission), fetchImpl });
 }
 
 /**
@@ -281,8 +308,10 @@ export async function sendDiscordReportForWordpressPlayer({
     return { ok: false, message: error.message };
   }
 
-  const payload = buildDiscordReportPayload(source);
+  return postDiscordPayload({ webhookUrl, payload: buildDiscordReportPayload(source), fetchImpl });
+}
 
+async function postDiscordPayload({ webhookUrl, payload, fetchImpl }) {
   try {
     const response = await fetchImpl(webhookUrl, {
       method: 'POST',

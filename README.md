@@ -81,7 +81,7 @@ npm run start
 | Variable | Descripción |
 |---|---|
 | `KAITH_AI_GATEWAY_TOKEN` | Token `X-API-Token` del gateway de IA de H.E.X. (`https://api.kaithsrebels.com/v1/text`) |
-| `KAITH_AI_USE_LOCAL_OLLAMA` | `true` para usar Ollama local (desarrollo) |
+| `KAITH_AI_USE_LOCAL_OLLAMA` | `true` para usar Ollama local como primer proveedor (desarrollo). Por defecto `false`; si falla, el sistema usa el gateway |
 | `KAITH_OLLAMA_ENDPOINT` | Endpoint de Ollama. Por defecto: `http://127.0.0.1:11434/api/generate` |
 | `KAITH_OLLAMA_MODEL` | Modelo Ollama a usar (ej. `qwen2.5`) |
 | `KAITH_AI_ENDPOINT` | Endpoint de IA en producción |
