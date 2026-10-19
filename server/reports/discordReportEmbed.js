@@ -222,6 +222,8 @@ export function buildDiscordReportPayload({ report = {}, reporter = {}, evidence
   const reportUrl = Number.isInteger(reportId) && reportId > 0
     ? `${MOSTWANTED_WEB_URL}/reporte/${reportId}`
     : MOSTWANTED_WEB_URL;
+  const reporterAvatarCandidate = toTrimmedString(reporter.avatarUrl);
+  const reporterAvatarUrl = /^https?:\/\//i.test(reporterAvatarCandidate) ? reporterAvatarCandidate : '';
 
   const fields = [
     { name: 'RID', value: `||${truncateText(String(report.rid || 'N/A'), 1018)}||`, inline: false },
@@ -255,7 +257,7 @@ export function buildDiscordReportPayload({ report = {}, reporter = {}, evidence
         author: {
           name: toTrimmedString(reporter.name) || 'Anónimo',
           url: 'https://mostwanted.kaithsrebels.com',
-          icon_url: 'https://i.ibb.co/sJDdYnPc/Vector-Padding.png',
+          ...(reporterAvatarUrl ? { icon_url: reporterAvatarUrl } : {}),
         },
         title: '[ SUJETO MARCADO PARA ELIMINACIÓN ]',
         description: `\`\`\`${truncateText(report.nickname, 300)}\`\`\``,

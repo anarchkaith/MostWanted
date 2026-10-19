@@ -1,12 +1,14 @@
 ﻿import { sendReportToWordpress } from '../../../reports/wordpressService.js';
 import { validateIncomingReportSubmission } from '../../../reports/validation.js';
 import { sendDiscordReportForWordpressPlayer } from '../../../reports/discordReportEmbed.js';
+import { attachSessionAvatarToReporter } from '../../../shared/auth/discordAvatar.js';
 
 /**
  * Valida y envia un reporte a WordPress y luego lo notifica a Discord desde el backend.
  */
 export async function submitWordpressReport({
   body,
+  sessionUser = null,
   wordpressReportsConfig,
   discordWebhookUrl = '',
   logger = console,
@@ -20,7 +22,10 @@ export async function submitWordpressReport({
     };
   }
 
-  const submission = validation.value;
+  const submission = {
+    ...validation.value,
+    reporter: attachSessionAvatarToReporter(validation.value.reporter, sessionUser),
+  };
 
   if (!wordpressReportsConfig.enabled) {
     return {

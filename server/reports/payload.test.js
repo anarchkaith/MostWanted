@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { buildHexbotReportPayload } from './payload.js';
 import { validateIncomingReportSubmission } from './validation.js';
+import { buildDiscordReportPayload } from './discordReportEmbed.js';
+import { buildDiscordAvatarUrl, attachSessionAvatarToReporter } from '../shared/auth/discordAvatar.js';
 import { TIPOS_ETIQUETAS } from '../../components/tiposEtiquetas.js';
 
 function findLabelIdByName(name = '') {
@@ -152,3 +154,45 @@ runTest('validateIncomingReportSubmission acepta labels por IDs y los expone com
 });
 
 console.log('OK payload/validation checks completed');
+
+runTest('buildDiscordReportPayload usa el avatar del autor como icono y omite el logo cuando no existe', () => {
+  const baseReport = {
+    id: 5,
+    nickname: 'Jugador123',
+    rid: '123',
+    reason: 'Motivo',
+    typesOfInfraction: [],
+    labels: [],
+    time: Date.now(),
+  };
+
+  const withAvatar = buildDiscordReportPayload({
+    report: baseReport,
+    reporter: { name: 'Kaith', avatarUrl: 'https://cdn.discordapp.com/avatars/1/abc.png?size=128' },
+  });
+  assert.equal(withAvatar.embeds[0].author.icon_url, 'https://cdn.discordapp.com/avatars/1/abc.png?size=128');
+
+  const anonymous = buildDiscordReportPayload({ report: baseReport, reporter: { name: 'Anónimo' } });
+  assert.equal(Object.prototype.hasOwnProperty.call(anonymous.embeds[0].author, 'icon_url'), false);
+});
+
+runTest('buildDiscordAvatarUrl y attachSessionAvatarToReporter usan solo la sesión del mismo usuario', () => {
+  assert.equal(
+    buildDiscordAvatarUrl({ id: '123', avatar: 'abc' }),
+    'https://cdn.discordapp.com/avatars/123/abc.png?size=128',
+  );
+  assert.equal(
+    buildDiscordAvatarUrl({ id: '123', avatar: 'a_abc' }),
+    'https://cdn.discordapp.com/avatars/123/a_abc.gif?size=128',
+  );
+  assert.match(buildDiscordAvatarUrl({ id: '123' }), /^https:\/\/cdn\.discordapp\.com\/embed\/avatars\/\d\.png$/);
+  assert.equal(buildDiscordAvatarUrl({ id: 'no-numerico', avatar: 'x' }), '');
+
+  const session = { id: '123', avatar: 'abc' };
+  assert.equal(
+    attachSessionAvatarToReporter({ id: '123', name: 'Kaith' }, session).avatarUrl,
+    'https://cdn.discordapp.com/avatars/123/abc.png?size=128',
+  );
+  assert.equal(attachSessionAvatarToReporter({ id: '999', name: 'Otro' }, session).avatarUrl, undefined);
+  assert.equal(attachSessionAvatarToReporter({ id: '123', name: 'Kaith' }, null).avatarUrl, undefined);
+});
