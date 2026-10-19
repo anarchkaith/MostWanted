@@ -17,6 +17,39 @@ function toArray(values) {
   return Array.isArray(values) ? values : [];
 }
 
+function removePrivateDiscordIdentity(identity) {
+  if (!identity || typeof identity !== 'object' || Array.isArray(identity)) {
+    return identity;
+  }
+
+  return Object.fromEntries(
+    Object.entries(identity).filter(([key]) => !['id', 'discordId', 'tag'].includes(key)),
+  );
+}
+
+function removePrivateExpedienteIdentities(expediente) {
+  return {
+    ...expediente,
+    ...(Array.isArray(expediente?.reports) ? {
+      reports: expediente.reports.map((report) => ({
+        ...report,
+        ...(report?.reporter ? { reporter: removePrivateDiscordIdentity(report.reporter) } : {}),
+      })),
+    } : {}),
+    ...(expediente?.votes && typeof expediente.votes === 'object' ? {
+      votes: {
+        ...expediente.votes,
+        ...(Array.isArray(expediente.votes.entries) ? {
+          entries: expediente.votes.entries.map((entry) => ({
+            ...entry,
+            ...(entry?.voter ? { voter: removePrivateDiscordIdentity(entry.voter) } : {}),
+          })),
+        } : {}),
+      },
+    } : {}),
+  };
+}
+
 /**
  * Normaliza texto para comparaciones flexibles ignorando mayusculas y tildes.
  */
@@ -66,7 +99,7 @@ export function readExpedientes(rootDir) {
   try {
     const raw = fs.readFileSync(filePath, 'utf-8');
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? parsed.map(removePrivateExpedienteIdentities) : [];
   } catch {
     return [];
   }
@@ -208,9 +241,7 @@ export function createOrAppendReport({ rootDir, body = {}, reporter = null }) {
     labels: toArray(body?.report?.labels || body?.labels).filter(Boolean),
     evidence: toArray(body?.evidence || body?.report?.evidence),
     reporter: {
-      id: toTrimmedString(reporter?.id),
       name: toTrimmedString(reporter?.name) || 'anonimo',
-      tag: toTrimmedString(reporter?.tag),
     },
     metadata: {
       reportedby: toTrimmedString(body?.report?.reportedby || body?.reportedby),
@@ -302,9 +333,7 @@ export function addVoteToExpediente({ rootDir, expedienteId, voteType, reason = 
     voteType: normalizedVote,
     reason: toTrimmedString(reason),
     voter: {
-      id: toTrimmedString(voter?.id),
       name: toTrimmedString(voter?.name) || 'anonimo',
-      tag: toTrimmedString(voter?.tag),
     },
     createdAt: new Date().toISOString(),
   };

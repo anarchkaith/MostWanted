@@ -11,6 +11,12 @@ export function hasAiProvider(config) {
   return hasGateway || hasProd || hasLocal;
 }
 
+function normalizeAssistantText(value) {
+  return typeof value === 'string'
+    ? value.trim().replace(/^(?:>>chat(?:\s+|$)\s*)+/i, '').trim()
+    : '';
+}
+
 function buildProviders(config) {
   const providers = [];
 
@@ -46,24 +52,19 @@ function buildProviders(config) {
 }
 
 export function getAssistantReply(payload = {}) {
-  if (typeof payload.response === 'string' && payload.response.trim()) {
-    return payload.response.trim();
-  }
+  const candidates = [
+    payload.response,
+    payload.text,
+    payload.output,
+    payload.message?.content,
+    payload.raw,
+  ];
 
-  if (typeof payload.text === 'string' && payload.text.trim()) {
-    return payload.text.trim();
-  }
-
-  if (typeof payload.output === 'string' && payload.output.trim()) {
-    return payload.output.trim();
-  }
-
-  if (payload.message && typeof payload.message.content === 'string' && payload.message.content.trim()) {
-    return payload.message.content.trim();
-  }
-
-  if (typeof payload.raw === 'string' && payload.raw.trim()) {
-    return payload.raw.trim();
+  for (const candidate of candidates) {
+    const text = normalizeAssistantText(candidate);
+    if (text) {
+      return text;
+    }
   }
 
   return 'No pude generar una respuesta en este momento.';

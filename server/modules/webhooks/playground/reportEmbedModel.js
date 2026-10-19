@@ -29,7 +29,6 @@ export const REPORT_EMBED_BASE_SCHEMA = {
   reporter: {
     id: 'usr-001',
     name: '-Kaith_Suki-',
-    discordId: '123456789012345678',
     ip: '192.168.1.1',
   },
   evidence: [
@@ -170,7 +169,6 @@ export function buildReportEmbedPayload(input = {}) {
     { name: 'Tipos de infraccion', value: toInlineList(report.typesOfInfraction), inline: false },
     { name: 'Aliases', value: toInlineList(report.aliases), inline: false },
     { name: 'Reportado por', value: String(reporter.name || 'N/A'), inline: true },
-    { name: 'Discord ID', value: String(reporter.discordId || 'N/A'), inline: true },
     { name: 'Servidor', value: String(metadata.server || 'N/A'), inline: true },
   ];
 

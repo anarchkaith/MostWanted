@@ -77,9 +77,7 @@ runTest('validateIncomingReportSubmission acepta un reporte valido y buildHexbot
     reportedby: 'MOSTWANTED',
     source: 'mostwanted-web',
     reporter: {
-      id: 'user-42',
       name: 'Kaith',
-      tag: 'Kaith',
     },
     evidence: [
       {
@@ -95,6 +93,11 @@ runTest('validateIncomingReportSubmission acepta un reporte valido y buildHexbot
       investigation_status: 'not_found',
     },
   });
+
+  assert.equal(JSON.stringify(payload).includes('user-42'), false);
+  assert.equal(Object.hasOwn(payload.reporter, 'id'), false);
+  assert.equal(Object.hasOwn(payload.reporter, 'avatarUrl'), false);
+  assert.equal(Object.hasOwn(payload.reporter, 'tag'), false);
 });
 
 runTest('validateIncomingReportSubmission rechaza evidencias sin contentType soportado', () => {

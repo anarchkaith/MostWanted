@@ -70,10 +70,7 @@ export function buildHexbotReportPayload(input = {}) {
     // Información de la fuente y reporter
     source: input?.source || 'mostwanted-web',
     reporter: {
-      id: reporter.id || 'mostwanted-web',
       name: reporterName,
-      ...(reporter.tag ? { tag: reporter.tag } : {}),
-      ...(reporter.avatarUrl ? { avatarUrl: reporter.avatarUrl } : {}),
     },
     // Evidencias
     evidence: Array.isArray(input?.evidence)

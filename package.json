@@ -11,6 +11,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "start": "node server/index.js",
+    "test:ai": "node server/ai/client.test.js",
     "test:reports": "node server/reports/payload.test.js",
     "webhook:playground": "node server/modules/webhooks/playground/discordEmbedPlayground.js"
   },
