@@ -43,7 +43,7 @@ export function createApp({ rootDir, isProduction }) {
 
   const debugMode = process.env.DEBUG_MODE === 'true';
   const discordAuth = {
-    clientId: String(process.env.CLIENT_ID || process.env.DISCORD_CLIENT_ID || '1486500562072768542').trim(),
+    clientId: String(process.env.CLIENT_ID || process.env.DISCORD_CLIENT_ID || '1538725229428351127').trim(),
     clientSecret: String(process.env.CLIENT_SECRET || process.env.DISCORD_CLIENT_SECRET || '').trim(),
     callbackUrl: String(
       process.env.CALLBACK_URL ||
