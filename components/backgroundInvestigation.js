@@ -1,5 +1,5 @@
 ﻿import { BLOCKED_REPORTED_USERNAME_MESSAGE, isBlockedReportedUsername } from './blockedUsernames';
-import { buildApiUrl } from '../src/services/apiConfig';
+import { fetchWordpressPlayerInsights } from '../src/services/reportSubmissionService';
 
 const CORS_ANYWHERE_BASE_URL = 'https://cors-anywhere.herokuapp.com/';
 const CORS_PERMISSION_URL = `${CORS_ANYWHERE_BASE_URL}https://mostwanted.kaithsrebels.com/`;
@@ -89,17 +89,7 @@ function extractPanelAvatarsFromInsights(reportInsights = null) {
 }
 
 async function getPlayerReportInsights({ username, rid = '' }) {
-  const params = new URLSearchParams();
-  if (username) params.set('username', username);
-  if (rid) params.set('rid', String(rid));
-
-  const response = await fetch(buildApiUrl(`/reports/player-insights?${params.toString()}`));
-  if (!response.ok) {
-    return null;
-  }
-
-  const payload = await response.json().catch(() => ({}));
-  return payload?.ok ? payload.player : null;
+  return fetchWordpressPlayerInsights({ username, rid }).catch(() => null);
 }
 
 function createHttpStatusError(status) {
@@ -329,18 +319,26 @@ function getPlayerAvatarUrl(rid, index = 0) {
   return `https://prod.cloud.rockstargames.com/members/sc/6266/${encodeURIComponent(String(rid))}/publish/gta5/mpchars/${index}.png`;
 }
 
-async function downloadPlayerAvatar(rid, index) {
-  const avatarUrl = getPlayerAvatarUrl(rid, index);
+function buildRidAvatars(rid) {
+  if (!rid) return [];
 
-  return {
-    avatar: {
+  return [0, 1].map((index) => {
+    const avatarUrl = getPlayerAvatarUrl(rid, index);
+    return {
       index,
       avatarUrl,
       proxiedAvatarUrl: getCorsProxyUrl(avatarUrl),
       available: true,
-    },
-    usedProxy: false,
-  };
+    };
+  });
+}
+
+// Prioriza avatares de WordPress (reportes); si no hay, usa los del CDN de Rockstar por RID.
+function resolvePanelAvatars(reportInsights, rid) {
+  const insightAvatars = extractPanelAvatarsFromInsights(reportInsights);
+  if (insightAvatars.length > 0) return insightAvatars;
+
+  return buildRidAvatars(rid || reportInsights?.rid);
 }
 
 async function fetchBattleyeAccountStatus() {
@@ -391,7 +389,7 @@ export async function investigatePlayerBackground(username) {
     const nameHistory = extractNameHistoryFromInsights(reportInsights);
     const aliases = extractNamesFromInsights(reportInsights);
     const crews = mergeUniqueStrings(reportInsights?.crews);
-    const avatars = extractPanelAvatarsFromInsights(reportInsights);
+    const avatars = resolvePanelAvatars(reportInsights, rid);
     const displayName = nameHistory[0]?.name || aliases[0] || trimmedUsername;
     const lastSeenReadable = reportInsights?.lastReportAt
       ? new Date(reportInsights.lastReportAt).toLocaleString('es-ES')
@@ -422,7 +420,7 @@ export async function investigatePlayerBackground(username) {
     if (reportInsights?.reportCount > 0) {
       const aliases = extractNamesFromInsights(reportInsights);
       const nameHistory = extractNameHistoryFromInsights(reportInsights);
-      const avatars = extractPanelAvatarsFromInsights(reportInsights);
+      const avatars = resolvePanelAvatars(reportInsights, '');
 
       return {
         username: trimmedUsername,

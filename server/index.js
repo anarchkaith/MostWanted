@@ -9,7 +9,7 @@ const rootDir = path.resolve(__dirname, '..');
 
 dotenv.config({ path: path.join(rootDir, '.env') });
 
-const port = Number(process.env.PORT || 8787);
+const port = Number(process.env.PORT || 5000);
 const isProduction = process.env.NODE_ENV === 'production';
 
 const { app, diagnostics } = createApp({ rootDir, isProduction });

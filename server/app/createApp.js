@@ -42,14 +42,18 @@ export function createApp({ rootDir, isProduction }) {
 
   const debugMode = process.env.DEBUG_MODE === 'true';
   const discordAuth = {
-    clientId: String(process.env.CLIENT_ID || process.env.DISCORD_CLIENT_ID || '').trim(),
+    clientId: String(process.env.CLIENT_ID || process.env.DISCORD_CLIENT_ID || '1486500562072768542').trim(),
     clientSecret: String(process.env.CLIENT_SECRET || process.env.DISCORD_CLIENT_SECRET || '').trim(),
-    callbackUrl: String(process.env.CALLBACK_URL || process.env.DISCORD_REDIRECT_URI || '').trim(),
+    callbackUrl: String(
+      process.env.CALLBACK_URL ||
+      process.env.DISCORD_REDIRECT_URI ||
+      'http://localhost:5000/auth/discord/callback',
+    ).trim(),
     apiUrl: String(process.env.DISCORD_API_URL || 'https://discord.com/api/v10').trim().replace(/\/+$/, ''),
     oauthScopes: String(process.env.DISCORD_OAUTH_SCOPES || 'identify email').trim(),
   };
 
-  const authRequireLogin = process.env.AUTH_REQUIRE_LOGIN === 'true';
+  const authRequireLogin = process.env.AUTH_REQUIRE_LOGIN !== 'false';
   const authAllowedDiscordUserIds = new Set(
     String(process.env.AUTH_ALLOWED_DISCORD_USER_IDS || '')
       .split(',')

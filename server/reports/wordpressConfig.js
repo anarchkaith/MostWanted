@@ -10,8 +10,8 @@ function readPositiveNumber(env, key, fallback) {
 
 export function createWordpressReportsConfig(env = process.env) {
   return {
-    enabled: readString(env, 'WORDPRESS_REPORTS_ENABLED', 'false').toLowerCase() === 'true',
-    baseUrl: readString(env, 'WORDPRESS_API_BASE_URL'),
+    enabled: readString(env, 'WORDPRESS_REPORTS_ENABLED', 'true').toLowerCase() === 'true',
+    baseUrl: readString(env, 'WORDPRESS_API_BASE_URL', 'https://kaithsrebels.com'),
     apiSecret: readString(env, 'WORDPRESS_API_SECRET'),
     timeoutMs: readPositiveNumber(env, 'WORDPRESS_API_TIMEOUT_MS', 9000),
   };

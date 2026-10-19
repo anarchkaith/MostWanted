@@ -318,7 +318,7 @@ function App() {
   // useEffect desactivado: ya no se cargan reportes desde el canal de Discord
 
   useEffect(() => {
-    const channelId = import.meta.env.VITE_DISCORD_ID_CHANNEL;
+    const channelId = import.meta.env.VITE_DISCORD_ID_CHANNEL || '1455659811973894274';
     if (!channelId) {
       setIsLoading(false);
       return;
@@ -862,6 +862,7 @@ function App() {
 
       <footer style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '20px 0 28px', marginTop: 'var(--spacing-xxl)', borderTop: '1px solid var(--color-gray-medium)', opacity: 0.45, pointerEvents: 'none', userSelect: 'none' }} className="site-footer">
         <span className="site-footer__text">Desarrollado por Kaith's Rebels</span>
+        <span className="site-footer__version" style={{ marginLeft: '8px' }}>v{__APP_VERSION__}</span>
         <img src="/Logo.png" width="20" style={{ marginLeft: '8px' }} alt="Kaith's Rebels" className="site-footer__logo" />
       </footer>
 

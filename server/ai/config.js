@@ -44,8 +44,12 @@ ANÁLISIS DE REPORTES - REGLAS OBLIGATORIAS:
   reportCorrelationInstructions: 'Responde SOLO JSON valido con llaves: correlaciones, riesgoGlobal, conclusion. correlaciones debe ser un arreglo de hallazgos cortos.',
 };
 
-function readBool(env, key) {
-  return String(env[key] || '').toLowerCase() === 'true';
+function readBool(env, key, fallback = false) {
+  const value = env[key];
+  if (typeof value !== 'string' || value.length === 0) {
+    return fallback;
+  }
+  return value.toLowerCase() === 'true';
 }
 
 function readString(env, key, fallback = '') {
@@ -54,7 +58,7 @@ function readString(env, key, fallback = '') {
 }
 
 export function createAiConfig(env = process.env) {
-  const useLocalOllama = readBool(env, 'KAITH_AI_USE_LOCAL_OLLAMA');
+  const useLocalOllama = readBool(env, 'KAITH_AI_USE_LOCAL_OLLAMA', true);
 
   return {
     useLocalOllama,

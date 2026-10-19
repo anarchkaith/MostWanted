@@ -26,6 +26,7 @@ Base: `/wp-json/mostwanted/v1`
 - `POST /reports` (requiere token)
 - `GET /players`
 - `GET /players/lookup?rid=...` o `playerId=...` o `nickname=...`
+- `GET /player-insights?username=...&rid=...`: perfil para el panel de antecedentes (`names[{name,time}]`, `avatars`, `crews`, `activeCrew`, `reportCount`, `lastReportAt`). Responde `player: null` si no existe.
 - `POST /players/load-default` (requiere token): carga jugador de prueba con datos completos (default: `1R0N_STR1K3R`)
 
 `GET /health` ahora incluye `secretConfigured` para diagnostico rapido.

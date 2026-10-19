@@ -1338,6 +1338,87 @@ function mw_rest_reports_list($request) {
     ], 200);
 }
 
+function mw_build_player_insights($player_post_id) {
+    $item = mw_map_player_item($player_post_id, false);
+
+    $last_seen_unix = 0;
+    $last_seen_iso = null;
+    if ($item['lastSeenAt'] !== '') {
+        $last_seen_unix = intval(strtotime(get_gmt_from_date($item['lastSeenAt']) . ' UTC'));
+        $last_seen_iso = mysql2date('c', $item['lastSeenAt']);
+    }
+
+    $names = [];
+    $seen_names = [];
+    $add_name = static function ($name, $time) use (&$names, &$seen_names) {
+        $name = mw_str($name);
+        $key = mb_strtolower($name);
+        if ($name === '' || isset($seen_names[$key])) {
+            return;
+        }
+        $seen_names[$key] = true;
+        $names[] = ['name' => $name, 'time' => intval($time ?? 0)];
+    };
+
+    foreach ($item['aliases'] as $alias) {
+        $add_name($alias['alias'], $alias['time']);
+    }
+    $add_name($item['nickname'], $last_seen_unix);
+
+    usort($names, static function ($a, $b) {
+        return $b['time'] <=> $a['time'];
+    });
+
+    $crew_names = [];
+    $active_crew = '';
+    foreach (mw_safe_meta_array($player_post_id, '_mw_crews_data') as $crew) {
+        if (!is_array($crew)) {
+            continue;
+        }
+        $crew_name = mw_str($crew['name'] ?? '') ?: mw_str($crew['raw'] ?? '');
+        if ($crew_name === '') {
+            continue;
+        }
+        $crew_names[] = $crew_name;
+        if (!empty($crew['isActive']) && $active_crew === '') {
+            $active_crew = $crew_name;
+        }
+    }
+
+    return [
+        'username' => $item['nickname'],
+        'rid' => $item['rid'],
+        'reportCount' => $item['totalReports'],
+        'activeCrew' => $active_crew,
+        'crews' => mw_unique_strings($crew_names, 25),
+        'names' => array_slice($names, 0, 60),
+        'avatars' => array_values(array_filter([$item['avatar1'], $item['avatar2']], static function ($url) {
+            return $url !== '';
+        })),
+        'lastReportAt' => $last_seen_iso,
+    ];
+}
+
+function mw_rest_player_insights($request) {
+    $username = mw_str($request->get_param('username'));
+    $rid = mw_str($request->get_param('rid'));
+
+    if ($username === '' && $rid === '') {
+        return new WP_REST_Response(['ok' => false, 'error' => 'Debes enviar username o rid.'], 400);
+    }
+
+    $player_post_id = mw_find_player_post($username, mw_int_or_null($rid), '');
+    if ($player_post_id <= 0) {
+        return new WP_REST_Response(['ok' => true, 'found' => false, 'player' => null], 200);
+    }
+
+    return new WP_REST_Response([
+        'ok' => true,
+        'found' => true,
+        'player' => mw_build_player_insights($player_post_id),
+    ], 200);
+}
+
 function mw_register_rest_routes() {
     register_rest_route(MW_NAMESPACE, '/health', [
         'methods' => WP_REST_Server::READABLE,
@@ -1380,6 +1461,12 @@ function mw_register_rest_routes() {
         'methods' => WP_REST_Server::CREATABLE,
         'callback' => 'mw_rest_seed_default_player',
         'permission_callback' => 'mw_can_ingest_reports',
+    ]);
+
+    register_rest_route(MW_NAMESPACE, '/player-insights', [
+        'methods' => WP_REST_Server::READABLE,
+        'callback' => 'mw_rest_player_insights',
+        'permission_callback' => '__return_true',
     ]);
 }
 add_action('rest_api_init', 'mw_register_rest_routes');

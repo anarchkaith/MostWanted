@@ -428,6 +428,26 @@ export async function fetchWordpressReportsSnapshot({ perPage = 100, page = 1 } 
   return payload;
 }
 
+export async function fetchWordpressPlayerInsights({ username = '', rid = '' } = {}) {
+  const params = new URLSearchParams();
+  if (username) params.set('username', username);
+  if (rid) params.set('rid', String(rid));
+
+  const endpoint = `${getWordpressApiBaseUrl()}/wp-json/mostwanted/v1/player-insights?${params.toString()}`;
+  const response = await fetch(endpoint, {
+    method: 'GET',
+    headers: { Accept: 'application/json' },
+  });
+
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(payload?.message || payload?.error || 'No se pudieron consultar los insights en WordPress.');
+  }
+
+  return payload?.player ?? null;
+}
+
 export async function submitWordpressCommunityVerificationVote({
   reportId,
   voteType,
