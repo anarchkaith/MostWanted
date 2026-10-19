@@ -199,7 +199,10 @@ export function buildDiscordSourceFromWordpressPlayer(player = null) {
 export function buildDiscordReportPayload({ report = {}, reporter = {}, evidence = [] }) {
   const infractions = normalizeInfractionArray(report.typesOfInfraction || report.categories || []);
   const labels = normalizeTextArray(report.labels);
-  const aliases = toArray(report.aliases).map((item) => toDisplayText(item)).filter(Boolean);
+  const nicknameKey = toTrimmedString(report.nickname).toLowerCase();
+  const aliases = toArray(report.aliases)
+    .map((item) => toDisplayText(item))
+    .filter((alias) => alias && alias.toLowerCase() !== nicknameKey);
   const crews = Array.isArray(report.crews) ? report.crews : toArray(report.crews);
   const reasonText = toTrimmedString(report.reason) || toTrimmedString(report.content) || toTrimmedString(report.motivo) || 'Sin motivo especificado';
   const imageEvidence = evidence
