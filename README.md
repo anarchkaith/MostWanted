@@ -146,6 +146,7 @@ El mensaje incluye dos botones de enlace:
 
 - **Votar en la web**: abre `https://mostwanted.kaithsrebels.com/reporte/<id>`. Si el login es necesario, la web vuelve a esa ruta después de iniciar sesión.
 - **Perfil de Social Club**: abre el perfil del jugador en Rockstar Social Club.
+- **Reportar a un jugador**: abre `https://mostwanted.kaithsrebels.com/#reportar`, que lleva directo al formulario de reporte de la web.
 
 Los botones de enlace no requieren bot. Votar desde Discord no está disponible; el voto se hace en la web.
 

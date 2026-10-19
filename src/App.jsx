@@ -788,7 +788,7 @@ function App() {
       {canUseReports ? (
       <>
       {/* ============ FORMULARIO DE REPORTE ============ */}
-      <main style={{ padding: 'var(--spacing-lg) 0' }}>
+      <main id="reportar" style={{ padding: 'var(--spacing-lg) 0' }}>
         <ReportFormModal onSubmit={handleNewReport} currentUser={user} isDemo={isDemo} />
       </main>
 
