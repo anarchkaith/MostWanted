@@ -208,6 +208,42 @@ function App() {
       return null;
     }
   });
+  const [isAuthChecked, setIsAuthChecked] = useState(false);
+
+  useEffect(() => {
+    if (window.location.pathname === '/auth-callback') return undefined;
+
+    let active = true;
+    fetch(buildApiUrl('/auth/me'), { credentials: 'include' })
+      .then(async (response) => {
+        if (!response.ok) {
+          return { authenticated: false, user: null };
+        }
+        return response.json();
+      })
+      .then((data) => {
+        if (!active) return;
+        if (data?.authenticated && data?.user?.id) {
+          setUser(data.user);
+          localStorage.setItem('discord_user', JSON.stringify(data.user));
+        } else {
+          setUser(null);
+          localStorage.removeItem('discord_user');
+        }
+      })
+      .catch(() => {
+        if (!active) return;
+        setUser(null);
+        localStorage.removeItem('discord_user');
+      })
+      .finally(() => {
+        if (active) setIsAuthChecked(true);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Verificar URL de expediente y modo admin al cargar
   useEffect(() => {
@@ -900,7 +936,13 @@ function App() {
         <img src="/Logo.png" width="20" style={{ marginLeft: '8px' }} alt="Kaith's Rebels" className="site-footer__logo" />
       </footer>
 
-      <AIAssistantBubble />
+      <AIAssistantBubble
+        isAuthenticated={isAuthChecked && Boolean(user?.id)}
+        onSessionExpired={() => {
+          setUser(null);
+          localStorage.removeItem('discord_user');
+        }}
+      />
     </div>
   );
 }

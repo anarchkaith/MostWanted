@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useFormik } from 'formik';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 import { buildReportesChatContext, readReportesFromLocalStorage } from './chatTools';
 import { getIaChatEndpoint, getIaIntentEndpoint } from '../src/services/apiConfig';
 
@@ -10,6 +11,11 @@ const IA_ENDPOINT = getIaChatEndpoint();
 const INTENT_ENDPOINT = getIaIntentEndpoint();
 const MAX_REQUEST_TIMEOUT_MS = 120000;
 const PROGRESS_BASELINE_MS = MAX_REQUEST_TIMEOUT_MS;
+const MARKDOWN_COMPONENTS = {
+  a: ({ children, ...props }) => (
+    <a {...props} target="_blank" rel="noopener noreferrer">{children}</a>
+  ),
+};
 
 const normalizeText = (value) => String(value || '').trim().toLowerCase();
 
@@ -149,8 +155,9 @@ const getAssistantReply = (payload = {}) => {
 
 const formatLatency = (ms) => `${(ms / 1000).toFixed(2)}s`;
 
-export default function AIAssistantBubble() {
+export default function AIAssistantBubble({ isAuthenticated = false, onSessionExpired }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [sendProgress, setSendProgress] = useState(0);
   const [isCompleting, setIsCompleting] = useState(false);
@@ -225,6 +232,30 @@ export default function AIAssistantBubble() {
     messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
   }, [messages, isSending, isOpen]);
 
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setIsOpen(false);
+        setIsFullscreen(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isFullscreen) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isFullscreen]);
+
   useEffect(() => () => stopProgressTicker(), []);
 
   const formik = useFormik({
@@ -275,6 +306,11 @@ export default function AIAssistantBubble() {
           signal: controller.signal,
           body: JSON.stringify(buildChatRequest(updatedMessages, reportesChatContext))
         });
+
+        if (response.status === 401) {
+          onSessionExpired?.();
+          throw new Error('Tu sesión de Discord expiró. Inicia sesión de nuevo para usar la IA.');
+        }
 
         if (!response.ok) {
           const GATEWAY_ERRORS = { 502: 'Bad Gateway', 503: 'Servicio no disponible', 504: 'Gateway Time-out' };
@@ -358,20 +394,48 @@ export default function AIAssistantBubble() {
     [formik.values.message, isSending]
   );
 
+  if (!isAuthenticated) return null;
+
   return (
-    <div className="ai-bubble" aria-live="polite">
+    <div className={`ai-bubble${isFullscreen ? ' ai-bubble--fullscreen' : ''}`} aria-live="polite">
       {isOpen && (
-        <section className="ai-bubble__panel" role="dialog" aria-label="Chat Most Wanted">
+        <>
+          {isFullscreen && (
+            <button
+              type="button"
+              className="ai-bubble__backdrop"
+              onClick={() => setIsFullscreen(false)}
+              aria-label="Cerrar pantalla completa"
+            />
+          )}
+          <section
+            className={`ai-bubble__panel${isFullscreen ? ' ai-bubble__panel--fullscreen' : ''}`}
+            role="dialog"
+            aria-modal={isFullscreen}
+            aria-labelledby="ai-bubble-title"
+          >
           <header className="ai-bubble__header">
             <div>
-              <strong>Asistente H.E.X.</strong>
+              <strong id="ai-bubble-title">Asistente H.E.X.</strong>
               <p className="ai-bubble__status">System online</p>
             </div>
             <div className="ai-bubble__header-actions">
               <button
                 type="button"
+                className="ai-bubble__fullscreen"
+                onClick={() => setIsFullscreen((prev) => !prev)}
+                aria-label={isFullscreen ? 'Salir de pantalla completa' : 'Ver en pantalla completa'}
+                title={isFullscreen ? 'Salir de pantalla completa' : 'Ver en pantalla completa'}
+              >
+                {isFullscreen ? '↙' : '⛶'}
+              </button>
+              <button
+                type="button"
                 className="ai-bubble__close"
-                onClick={() => setIsOpen(false)}
+                onClick={() => {
+                  setIsOpen(false);
+                  setIsFullscreen(false);
+                }}
                 aria-label="Cerrar chat"
               >
                 ✕
@@ -393,7 +457,14 @@ export default function AIAssistantBubble() {
                     )}
                   </span>
                   {message.role === 'assistant' ? (
-                    <div className="ai-bubble__message-body"><ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown></div>
+                    <div className="ai-bubble__message-body">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm, remarkBreaks]}
+                        components={MARKDOWN_COMPONENTS}
+                      >
+                        {message.content}
+                      </ReactMarkdown>
+                    </div>
                   ) : (
                     <p>{message.content}</p>
                   )}
@@ -443,7 +514,8 @@ export default function AIAssistantBubble() {
               </button>
             </form>
           </>
-        </section>
+          </section>
+        </>
       )}
 
       <button
@@ -452,6 +524,7 @@ export default function AIAssistantBubble() {
         onClick={() => setIsOpen((prev) => !prev)}
         aria-expanded={isOpen}
         aria-label="Abrir chat con H.E.X."
+        hidden={isFullscreen}
       >
         <img className="ai-bubble__fab-logo" src={HEX_LOGO_RED} alt="" />
       </button>
