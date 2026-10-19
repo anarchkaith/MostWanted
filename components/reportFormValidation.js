@@ -72,8 +72,4 @@ export const reportFormValidationSchema = Yup.object({
   evidence: Yup.array().default([]),
 
   labels: Yup.array(),
-
-  reportedby: Yup.string()
-    .trim()
-    .nullable(),
 });

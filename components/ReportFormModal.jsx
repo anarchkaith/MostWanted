@@ -32,7 +32,6 @@ const initialValues = {
   reason: '',
   evidence: [],
   labels: [],
-  reportedby: '',
 };
 
 const demoValues = {
@@ -51,7 +50,6 @@ const demoValues = {
   reason: '[REPORTE DE PRUEBA - NO VÁLIDO] Este es un reporte de demostración generado automáticamente para testear el formulario. El jugador ficticio utilizó Aimbot y Godmode durante una sesión de Freeroam de prueba. Este reporte no debe tomarse en cuenta.',
   evidence: [],
   labels: ['Aimbot', 'Godmode (hack)'],
-  reportedby: '[DEMO] TestUser#0001',
 };
 
 const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
@@ -60,7 +58,6 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
   const [submitError, setSubmitError] = useState('');
   const [showSuccess, setShowSuccess] = useState(null); // nombre del usuario reportado
   const [botDeliveryState, setBotDeliveryState] = useState(null);
-  const [showOptional, setShowOptional] = useState(false);
   const [investigationToken, setInvestigationToken] = useState(0);
   const [isInvestigating, setIsInvestigating] = useState(false);
   const [investigationGate, setInvestigationGate] = useState({
@@ -81,17 +78,15 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
   const crearReporte = useMutation({
     mutationFn: async (nuevoReporte) => {
       const apiKey = import.meta.env.VITE_API_KEY_IMGBB;
-      const contactName = String(nuevoReporte?.reportedby || '').trim();
-      const { reportedby: _reportedby, ...reportPayload } = nuevoReporte;
       const reporter = {
         id: currentUser?.id || '',
-        name: currentUser?.username || contactName || 'Anónimo',
+        name: currentUser?.username || 'Anónimo',
         email: currentUser?.email || '',
       };
       const evidence = await uploadEvidenceImages(images, apiKey);
 
       return submitWordpressReport({
-        report: reportPayload,
+        report: nuevoReporte,
         reporter,
         evidence,
       });
@@ -802,37 +797,6 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
                           tiposEtiquetas={TIPOS_ETIQUETAS}
                           disabled={isSubmitting}
                         />
-                      </div>
-                    )}
-
-                    {/* ── DATOS ADICIONALES (COLAPSABLE) ── */}
-                    <button
-                      type="button"
-                      className="rfm-optional-toggle notranslate"
-                      translate="no"
-                      onClick={() => setShowOptional(v => !v)}
-                      disabled={isSubmitting}
-                    >
-                      <span className="rfm-optional-toggle__arrow">{showOptional ? '▾' : '▸'}</span>
-                      Datos adicionales
-                      <span className="rfm-optional-toggle__badge">contacto</span>
-                      <span className="rfm-optional-toggle__label">{showOptional ? 'ocultar' : 'opcional'}</span>
-                    </button>
-
-                    {showOptional && (
-                      <div className="rfm-panel">
-                        <div className="rfm-panel__title">
-                          Tu contacto
-                          <Tooltip text="Opcional. Solo el staff podrá verlo si necesitan contactarte para dar seguimiento.">
-                            <span style={{ cursor: 'help' }}><HelpIcon style={{ width: 15, height: 15, opacity: 0.6 }} /></span>
-                          </Tooltip>
-                        </div>
-                        <div className="form-group" style={{ marginBottom: 0 }}>
-                          <Field type="text" id="reportedby" name="reportedby" className="form-group__input" placeholder="Tu Discord, Gamertag, etc." maxLength={50} autoComplete="off" disabled={isSubmitting} />
-                          <div className="form-group__hint form-group__hint--privacy">
-                            Tu identidad está protegida. Solo se usará para seguimiento interno.
-                          </div>
-                        </div>
                       </div>
                     )}
 

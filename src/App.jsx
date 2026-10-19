@@ -415,8 +415,7 @@ function App() {
 
     const usuarioFallback = String(nuevoReporte?.nickname || nuevoReporte?.username || nuevoReporte?.usuario || '').trim();
     const reportadoPorFallback = String(
-      nuevoReporte?.reportedby
-      || nuevoReporte?.contacto
+      user?.username
       || submissionResult?.botDelivery?.reportedby
       || 'ANONIMO'
     ).trim();
@@ -706,14 +705,18 @@ function App() {
     );
   }
 
+  const canUseReports = Boolean(user) || isDemo;
+
   return (
     <div className="app-container" style={{ position: 'relative' }}>
 
 
       {/* Botón de ayuda flotante, arriba a la derecha */}
-      <button className="help-btn" onClick={() => setShowHelp(true)} aria-label="Ayuda sobre la herramienta" title="¿Qué es esto?" style={{ position: 'fixed', top: 24, right: 32, zIndex: 3001 }}>
-        ?
-      </button>
+      {canUseReports && (
+        <button className="help-btn" onClick={() => setShowHelp(true)} aria-label="Ayuda sobre la herramienta" title="¿Qué es esto?" style={{ position: 'fixed', top: 24, right: 32, zIndex: 3001 }}>
+          ?
+        </button>
+      )}
       {/* ============ ADMIN BANNER ============ */}
       {isAdmin && (
         <div className="admin-mode-banner">
@@ -755,16 +758,18 @@ function App() {
                 <span style={{ fontWeight: 'bold', color: '#5865F2' }}>{user.username}#{user.discriminator}</span>
               </div>
             </>
-          ) : (
+          ) : isDemo ? (
             <button onClick={handleLogin} style={{ background: '#5865F2', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 4, fontWeight: 'bold' }}>
               Iniciar sesión con Discord
             </button>
-          )}
+          ) : null}
         </div>
       </header>
       {/* Modal de ayuda */}
       <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />
 
+      {canUseReports ? (
+      <>
       {/* ============ FORMULARIO DE REPORTE ============ */}
       <main style={{ padding: 'var(--spacing-lg) 0' }}>
         <ReportFormModal onSubmit={handleNewReport} currentUser={user} isDemo={isDemo} />
@@ -846,6 +851,18 @@ function App() {
             )}
           </section>
         </>
+      )}
+      </>
+      ) : (
+        <section style={{ display: 'flex', justifyContent: 'center', padding: 'var(--spacing-xl) 0' }}>
+          <button
+            type="button"
+            onClick={handleLogin}
+            style={{ background: '#5865F2', color: 'white', border: 'none', padding: '12px 24px', borderRadius: 4, fontWeight: 'bold', fontSize: '1rem' }}
+          >
+            Iniciar sesión con Discord
+          </button>
+        </section>
       )}
 
       {reporteSeleccionado && (
