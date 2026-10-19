@@ -12,7 +12,6 @@ import PlayerBackgroundPanel from './PlayerBackgroundPanel';
 import { isBlockedReportedUsername } from './blockedUsernames';
 import {
   fetchWordpressPlayersSnapshot,
-  submitDiscordReportFromWordpressResult,
   submitWordpressReport,
   uploadEvidenceImages,
 } from '../src/services/reportSubmissionService';
@@ -91,29 +90,11 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
       };
       const evidence = await uploadEvidenceImages(images, apiKey);
 
-      const wordpressResult = await submitWordpressReport({
+      return submitWordpressReport({
         report: reportPayload,
         reporter,
         evidence,
       });
-
-      let discordResult = null;
-      let discordDelivery = null;
-      try {
-        discordResult = await submitDiscordReportFromWordpressResult(wordpressResult);
-        discordDelivery = discordResult?.discordDelivery || null;
-      } catch (discordError) {
-        discordDelivery = {
-          ok: false,
-          message: discordError?.message || 'No se pudo confirmar el envio a Discord.',
-        };
-      }
-
-      return {
-        ...wordpressResult,
-        discordDelivery,
-        discordResult,
-      };
     },
     onError: (error) => {
       setSubmitError(error.message || 'Error al enviar el reporte. Intenta de nuevo.');

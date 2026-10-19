@@ -10,6 +10,7 @@ export function registerReportsRoutes(app, deps) {
     rootDir,
     hexbotConfig,
     wordpressReportsConfig,
+    discordWebhookUrl,
     rateLimits,
     maybeRequireSessionAuth,
     requireNonEmptyBody,
@@ -31,6 +32,7 @@ export function registerReportsRoutes(app, deps) {
     const result = await submitWordpressReport({
       body: req.body,
       wordpressReportsConfig,
+      discordWebhookUrl,
       logger: console,
     });
 
