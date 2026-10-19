@@ -1,7 +1,7 @@
 {
   "name": "most-wanted-kaiths-rebels",
   "private": true,
-  "version": "1.0.13",
+  "version": "1.0.14",
   "type": "module",
   "scripts": {
     "dev": "concurrently \"npm:dev:server\" \"npm:dev:client\"",
