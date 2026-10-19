@@ -1,4 +1,4 @@
-﻿import { getSessionUser } from '../../../shared/auth/sessionAuth.js';
+import { getSessionUser, requireSessionAuth } from '../../../shared/auth/sessionAuth.js';
 import { submitWordpressReport } from '../../reports/services/submitReport.service.js';
 import { getPlayerInsights } from '../../background-investigation/services/playerInsights.service.js';
 import {
@@ -80,7 +80,7 @@ export function registerExpedientesRoutes(app, deps) {
     }
   });
 
-  app.post('/api/expedientes/report', rateLimits.webhook, requireBodyObject, async (req, res) => {
+  app.post('/api/expedientes/report', rateLimits.webhook, requireSessionAuth, requireBodyObject, async (req, res) => {
     const reporter = resolveReporter(req, req.body);
 
     const result = createOrAppendReport({

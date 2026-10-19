@@ -26,3 +26,15 @@ export function createMaybeRequireSessionAuth({ authRequireLogin }) {
     return next();
   };
 }
+
+export function requireSessionAuth(req, res, next) {
+  if (!getSessionUser(req)?.id) {
+    return res.status(401).json({
+      ok: false,
+      error: 'Debes iniciar sesion con Discord para usar este endpoint.',
+      code: 'auth_required',
+    });
+  }
+
+  return next();
+}

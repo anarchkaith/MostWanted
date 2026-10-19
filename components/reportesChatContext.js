@@ -1,4 +1,4 @@
-﻿import { toolExists } from './toolCatalog';
+import { toolExists } from './toolCatalog.js';
 
 const REPORTES_STORAGE_KEY = 'mostwanted_reportes';
 
@@ -118,13 +118,16 @@ export function buildReportesChatContext(userText, intentData = {}) {
   const relatedToReportes = intentNeedsReportContext || Boolean(targetUsuario);
 
   const tool = resolveTool(intentData);
-  const requestedDays = toSafeNumber(intentData?.params?.recentDays, 14);
+  const recentDaysValue = intentData?.params?.recentDays;
+  const requestedDays = recentDaysValue === null || typeof recentDaysValue === 'undefined' || recentDaysValue === ''
+    ? null
+    : Math.max(1, Math.min(60, toSafeNumber(recentDaysValue)));
 
   const reportQuery = {
     tool,
     usuario: targetUsuario,
     reportId: String(intentData?.params?.reportId || '').trim(),
-    recentDays: tool === 'analyze_recent_similarity' ? Math.max(1, Math.min(60, requestedDays)) : null,
+    recentDays: tool === 'analyze_recent_similarity' ? requestedDays : null,
   };
 
   if (!relatedToReportes) {
@@ -157,8 +160,8 @@ export function buildReportesChatContext(userText, intentData = {}) {
 
   if (tool === 'get_report_detail') {
     scopedReportes = filterByDetailTarget(sortedByDate, intentData, targetUsuario);
-  } else if (tool === 'analyze_recent_similarity') {
-    scopedReportes = filterRecent(sortedByDate, Math.max(1, Math.min(60, requestedDays)));
+  } else if (tool === 'analyze_recent_similarity' && requestedDays !== null) {
+    scopedReportes = filterRecent(sortedByDate, requestedDays);
   }
 
   return {
@@ -171,7 +174,7 @@ export function buildReportesChatContext(userText, intentData = {}) {
       reason: String(intentData?.reason || '').trim(),
       intentConfidence: toSafeNumber(intentData?.confidence, 0),
       stats,
-      reportes: scopedReportes.slice(0, 40),
+      reportes: scopedReportes,
       targetUsuario,
     },
   };

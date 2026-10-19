@@ -11,7 +11,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "start": "node server/index.js",
-    "test:ai": "node server/ai/client.test.js",
+    "test:ai": "node server/ai/client.test.js && node shared/reportIntent.test.js && node server/ai/usecases/intent.test.js && node server/ai/reportTools.test.js && node server/ai/usecases/chat.test.js && node components/reportesChatContext.test.js",
+    "test:expedientes": "node src/services/expedienteIds.test.js && node server/modules/expedientes/http/expedientes.routes.test.js",
     "test:reports": "node server/reports/payload.test.js",
     "webhook:playground": "node server/modules/webhooks/playground/discordEmbedPlayground.js"
   },

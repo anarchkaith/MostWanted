@@ -5,6 +5,7 @@ import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import { buildReportesChatContext, readReportesFromLocalStorage } from './chatTools';
 import { getIaChatEndpoint, getIaIntentEndpoint } from '../src/services/apiConfig';
+import { inferReportIntent } from '../shared/reportIntent';
 
 const HEX_LOGO_RED = '/HEX_LOGO_RED.png';
 const IA_ENDPOINT = getIaChatEndpoint();
@@ -17,8 +18,6 @@ const MARKDOWN_COMPONENTS = {
   ),
 };
 
-const normalizeText = (value) => String(value || '').trim().toLowerCase();
-
 const normalizeMessages = (messages = []) => (
   Array.isArray(messages)
     ? messages
@@ -30,46 +29,17 @@ const normalizeMessages = (messages = []) => (
     : []
 );
 
-const findMentionedUsuario = (userText = '', candidateUsuarios = []) => {
-  const question = normalizeText(userText);
-  if (!question) return null;
-
-  return candidateUsuarios.find((usuario) => {
-    const normalizedUsuario = normalizeText(usuario);
-    if (!normalizedUsuario) return false;
-
-    const compact = normalizedUsuario.replace(/\s+/g, '_');
-    return question.includes(normalizedUsuario) || question.includes(compact);
-  }) || null;
-};
-
 const buildFallbackIntent = (userText = '', candidateUsuarios = []) => {
-  const mentionedUsuario = findMentionedUsuario(userText, candidateUsuarios);
-  const normalizedQuestion = normalizeText(userText);
-  const reportKeywords = [
-    'reporte',
-    'reportes',
-    'reportado',
-    'reportados',
-    'ranking',
-    'top',
-    'modder',
-    'griefer',
-    'tramposo',
-    'tramposos',
-    'ardido',
-    'ardidos',
-    'usuarios reportados',
-  ];
-  const needsReportContext = Boolean(mentionedUsuario) || reportKeywords.some((keyword) => normalizedQuestion.includes(keyword));
+  const reportIntent = inferReportIntent(userText, candidateUsuarios);
+  if (reportIntent) return reportIntent;
 
   return {
-    needsReportContext,
-    related: needsReportContext,
-    intentType: needsReportContext ? 'reportes-query' : 'general',
-    tool: mentionedUsuario ? 'get_report_detail' : 'read_all_reports',
+    needsReportContext: false,
+    related: false,
+    intentType: 'general',
+    tool: 'general_response',
     params: {
-      usuario: mentionedUsuario,
+      usuario: null,
       reportId: null,
       recentDays: null,
     },

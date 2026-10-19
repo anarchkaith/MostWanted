@@ -5,6 +5,7 @@ import ReportFormModal from '../components/ReportFormModal';
 import HelpModal from '../components/HelpModal';
 import AIAssistantBubble from '../components/AIAssistantBubble';
 import { buildApiUrl, getApiBaseUrl } from './services/apiConfig';
+import { assignExpedienteIds } from './services/expedienteIds';
 import {
   fetchWordpressReportsSnapshot,
   submitWordpressCommunityVerificationVote,
@@ -141,13 +142,6 @@ const mapWordpressReportToReporte = (report = {}) => {
     },
     wpRid: report?.rid || '',
   };
-};
-
-const assignExpedienteIds = (reportes = []) => {
-  return reportes.map((reporte, index) => ({
-    ...reporte,
-    expedienteId: index + 1,
-  }));
 };
 
 const normalizeReporte = (reporte = {}) => {
@@ -609,8 +603,17 @@ function App() {
   // Carga inicial de reportes para la UI (API WordPress /reports + persistencia local)
   const fetchReportsFromAPI = async () => {
     try {
-      const snapshot = await fetchWordpressReportsSnapshot({ perPage: 100 });
-      const reports = Array.isArray(snapshot?.items) ? snapshot.items : [];
+      const reports = [];
+      let page = 1;
+
+      while (true) {
+        const snapshot = await fetchWordpressReportsSnapshot({ perPage: 100, page });
+        const pageReports = Array.isArray(snapshot?.items) ? snapshot.items : [];
+        reports.push(...pageReports);
+        if (pageReports.length < 100) break;
+        page += 1;
+      }
+
       const mapped = reports.map(mapWordpressReportToReporte);
 
       // Persistencia local para fallback offline y continuidad visual.

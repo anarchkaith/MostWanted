@@ -1,6 +1,7 @@
 ﻿import { getAssistantReply, requestAiGenerate } from '../client.js';
 import { toSafeText } from '../utils.js';
 import { ALLOWED_TOOLS } from '../toolCatalog.js';
+import { inferReportIntent } from '../../../shared/reportIntent.js';
 
 const TOOL_CATALOG = {
   GENERAL_RESPONSE: 'general_response',
@@ -77,8 +78,11 @@ function sanitizeParams(input) {
 
   const usuario = toSafeText(source.usuario, '').trim();
   const reportId = toSafeText(source.reportId, '').trim();
-  const recentDaysRaw = Number(source.recentDays);
-  const recentDays = Number.isFinite(recentDaysRaw)
+  const recentDaysRaw = source.recentDays;
+  const recentDays = recentDaysRaw !== null
+    && typeof recentDaysRaw !== 'undefined'
+    && recentDaysRaw !== ''
+    && Number.isFinite(Number(recentDaysRaw))
     ? Math.max(1, Math.min(60, Math.round(recentDaysRaw)))
     : null;
 
@@ -108,80 +112,9 @@ function sanitizeCandidateUsuarios(input) {
   return unique;
 }
 
-function findMentionedUsuario(query, candidateUsuarios = []) {
-  const comparableQuery = toComparableText(query);
-  if (!comparableQuery) return null;
-
-  let bestMatch = null;
-
-  for (const usuario of candidateUsuarios) {
-    const comparableUsuario = toComparableText(usuario);
-    if (!comparableUsuario) continue;
-
-    const compactUsuario = comparableUsuario.replace(/\s+/g, '_');
-    const matched = comparableQuery.includes(comparableUsuario) || comparableQuery.includes(compactUsuario);
-    if (!matched) continue;
-
-    if (!bestMatch || comparableUsuario.length > toComparableText(bestMatch).length) {
-      bestMatch = usuario;
-    }
-  }
-
-  return bestMatch;
-}
-
-function looksLikeRankingQuery(query) {
-  const text = toComparableText(query);
-  if (!text) return false;
-
-  const rankingHints = [
-    'top',
-    'ranking',
-    'mas reportados',
-    'mas denunciados',
-    'lista de usuarios',
-    'usuarios reportados',
-    'usuarios mas reportados',
-    'dame el top',
-  ];
-
-  return rankingHints.some((hint) => text.includes(hint));
-}
-
 function buildFallbackIntent(query, candidateUsuarios = []) {
-  const mentionedUsuario = findMentionedUsuario(query, candidateUsuarios);
-
-  if (looksLikeRankingQuery(query)) {
-    return {
-      needsReportContext: true,
-      related: true,
-      intentType: 'reportes-query',
-      tool: TOOL_CATALOG.READ_ALL_REPORTS,
-      params: {
-        usuario: null,
-        reportId: null,
-        recentDays: null,
-      },
-      confidence: 82,
-      reason: 'Consulta detectada como ranking/listado de usuarios reportados.',
-    };
-  }
-
-  if (mentionedUsuario) {
-    return {
-      needsReportContext: true,
-      related: true,
-      intentType: 'reportes-query',
-      tool: TOOL_CATALOG.GET_REPORT_DETAIL,
-      params: {
-        usuario: mentionedUsuario,
-        reportId: null,
-        recentDays: null,
-      },
-      confidence: 72,
-      reason: `El prompt menciona al usuario reportado ${mentionedUsuario}.`,
-    };
-  }
+  const reportIntent = inferReportIntent(query, candidateUsuarios);
+  if (reportIntent) return reportIntent;
 
   return {
     needsReportContext: false,
@@ -235,6 +168,18 @@ export async function executeIntentUseCase({ config, body }) {
         },
         confidence: 0,
         reason: 'Consulta vacia.',
+      },
+    };
+  }
+
+  const reportIntent = inferReportIntent(query, candidateUsuarios);
+  if (reportIntent) {
+    return {
+      ok: true,
+      status: 200,
+      payload: {
+        ...reportIntent,
+        provider: 'deterministic-router',
       },
     };
   }
@@ -323,11 +268,6 @@ export async function executeIntentUseCase({ config, body }) {
     ? needsReportContext
     : parseRelatedValue(parsed.related);
   const intentType = parseIntentType(parsed.intentType, needsReportContext ? 'reportes-query' : 'general');
-  const rankingQuery = looksLikeRankingQuery(query);
-  const resolvedTool = rankingQuery && needsReportContext
-    ? TOOL_CATALOG.READ_ALL_REPORTS
-    : parsedTool;
-
   return {
     ok: true,
     status: 200,
@@ -335,7 +275,7 @@ export async function executeIntentUseCase({ config, body }) {
       needsReportContext,
       related,
       intentType,
-      tool: needsReportContext ? resolvedTool : TOOL_CATALOG.GENERAL_RESPONSE,
+      tool: needsReportContext ? parsedTool : TOOL_CATALOG.GENERAL_RESPONSE,
       params: sanitizeParams(parsed.params),
       confidence,
       reason: toSafeText(parsed.reason, '').slice(0, 240),
