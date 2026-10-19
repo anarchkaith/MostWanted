@@ -117,8 +117,6 @@ Solo se documentan las variables privadas o sensibles. Las demás tienen valores
 | `KAITH_AI_ENDPOINT` / `KAITH_AI_USER` / `KAITH_AI_PASSWORD` | Proveedor de IA de producción |
 | `HEXBOT_API_SECRET` | Secreto de HEXBOT (legacy, solo para el healthcheck) |
 | `HEXBOT_API_BASE_URL` / `HEXBOT_API_TIMEOUT_MS` | HEXBOT (legacy). Solo se usa en el healthcheck |
-| `HEXBOT_API_SECRET` | Secreto de HEXBOT (legacy, solo para el healthcheck) |
-| `HEXBOT_API_BASE_URL` / `HEXBOT_API_TIMEOUT_MS` | HEXBOT (legacy). Solo se usa en el healthcheck |
 
 ## Persistencia en WordPress
 
@@ -155,7 +153,11 @@ El envío de notificaciones está limitado por `DISCORD_WEBHOOK_MIN_INTERVAL_MS`
 
 ## Integración con IA
 
-El asistente usa el gateway de IA de H.E.X. (`KAITH_AI_GATEWAY_TOKEN`, por defecto `https://api.kaithsrebels.com/v1/text`). Ollama local con `qwen2.5` solo se usa si `KAITH_AI_USE_LOCAL_OLLAMA=true`. El orden de proveedores es: hex-gateway, luego ollama-local (si está activo) y por último production-api. Soporta tres modos:
+El asistente usa el gateway de IA de H.E.X. (`KAITH_AI_GATEWAY_TOKEN`, por defecto `https://api.kaithsrebels.com/v1/text`). Ollama local con `qwen2.5` solo se usa si `KAITH_AI_USE_LOCAL_OLLAMA=true`. El orden de proveedores es: hex-gateway, luego ollama-local (si está activo) y por último production-api.
+
+Límite de uso: cada usuario puede hacer 10 consultas por día (día calendario de Buenos Aires). Las consultas de chat y correlación consumen cuota; la clasificación de intención requiere sesión pero no consume cuota. El contador vive en memoria, así que se reinicia al reiniciar el servidor. Al agotarse, la API responde 429 con el mensaje correspondiente.
+
+Soporta tres modos:
 
 - **Chat**: responde preguntas sobre reportes, rankings y estadísticas.
 - **Clasificación de intención**: determina si la consulta es sobre un reporte específico o una pregunta general.
