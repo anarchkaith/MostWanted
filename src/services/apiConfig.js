@@ -1,4 +1,4 @@
-const DEFAULT_REMOTE_API_BASE_URL = 'https://api.kaithsrebels.com/api';
+const DEFAULT_REMOTE_API_BASE_URL = 'https://mw-api.kaithsrebels.com/api';
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1']);
 
 function hasWindow() {

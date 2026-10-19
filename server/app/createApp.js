@@ -1,4 +1,5 @@
-﻿import express from 'express';
+﻿import cors from 'cors';
+import express from 'express';
 import fs from 'node:fs';
 import path from 'node:path';
 import session from 'express-session';
@@ -79,6 +80,10 @@ export function createApp({ rootDir, isProduction }) {
   const distDir = path.join(rootDir, 'dist');
 
   app.set('trust proxy', 1);
+  app.use('/api', cors({
+    origin: (origin, callback) => callback(null, !origin || webhookAllowedOrigins.has(origin)),
+    credentials: true,
+  }));
   app.use(session({
     name: 'mw.sid',
     secret: String(process.env.SESSION_SECRET || 'mostwanted-dev-session-secret-change-me'),

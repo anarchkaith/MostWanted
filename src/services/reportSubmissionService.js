@@ -59,6 +59,7 @@ export async function uploadEvidenceImages(images = [], apiKey = '') {
 async function postReportToBackend(path, { report, reporter, evidence }) {
   const response = await fetch(buildApiUrl(path), {
     method: 'POST',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       report,
