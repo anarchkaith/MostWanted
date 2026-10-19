@@ -1,6 +1,8 @@
 ﻿const DEFAULTS = {
   localEndpoint: 'http://127.0.0.1:11434/api/generate',
   endpoint: 'https://api.kaithsrebels.com/api/generate',
+  gatewayEndpoint: 'https://api.kaithsrebels.com/v1/text',
+  gatewayProvider: 'hex_medium',
   model: 'qwen2.5:latest',
   assistantName: 'Asistente Most Wanted',
   creator: 'Kaith',
@@ -65,6 +67,10 @@ export function createAiConfig(env = process.env) {
 
     localEndpoint: readString(env, 'KAITH_OLLAMA_ENDPOINT', DEFAULTS.localEndpoint),
     localModel: readString(env, 'KAITH_OLLAMA_MODEL', readString(env, 'KAITH_AI_MODEL', DEFAULTS.model)),
+
+    gatewayToken: readString(env, 'KAITH_AI_GATEWAY_TOKEN'),
+    gatewayEndpoint: readString(env, 'KAITH_AI_GATEWAY_ENDPOINT', DEFAULTS.gatewayEndpoint),
+    gatewayProvider: readString(env, 'KAITH_AI_GATEWAY_PROVIDER', DEFAULTS.gatewayProvider),
 
     endpoint: readString(env, 'KAITH_AI_ENDPOINT', DEFAULTS.endpoint),
     user: readString(env, 'KAITH_AI_USER'),

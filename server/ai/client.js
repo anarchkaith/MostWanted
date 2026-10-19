@@ -5,13 +5,24 @@ export function hasAiCredentials(config) {
 }
 
 export function hasAiProvider(config) {
+  const hasGateway = Boolean(config?.gatewayToken && config?.gatewayEndpoint);
   const hasProd = Boolean(config?.endpoint && hasAiCredentials(config));
   const hasLocal = Boolean(config?.useLocalOllama && config?.localEndpoint);
-  return hasProd || hasLocal;
+  return hasGateway || hasProd || hasLocal;
 }
 
 function buildProviders(config) {
   const providers = [];
+
+  if (config?.gatewayToken && config?.gatewayEndpoint) {
+    providers.push({
+      id: 'hex-gateway',
+      endpoint: config.gatewayEndpoint,
+      provider: config.gatewayProvider,
+      kind: 'gateway',
+      requiresAuth: false,
+    });
+  }
 
   if (config?.useLocalOllama && config?.localEndpoint) {
     providers.push({
@@ -79,19 +90,28 @@ export async function requestAiGenerate({ config, payload, timeoutMs = 120000 })
         Accept: 'application/json',
       };
 
-      if (provider.requiresAuth) {
-        headers.Authorization = `Basic ${Buffer.from(`${config.user}:${config.password}`).toString('base64')}`;
-      }
+      let requestBody;
+      if (provider.kind === 'gateway') {
+        headers['X-API-Token'] = config.gatewayToken;
+        requestBody = {
+          provider: provider.provider,
+          prompt: payload?.prompt,
+        };
+      } else {
+        if (provider.requiresAuth) {
+          headers.Authorization = `Basic ${Buffer.from(`${config.user}:${config.password}`).toString('base64')}`;
+        }
 
-      const providerPayload = {
-        ...payload,
-        model: payload?.model || provider.model,
-      };
+        requestBody = {
+          ...payload,
+          model: payload?.model || provider.model,
+        };
+      }
 
       const upstreamResponse = await fetch(provider.endpoint, {
         method: 'POST',
         headers,
-        body: JSON.stringify(providerPayload),
+        body: JSON.stringify(requestBody),
         signal: AbortSignal.timeout(timeoutMs),
       });
 
@@ -109,6 +129,29 @@ export async function requestAiGenerate({ config, payload, timeoutMs = 120000 })
         parsedPayload = rawText ? JSON.parse(rawText) : {};
       } catch {
         parsedPayload = { raw: rawText };
+      }
+
+      if (provider.kind === 'gateway') {
+        const text = parsedPayload?.ok === true && typeof parsedPayload?.data?.text === 'string'
+          ? parsedPayload.data.text
+          : null;
+
+        if (!upstreamResponse.ok || text === null) {
+          attempts.push({
+            provider: provider.id,
+            status: upstreamResponse.status,
+            reason: toSafeText(parsedPayload?.error?.message, 'upstream_error'),
+          });
+          continue;
+        }
+
+        return {
+          ok: true,
+          status: upstreamResponse.status,
+          payload: { response: text },
+          provider: provider.id,
+          attempts,
+        };
       }
 
       if (!upstreamResponse.ok) {

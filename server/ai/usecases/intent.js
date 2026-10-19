@@ -286,7 +286,7 @@ export async function executeIntentUseCase({ config, body }) {
       prompt,
       stream: false,
     },
-    timeoutMs: 3500,
+    timeoutMs: 15000,
   });
 
   if (!upstreamResult.ok) {
