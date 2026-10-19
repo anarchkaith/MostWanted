@@ -1,6 +1,11 @@
 ﻿// Test script para enviar un reporte de prueba al webhook de Discord
 
-const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1520947303907721378/gbo4-Pmh3Q9KmTv2wAvlQsAWiZBYTXWqyoCeVs1sPW5n3neF27I7NWMpmXSr1PAgclOA';
+const DISCORD_WEBHOOK_URL = String(process.env.DISCORD_WEBHOOK_URL || '').trim();
+
+if (!DISCORD_WEBHOOK_URL) {
+  console.error('Falta DISCORD_WEBHOOK_URL. Ejecutar con: node --env-file=.env server/reports/test-discord-webhook.js');
+  process.exit(1);
+}
 
 const testReport = {
   report: {

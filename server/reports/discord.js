@@ -1,9 +1,10 @@
-﻿import fs from 'node:fs';
+import crypto from 'node:crypto';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { TIPOS_ETIQUETAS } from '../shared/constants/tiposEtiquetas.js';
 
-const BLOCKED_DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1487549131655483583/zYfylIqIqPAM7Oy9icfNAiZb51kQvVD0oVVhq9HAW1UxheTp6U7RMIsoRBh2FIQQrx2O';
+const BLOCKED_DISCORD_WEBHOOK_SHA256 = 'a784b3eacb220acebf739bc17a9d706756cddf4c382735fe382d8ce2dfd6bcbc';
 
 const DISCORD_WEBHOOK_NAME = '[SE BUSCA] :: Nueva amenaza detectada...';
 const DISCORD_WEBHOOK_AVATAR = 'https://i.pinimg.com/736x/2b/6e/f6/2b6ef68a43b6b4363dcea23ee5c78421.jpg';
@@ -27,7 +28,8 @@ function resolveDiscordWebhookUrl() {
     return { ok: false, reason: 'Webhook de Discord no configurado (DISCORD_WEBHOOK_URL).' };
   }
 
-  if (fallbackUrl === BLOCKED_DISCORD_WEBHOOK_URL) {
+  const fallbackHash = crypto.createHash('sha256').update(fallbackUrl).digest('hex');
+  if (fallbackHash === BLOCKED_DISCORD_WEBHOOK_SHA256) {
     return { ok: false, reason: 'El webhook anterior fue bloqueado y ya no debe usarse.' };
   }
 
