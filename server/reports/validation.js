@@ -1,4 +1,5 @@
 import { TIPOS_ETIQUETAS } from '../shared/constants/tiposEtiquetas.js';
+import { buildCrewLink } from './crewLink.js';
 
 function toTrimmedString(value) {
   return typeof value === 'string' ? value.trim() : '';
@@ -193,18 +194,6 @@ function sanitizeAnalysis(analysis = {}) {
   return Object.keys(sanitized).length > 0 ? sanitized : null;
 }
 
-function buildCrewSocialClubUrl(name = '') {
-  const baseName = toTrimmedString(name)
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '');
-
-  if (!baseName) return '';
-  return `https://socialclub.rockstargames.com/crew/${baseName}/hierarchy`;
-}
-
 export function validateIncomingReportSubmission(body = {}) {
   const report = body?.report && typeof body.report === 'object' && !Array.isArray(body.report)
     ? body.report
@@ -242,19 +231,22 @@ export function validateIncomingReportSubmission(body = {}) {
   const crewsSource = Array.isArray(report?.crews)
     ? report.crews
     : toTrimmedString(report?.crews).split(',');
-  const crewsCollection = Array.from(new Set(crewsSource
+  const crewsCollection = Array.from(crewsSource
     .map((crew) => {
       if (typeof crew === 'string') return toTrimmedString(crew);
       if (crew && typeof crew === 'object') {
-        return toTrimmedString(crew?.name || crew?.nombre || crew?.raw);
+        return toTrimmedString(crew?.name || crew?.nombre || crew?.raw || crew?.url);
       }
       return '';
     })
-    .filter(Boolean)))
-    .map((name) => ({
-      name,
-      url: buildCrewSocialClubUrl(name),
-    }));
+    .map((raw) => buildCrewLink(raw))
+    .filter(Boolean)
+    .reduce((unique, crew) => {
+      const key = crew.name.toLowerCase();
+      if (!unique.has(key)) unique.set(key, crew);
+      return unique;
+    }, new Map())
+    .values());
 
   const analysis = sanitizeAnalysis(report?.analysis);
   const source = toTrimmedString(body?.source || report?.source) || 'mostwanted-web';

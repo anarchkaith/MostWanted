@@ -1,4 +1,5 @@
 import { TIPOS_ETIQUETAS } from '../shared/constants/tiposEtiquetas.js';
+import { buildCrewLink } from './crewLink.js';
 
 const INFRACTION_NAME_BY_KEY = TIPOS_ETIQUETAS.reduce((acc, item) => {
   const key = String(item?.key || '').trim().toUpperCase();
@@ -96,32 +97,13 @@ function isImageContentType(contentType) {
   return String(contentType || '').toLowerCase().startsWith('image/');
 }
 
-function extractUrlFromText(value) {
-  const text = toTrimmedString(value);
-  if (!text) return '';
-  const match = text.match(/https?:\/\/[^\s)]+/i);
-  return match ? match[0] : '';
-}
-
 function normalizeCrewEntry(crew) {
-  if (!crew) return null;
-
-  if (typeof crew === 'string') {
-    const raw = crew.trim();
-    if (!raw) return null;
-    const url = extractUrlFromText(raw);
-    const name = raw.replace(/https?:\/\/[^\s)]+/ig, '').trim() || raw;
-    return { name, url };
-  }
-
-  if (typeof crew === 'object') {
-    const name = toDisplayText(crew?.nombre) || toDisplayText(crew?.name) || toDisplayText(crew?.raw) || '';
-    if (!name) return null;
-    const url = toTrimmedString(crew?.url) || extractUrlFromText(crew?.raw);
-    return { name, url };
-  }
-
-  return null;
+  const raw = typeof crew === 'string'
+    ? crew.trim()
+    : toDisplayText(crew?.nombre) || toDisplayText(crew?.name) || toDisplayText(crew?.raw) || toDisplayText(crew?.url);
+  const link = buildCrewLink(raw);
+  if (!link) return null;
+  return { name: link.name.replace(/[[\]]/g, '').trim(), url: link.url };
 }
 
 function buildCrewFieldValue(crews = []) {
@@ -142,8 +124,13 @@ function buildCrewFieldValue(crews = []) {
 
 function buildVideoEvidenceField(evidence = []) {
   const items = evidence.filter((item) => item?.url && !isImageContentType(item?.contentType));
-  if (items.length === 0) return 'Sin evidencias de video';
+  if (items.length === 0) return '';
   return truncateText(items.slice(0, 5).map((item) => item.name || item.url).join(', '), 1024);
+}
+
+function buildReasonQuote(text, maxLength = 1024) {
+  const quoted = text.split(/\r?\n/).map((line) => `> ${line}`).join('\n');
+  return truncateText(quoted, maxLength);
 }
 
 function getWordpressReportFromPlayer(player = {}) {
@@ -216,7 +203,29 @@ export function buildDiscordReportPayload({ report = {}, reporter = {}, evidence
     .filter(Boolean);
 
   const embedColor = getColorByInfraction(infractions);
-  const thumbnailUrl = toTrimmedString(report.avatar1) || toTrimmedString(report.avatar2) || imageEvidence[0] || undefined;
+  const avatarUrls = [report.avatar1, report.avatar2]
+    .map((url) => toTrimmedString(url))
+    .filter((url) => /^https?:\/\//i.test(url));
+  const imageUrls = [...new Set([...avatarUrls, ...imageEvidence])];
+  const profileUrl = `https://socialclub.rockstargames.com/members/${report.nickname}/`;
+
+  const fields = [
+    { name: 'RID', value: `||${truncateText(String(report.rid || 'N/A'), 1018)}||`, inline: false },
+    { name: '🗒 Motivo', value: buildReasonQuote(reasonText), inline: false },
+  ];
+  if (aliases.length > 0) {
+    fields.push({ name: '🎭 Aliases', value: truncateText(aliases.join(', '), 1024), inline: true });
+  }
+  fields.push(
+    { name: '🕵️ Estado', value: truncateText(getInvestigationStatusLabel(report), 1024), inline: true },
+    { name: '👥 Crews', value: buildCrewFieldValue(crews), inline: false },
+    { name: '🏷 Etiquetas', value: truncateText(labels.join(', ') || '#Sin etiquetas de amenaza', 1024), inline: false },
+    { name: '🚥 Tipos de infraccion', value: truncateText(infractions.join(', ') || 'NO ESPECIFICADO', 1024), inline: false },
+  );
+  const videoValue = buildVideoEvidenceField(evidence);
+  if (videoValue) {
+    fields.push({ name: '📼 Evidencias de Video', value: videoValue, inline: false });
+  }
 
   const payload = {
     content: '',
@@ -231,20 +240,10 @@ export function buildDiscordReportPayload({ report = {}, reporter = {}, evidence
         },
         title: '[ SUJETO MARCADO PARA ELIMINACIÓN ]',
         description: `\`\`\`${truncateText(report.nickname, 300)}\`\`\``,
-        url: `https://socialclub.rockstargames.com/members/${report.nickname}/`,
+        url: profileUrl,
         color: embedColor,
-        fields: [
-          { name: 'RID', value: `||${truncateText(String(report.rid || 'N/A'), 1018)}||`, inline: false },
-          { name: '🗒 Motivo', value: truncateText(reasonText, 1024), inline: false },
-          { name: '🎭 Aliases', value: truncateText(aliases.join(', ') || 'N/A', 1024), inline: true },
-          { name: '🕵️ Estado', value: truncateText(getInvestigationStatusLabel(report), 1024), inline: true },
-          { name: '☣ Riesgo', value: String(report.riskScore ?? 'N/A'), inline: true },
-          { name: '👥 Crews', value: buildCrewFieldValue(crews), inline: false },
-          { name: '🏷 Etiquetas', value: truncateText(labels.join(', ') || '#Sin etiquetas de amenaza', 1024), inline: false },
-          { name: '🚥 Tipos de infraccion', value: truncateText(infractions.join(', ') || 'NO ESPECIFICADO', 1024), inline: false },
-          { name: '📼 Evidencias de Video', value: buildVideoEvidenceField(evidence), inline: false },
-        ],
-        ...(thumbnailUrl ? { thumbnail: { url: thumbnailUrl } } : {}),
+        fields,
+        ...(imageUrls[0] ? { image: { url: imageUrls[0] } } : {}),
         footer: {
           text: 'MostWanted • Sistema de reportes de bad players',
           icon_url: 'https://i.ibb.co/fV98zMbz/HEX-LOGO-RED.png',
@@ -255,9 +254,9 @@ export function buildDiscordReportPayload({ report = {}, reporter = {}, evidence
     allowed_mentions: { parse: [] },
   };
 
-  for (const imageUrl of imageEvidence.slice(0, 5)) {
+  for (const imageUrl of imageUrls.slice(1, 10)) {
     payload.embeds.push({
-      url: 'https://mostwanted.kaithsrebels.com',
+      url: profileUrl,
       color: embedColor,
       image: { url: imageUrl },
     });
