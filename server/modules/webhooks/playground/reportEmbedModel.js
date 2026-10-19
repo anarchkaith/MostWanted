@@ -13,7 +13,6 @@ export const REPORT_EMBED_BASE_SCHEMA = {
     aliases: ['Alias_1', 'Alias_2'],
     avatars: ['https://prod.cloud.rockstargames.com/members/sc/6266/263863117/publish/gta5/mpchars/0.png', 'https://prod.cloud.rockstargames.com/members/sc/6266/263863117/publish/gta5/mpchars/1.png'],
     status: 'En investigacion',
-    riskScore: 8.4,
     reason: 'Descripcion completa del motivo del reporte.',
     labels: ['#Toxicidad', '#Evasion', '#Cheat sospechado'],
     typesOfInfraction: ['Cheating', 'Abuso'],
@@ -166,7 +165,6 @@ export function buildReportEmbedPayload(input = {}) {
     { name: 'Case ID', value: String(caseId), inline: true },
     { name: 'RID', value: String(rid), inline: true },
     { name: 'Estado', value: String(report.status || 'N/A'), inline: true },
-    { name: 'Riesgo', value: String(report.riskScore ?? 'N/A'), inline: true },
     { name: 'Crew', value: toInlineList(report.crews), inline: true },
     { name: 'Etiquetas', value: toInlineList(report.labels), inline: false },
     { name: 'Tipos de infraccion', value: toInlineList(report.typesOfInfraction), inline: false },
@@ -254,7 +252,6 @@ export const EXAMPLE_REPORT_DATA_B = {
     nickname: 'GhostDriver_77',
     rid: 'RID-77891',
     status: 'Escalado',
-    riskScore: 9.1,
     labels: ['Ban evasion', 'Multicuenta'],
   },
   metadata: {
