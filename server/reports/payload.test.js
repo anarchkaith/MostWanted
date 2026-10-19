@@ -176,15 +176,17 @@ runTest('buildDiscordReportPayload usa el avatar del autor como icono y omite el
   assert.equal(Object.prototype.hasOwnProperty.call(anonymous.embeds[0].author, 'icon_url'), false);
 });
 
-runTest('buildDiscordReportPayload incluye los botones de link, incluido Reportar a un jugador', () => {
+runTest('buildDiscordReportPayload incluye los botones de link, incluidos Reportar a un jugador y Ver lista de reportes', () => {
   const payload = buildDiscordReportPayload({
     report: { id: 5, nickname: 'Jugador123', rid: '123', reason: 'Motivo', typesOfInfraction: [], labels: [], time: Date.now() },
     reporter: { name: 'Kaith' },
   });
   const buttons = payload.components[0].components;
-  assert.equal(buttons.length, 3);
+  assert.equal(buttons.length, 4);
   assert.equal(buttons[2].label, '🚨 Reportar a un jugador');
   assert.equal(buttons[2].url, 'https://mostwanted.kaithsrebels.com/#reportar');
+  assert.equal(buttons[3].label, '📋 Ver lista de reportes');
+  assert.equal(buttons[3].url, 'https://mostwanted.kaithsrebels.com/#reportes-lista');
 });
 
 runTest('buildDiscordAvatarUrl y attachSessionAvatarToReporter usan solo la sesión del mismo usuario', () => {

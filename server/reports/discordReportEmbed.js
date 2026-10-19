@@ -280,6 +280,7 @@ export function buildDiscordReportPayload({ report = {}, reporter = {}, evidence
           { type: 2, style: 5, label: '🗳 Votar en la web', url: reportUrl },
           { type: 2, style: 5, label: '🎮 Perfil de Social Club', url: profileUrl },
           { type: 2, style: 5, label: '🚨 Reportar a un jugador', url: `${MOSTWANTED_WEB_URL}/#reportar` },
+          { type: 2, style: 5, label: '📋 Ver lista de reportes', url: `${MOSTWANTED_WEB_URL}/#reportes-lista` },
         ],
       },
     ],
