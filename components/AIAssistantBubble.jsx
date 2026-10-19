@@ -76,6 +76,7 @@ async function resolveIntentData({ userText, messages, candidateUsuarios }) {
   try {
     const response = await fetch(INTENT_ENDPOINT, {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         query: userText,
@@ -267,6 +268,7 @@ export default function AIAssistantBubble() {
 
         const response = await fetch(IA_ENDPOINT, {
           method: 'POST',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           signal: controller.signal,
           body: JSON.stringify(buildChatRequest(updatedMessages, reportesChatContext))
