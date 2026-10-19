@@ -410,7 +410,6 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
                 gap: '0.85rem',
               }}>
                 <span>📅 {formatDate(reporte.fecha)}</span>
-                <span>🎮 Reportado por: <strong>{reporte.reportadoPor || 'ANONIMO'}</strong></span>
               </div>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 {isAdmin && !isEditing && (
