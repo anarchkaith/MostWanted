@@ -73,7 +73,6 @@ npm run start
 | Variable | Descripción |
 |---|---|
 | `VITE_API_BASE_URL` | URL base del backend (ej. `http://localhost:3001`) |
-| `VITE_IA_ENDPOINT` | Endpoint del chat IA |
 | `VITE_IA_INTENT_ENDPOINT` | Endpoint de clasificación de intención |
 | `VITE_IA_REPORT_CORRELATION_ENDPOINT` | Endpoint de correlación de reportes |
 
@@ -81,6 +80,7 @@ npm run start
 
 | Variable | Descripción |
 |---|---|
+| `KAITH_AI_GATEWAY_TOKEN` | Token `X-API-Token` del gateway de IA de H.E.X. (`https://api.kaithsrebels.com/v1/text`) |
 | `KAITH_AI_USE_LOCAL_OLLAMA` | `true` para usar Ollama local (desarrollo) |
 | `KAITH_OLLAMA_ENDPOINT` | Endpoint de Ollama. Por defecto: `http://127.0.0.1:11434/api/generate` |
 | `KAITH_OLLAMA_MODEL` | Modelo Ollama a usar (ej. `qwen2.5`) |

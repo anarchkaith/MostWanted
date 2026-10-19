@@ -35,10 +35,8 @@ export function buildApiUrl(path = '') {
   return `${getApiBaseUrl()}${normalizedPath}`;
 }
 
-const DEFAULT_IA_CHAT_ENDPOINT = 'https://api.kaithsrebels.com/api/generate';
-
 export function getIaChatEndpoint() {
-  return import.meta.env.VITE_IA_ENDPOINT || DEFAULT_IA_CHAT_ENDPOINT;
+  return buildApiUrl('/ia-chat');
 }
 
 export function getIaIntentEndpoint() {
