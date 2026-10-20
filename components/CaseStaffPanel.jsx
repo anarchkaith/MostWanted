@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { requestCase } from '../src/services/casesService';
 import { CASE_STATUSES, formatCaseDate } from '../src/services/casePresentation';
 import CyberButtonLabel from './CyberButtonLabel';
+import CyberSelect from './CyberSelect';
 
 export default function CaseStaffPanel({ caseId, currentStatus, onChanged }) {
   const [data, setData] = useState(null);
@@ -51,11 +52,7 @@ export default function CaseStaffPanel({ caseId, currentStatus, onChanged }) {
         {data.closedCaseNewReports?.count > 0 && <p className="case-association-note" role="status">Hay {data.closedCaseNewReports.count} reporte(s) posterior(es) al cierre del {formatCaseDate(data.closedCaseNewReports.closedAt, true)}. El caso sigue cerrado hasta que el staff decida reabrirlo. <a href="#linked-reports-title">Revisar reportes</a></p>}
         <form onSubmit={event => save(event, 'status')} className="case-form">
           <label htmlFor="case-status">Estado del caso</label>
-          <div className="cyber-select-full mw-cyber-select">
-          <select id="case-status" value={status} onChange={event => setStatus(event.target.value)} disabled={busy}>
-            {Object.entries(CASE_STATUSES).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
-          </select>
-          </div>
+          <CyberSelect id="case-status" value={status} onChange={setStatus} disabled={busy} options={Object.entries(CASE_STATUSES).map(([value, label]) => ({ value, label }))} />
           <label htmlFor="case-status-reason">Motivo del cambio</label>
           <div className="cyber-input-full mw-cyber-input">
             <input id="case-status-reason" value={reason} onChange={event => setReason(event.target.value)} required maxLength={1000} disabled={busy} />

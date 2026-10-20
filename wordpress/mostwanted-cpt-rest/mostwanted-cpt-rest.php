@@ -2,7 +2,7 @@
 /**
  * Plugin Name: MostWanted CPT + REST
  * Description: CPT de jugadores/reportes y API REST para ingesta y consulta desde MostWanted.
- * Version: 0.6.2
+ * Version: 0.6.3
  * Author: KaithHacks
  */
 
@@ -480,21 +480,38 @@ function mw_find_player_post($nickname, $rid, $player_id) {
             'fields' => 'ids',
         ]);
         if (!empty($posts)) {
-            return intval($posts[0]);
+            $candidate = intval($posts[0]);
+            $candidate_rid = mw_resolve_player_rid([
+                'rid' => get_post_meta($candidate, '_mw_rid', true),
+                'playerId' => get_post_meta($candidate, '_mw_player_id', true),
+            ]);
+            if ($rid === null || $candidate_rid === null || $candidate_rid === $rid) {
+                return $candidate;
+            }
         }
     }
 
     if ($nickname_normalized !== '') {
-        $posts = get_posts([
-            'post_type' => 'mw_player',
-            'post_status' => 'any',
-            'numberposts' => 1,
-            'meta_key' => '_mw_nickname_normalized',
-            'meta_value' => $nickname_normalized,
-            'fields' => 'ids',
-        ]);
-        if (!empty($posts)) {
-            return intval($posts[0]);
+        $queries = [
+            ['meta_key' => '_mw_nickname_normalized', 'meta_value' => $nickname_normalized],
+            ['meta_key' => '_mw_aliases', 'meta_value' => '"' . mw_str($nickname) . '"', 'meta_compare' => 'LIKE'],
+        ];
+        foreach ($queries as $query) {
+            $posts = get_posts(array_merge([
+                'post_type' => 'mw_player',
+                'post_status' => 'any',
+                'numberposts' => -1,
+                'fields' => 'ids',
+            ], $query));
+            foreach ($posts as $candidate) {
+                $candidate_rid = mw_resolve_player_rid([
+                    'rid' => get_post_meta($candidate, '_mw_rid', true),
+                    'playerId' => get_post_meta($candidate, '_mw_player_id', true),
+                ]);
+                if ($rid === null || $candidate_rid === null || $candidate_rid === $rid) {
+                    return intval($candidate);
+                }
+            }
         }
     }
 
@@ -539,6 +556,28 @@ function mw_normalize_crews_from_payload($payload) {
     return $result;
 }
 
+function mw_merge_avatar_history($history, $urls, $observed_at) {
+    $by_url = [];
+    foreach ($history as $entry) {
+        if (is_array($entry) && mw_str($entry['url'] ?? '') !== '') {
+            $by_url[$entry['url']] = $entry;
+        }
+    }
+    foreach ($urls as $url) {
+        $url = mw_str($url);
+        if ($url === '') {
+            continue;
+        }
+        $previous = $by_url[$url] ?? [];
+        $by_url[$url] = [
+            'url' => $url,
+            'firstSeen' => $previous['firstSeen'] ?? $observed_at,
+            'lastSeen' => max(intval($previous['lastSeen'] ?? 0), $observed_at),
+        ];
+    }
+    return array_values($by_url);
+}
+
 function mw_merge_player_profile($player_post_id, $payload) {
     $nickname = mw_str($payload['nickname'] ?? '');
     $rid = mw_resolve_player_rid($payload, get_post_meta($player_post_id, '_mw_rid', true));
@@ -552,6 +591,10 @@ function mw_merge_player_profile($player_post_id, $payload) {
     }
 
     $aliases_existing = mw_safe_meta_array($player_post_id, '_mw_aliases');
+    $previous_nickname = mw_str(get_post_meta($player_post_id, '_mw_nickname', true));
+    if ($previous_nickname !== '') {
+        $aliases_existing[] = $previous_nickname;
+    }
     $aliases_merged = mw_unique_strings(array_merge($aliases_existing, $aliases_incoming));
 
     $alias_time = mw_int_or_null($payload['time'] ?? null);
@@ -573,11 +616,17 @@ function mw_merge_player_profile($player_post_id, $payload) {
         $key = mb_strtolower($alias_name);
         $aliases_history_map[$key] = [
             'alias' => $alias_name,
-            'time' => mw_int_or_null($entry['time'] ?? null) ?? $alias_time,
+            'time' => mw_int_or_null($entry['time'] ?? null) ?? 0,
         ];
     }
 
-    foreach ($aliases_merged as $alias_name) {
+    foreach ($aliases_existing as $alias_name) {
+        $key = mb_strtolower($alias_name);
+        if (!isset($aliases_history_map[$key])) {
+            $aliases_history_map[$key] = ['alias' => $alias_name, 'time' => 0];
+        }
+    }
+    foreach ($aliases_incoming as $alias_name) {
         $key = mb_strtolower($alias_name);
         $existing_time = mw_int_or_null($aliases_history_map[$key]['time'] ?? null);
         $aliases_history_map[$key] = [
@@ -612,6 +661,9 @@ function mw_merge_player_profile($player_post_id, $payload) {
             if ($url !== '' && mw_str($crews_merged[$index]['url'] ?? '') === '') {
                 $crews_merged[$index]['url'] = $url;
             }
+            if (in_array($crew, $crews_incoming, true)) {
+                $crews_merged[$index]['lastSeen'] = $alias_time;
+            }
             continue;
         }
 
@@ -619,9 +671,17 @@ function mw_merge_player_profile($player_post_id, $payload) {
         $crews_merged[] = [
             'name' => $name,
             'url' => $url,
+            'firstSeen' => $crew['firstSeen'] ?? (in_array($crew, $crews_incoming, true) ? $alias_time : 0),
+            'lastSeen' => $crew['lastSeen'] ?? (in_array($crew, $crews_incoming, true) ? $alias_time : 0),
         ];
     }
 
+    $avatar_history = mw_merge_avatar_history(
+        mw_safe_meta_array($player_post_id, '_mw_avatar_history'),
+        [get_post_meta($player_post_id, '_mw_avatar_1', true), get_post_meta($player_post_id, '_mw_avatar_2', true)],
+        0
+    );
+    $avatar_history = mw_merge_avatar_history($avatar_history, [$payload['avatar1'] ?? '', $payload['avatar2'] ?? ''], $alias_time);
     $total_reports = intval(get_post_meta($player_post_id, '_mw_total_reports', true));
     $total_reports += 1;
 
@@ -638,8 +698,13 @@ function mw_merge_player_profile($player_post_id, $payload) {
     update_post_meta($player_post_id, '_mw_aliases_history', $aliases_history);
     update_post_meta($player_post_id, '_mw_crew_current', $crew_current);
     update_post_meta($player_post_id, '_mw_crews_data', $crews_merged);
-    update_post_meta($player_post_id, '_mw_avatar_1', mw_str($payload['avatar1'] ?? ''));
-    update_post_meta($player_post_id, '_mw_avatar_2', mw_str($payload['avatar2'] ?? ''));
+    update_post_meta($player_post_id, '_mw_avatar_history', $avatar_history);
+    foreach (['avatar1' => '_mw_avatar_1', 'avatar2' => '_mw_avatar_2'] as $field => $meta_key) {
+        $avatar = mw_str($payload[$field] ?? '');
+        if ($avatar !== '') {
+            update_post_meta($player_post_id, $meta_key, $avatar);
+        }
+    }
     update_post_meta($player_post_id, '_mw_investigation_status', $investigation_status);
     update_post_meta($player_post_id, '_mw_last_seen_at', current_time('mysql'));
     update_post_meta($player_post_id, '_mw_total_reports', $total_reports);
@@ -1023,6 +1088,7 @@ function mw_map_player_item($player_post_id, $with_reports = true, $reports_limi
         'crews' => mw_safe_meta_array($player_post_id, '_mw_crews_data'),
         'avatar1' => mw_str(get_post_meta($player_post_id, '_mw_avatar_1', true)),
         'avatar2' => mw_str(get_post_meta($player_post_id, '_mw_avatar_2', true)),
+        'avatarHistory' => mw_safe_meta_array($player_post_id, '_mw_avatar_history'),
         'investigationStatus' => mw_str(get_post_meta($player_post_id, '_mw_investigation_status', true)),
         'totalReports' => intval(get_post_meta($player_post_id, '_mw_total_reports', true)),
         'lastSeenAt' => mw_str(get_post_meta($player_post_id, '_mw_last_seen_at', true)),
@@ -1408,10 +1474,12 @@ function mw_build_player_insights($player_post_id) {
         'reportCount' => $item['totalReports'],
         'activeCrew' => $active_crew,
         'crews' => mw_unique_strings($crew_names, 25),
+        'crewHistory' => mw_safe_meta_array($player_post_id, '_mw_crews_data'),
         'names' => array_slice($names, 0, 60),
         'avatars' => array_values(array_filter([$item['avatar1'], $item['avatar2']], static function ($url) {
             return $url !== '';
         })),
+        'avatarHistory' => $item['avatarHistory'],
         'lastReportAt' => $last_seen_iso,
     ];
 }

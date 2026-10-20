@@ -5,7 +5,7 @@ import { mergePlayerMatches } from '../src/services/playerSearch';
 import { lookupCachedPlayer } from './backgroundInvestigation';
 import CyberButtonLabel from './CyberButtonLabel';
 
-export default function PersonSearch({ reports, knownPlayers, onSelect }) {
+export default function PersonSearch({ reports, knownPlayers, onSelect, revision }) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [remote, setRemote] = useState([]);
@@ -15,6 +15,7 @@ export default function PersonSearch({ reports, knownPlayers, onSelect }) {
   const cache = useRef(new Map());
   const resultsRef = useRef(null);
   const term = query.trim();
+  useEffect(() => { cache.current.clear(); }, [revision]);
   const matches = useMemo(() => mergePlayerMatches(
     playerCandidates(reports, term), [...knownPlayers, ...remote], term,
   ), [reports, knownPlayers, remote, term]);
@@ -66,7 +67,7 @@ export default function PersonSearch({ reports, knownPlayers, onSelect }) {
       setLoading(false);
     }, 450);
     return () => { clearTimeout(timer); clearTimeout(deadline); controller.abort(); };
-  }, [term, open]);
+  }, [term, open, revision]);
 
   useEffect(() => {
     if (open && active >= 0) resultsRef.current?.querySelector(`#person-match-${active}`)?.scrollIntoView({ block: 'nearest' });

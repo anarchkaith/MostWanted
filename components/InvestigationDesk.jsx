@@ -2,8 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import PlayerBackgroundPanel from './PlayerBackgroundPanel';
 import CaseStaffPanel from './CaseStaffPanel';
 import CyberButtonLabel from './CyberButtonLabel';
+import CyberSelect from './CyberSelect';
 import { requestCase } from '../src/services/casesService';
 import { CASE_STATUSES, VALIDATION_LABELS, filterCaseReports, reportCategories, summarizeVotes, formatCaseDate } from '../src/services/casePresentation';
+import { mergePlayerProfile } from '../src/services/playerProfile';
 
 const EMPTY_FILTERS = { category: '', validation: '', from: '', to: '', query: '' };
 const PAGE_SIZE = 10;
@@ -11,6 +13,7 @@ const PAGE_SIZE = 10;
 export default function InvestigationDesk({ initialPlayer, onPlayerResolved, reportsError, path, onNavigate, onOpenReport, onStartReport, mapReport, canManageCases, revision }) {
   const [selection] = useState(initialPlayer);
   const [foundPlayer, setFoundPlayer] = useState(null);
+  const [investigationCompleted, setInvestigationCompleted] = useState(false);
   const [payload, setPayload] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -18,8 +21,12 @@ export default function InvestigationDesk({ initialPlayer, onPlayerResolved, rep
   const [page, setPage] = useState(1);
   const [version, setVersion] = useState(0);
   const onInvestigationChange = useCallback(result => {
-    const identity = result ? { nickname: result.nombre, rid: String(result.rid || ''), names: result.profile?.aliases || [] } : null;
+    const identity = result ? {
+      nickname: result.nombre === `RID ${result.rid}` ? result.username || '' : result.nombre,
+      rid: String(result.rid || ''), names: result.profile?.aliases || [], investigation: result,
+    } : null;
     setFoundPlayer(identity);
+    setInvestigationCompleted(true);
     if (identity) onPlayerResolved(identity);
   }, [onPlayerResolved]);
   const caseId = path.match(/^\/jugador\/([^/]+)$/)?.[1] || '';
@@ -85,12 +92,26 @@ export default function InvestigationDesk({ initialPlayer, onPlayerResolved, rep
           {!player && !caseId && <div className="case-section desk-empty"><h3>Identidad pendiente</h3><p>Busca por nombre o RID para consultar los antecedentes y sus reportes vinculados.</p></div>}
           {player && <>
             <div className="case-file__overview">
-              <PlayerBackgroundPanel key={`${player.nickname}:${player.rid}`} username={player.nickname || ''} rid={player.rid || ''} investigateToken={1} variant="dossier" onInvestigationChange={onInvestigationChange} />
+              <PlayerBackgroundPanel key={`${player.nickname}:${player.rid}:${revision}`} username={player.nickname || ''} rid={player.rid || ''} reports={linkedReports} investigateToken={1} variant="dossier" onInvestigationChange={onInvestigationChange} />
             <section className="case-section case-management">
               <p className="workspace-eyebrow">CONTROL DEL EXPEDIENTE</p><h3>Situación del caso</h3>
               <div className="case-summary"><div><span>Estado</span><strong>{dossier ? CASE_STATUSES[dossier.status] || dossier.status : payload ? 'Sin caso registrado' : 'Estado no disponible'}</strong></div></div>
               <p className="case-muted">Estado del caso, verificación comunitaria y estado de cuenta son independientes.</p>
-              <button type="button" className="cyber-button-small mw-cyber-button" onClick={() => onStartReport(foundPlayer || player)}><CyberButtonLabel>Registrar reporte</CyberButtonLabel></button>
+              <p className="case-muted">Puedes aportar datos nuevos aunque no haya antecedentes o alguna fuente no esté disponible.</p>
+              <button type="button" className="cyber-button-small mw-cyber-button" onClick={() => {
+                const target = foundPlayer || player;
+                const investigation = target.investigation;
+                onStartReport({
+                  ...target, investigationCompleted,
+                  ...(investigation ? { investigation: {
+                    ...investigation,
+                    profile: mergePlayerProfile({
+                      username: target.nickname, rid: target.rid,
+                      profile: investigation.currentProfile, reportInsights: investigation.reportInsights, reports: linkedReports,
+                    }),
+                  } } : {}),
+                });
+              }}><CyberButtonLabel>Registrar reporte</CyberButtonLabel></button>
             </section>
             </div>
             {supplemental && <div className="case-supplemental">{supplemental}</div>}
@@ -100,8 +121,8 @@ export default function InvestigationDesk({ initialPlayer, onPlayerResolved, rep
           <header className="case-reports__header"><p className="workspace-eyebrow">02 / ARCHIVO DE DENUNCIAS</p><h2 id="linked-reports-title" className="cyber-h">Reportes vinculados <span>({payload ? linkedReports.length : '—'})</span></h2><p className="case-muted">{payload ? `Mostrando ${filtered.length} de ${linkedReports.length}` : 'Pendiente de consulta'}</p></header>
           {payload?.nameOnlyReportIds?.length > 0 && <p className="case-association-note" role="status">{payload.nameOnlyReportIds.length} reporte(s) asociado(s) solo por nombre. Esa coincidencia no confirma por sí sola la identidad del jugador.</p>}
           <div className="case-filters">
-            <label htmlFor="filter-category">Infracción<div className="cyber-select-full mw-cyber-select"><select id="filter-category" value={filters.category} onChange={event => updateFilter('category', event.target.value)}><option value="">Todas las infracciones</option>{categories.map(category => <option key={category}>{category}</option>)}</select></div></label>
-            <label htmlFor="filter-validation">Validación<div className="cyber-select-full mw-cyber-select"><select id="filter-validation" value={filters.validation} onChange={event => updateFilter('validation', event.target.value)}><option value="">Todos los estados</option>{Object.entries(VALIDATION_LABELS).map(([key, text]) => <option value={key} key={key}>{text}</option>)}</select></div></label>
+            <label htmlFor="filter-category">Infracción<CyberSelect id="filter-category" value={filters.category} onChange={value => updateFilter('category', value)} options={[{ value: '', label: 'Todas las infracciones' }, ...categories.map(category => ({ value: category, label: category }))]} /></label>
+            <label htmlFor="filter-validation">Validación<CyberSelect id="filter-validation" value={filters.validation} onChange={value => updateFilter('validation', value)} options={[{ value: '', label: 'Todos los estados' }, ...Object.entries(VALIDATION_LABELS).map(([value, label]) => ({ value, label }))]} /></label>
             <label htmlFor="filter-from">Desde<div className="cyber-input-full mw-cyber-input"><input id="filter-from" type="date" value={filters.from} max={filters.to || undefined} onChange={event => updateFilter('from', event.target.value)} /></div></label>
             <label htmlFor="filter-to">Hasta<div className="cyber-input-full mw-cyber-input"><input id="filter-to" type="date" value={filters.to} min={filters.from || undefined} onChange={event => updateFilter('to', event.target.value)} /></div></label>
             <label className="case-filters__search">Buscar en reportes<div className="cyber-input-full mw-cyber-input"><input type="search" value={filters.query} onChange={event => updateFilter('query', event.target.value)} placeholder="Texto o ID…" /></div></label>

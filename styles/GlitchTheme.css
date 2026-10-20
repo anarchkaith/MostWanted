@@ -20,8 +20,12 @@ body {
 }
 
 .site-header { border-bottom-width: 1px; border-bottom-color: var(--hex-accent); }
-.interface-sounds { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; min-width: 0; }
 .interface-sounds__error { max-width: 260px; color: var(--color-white-dirty); font-size: 0.8rem; overflow-wrap: anywhere; }
+.pbp-avatar-history { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 12px; }
+.pbp-avatar-history figure { margin: 0; min-width: 0; }
+.pbp-avatar-history figcaption { font-size: 0.75rem; overflow-wrap: anywhere; margin-top: 6px; }
+.pbp-history-avatar { width: 100%; min-height: 80px; background: #171717; border: 1px solid #555; color: inherit; cursor: zoom-in; }
+.pbp-history-avatar img { display: block; width: 100%; max-height: 140px; object-fit: contain; }
 .site-brand__eyebrow, .workspace-eyebrow { color: var(--hex-accent); }
 .desk-navigation { background: #111111d9; }
 .desk-navigation a[aria-current='page'] { background: linear-gradient(90deg, #ff33331a, transparent); }

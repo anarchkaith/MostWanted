@@ -139,6 +139,10 @@ const mapWordpressReportToReporte = (report = {}) => {
       comentarios: normalizedComments,
     },
     wpRid: resolvePlayerRid(report),
+    aliases: Array.isArray(report.aliases) ? report.aliases : [],
+    crews: Array.isArray(report.crews) ? report.crews : [],
+    avatar1: report.avatar1 || '',
+    avatar2: report.avatar2 || '',
     categories: Array.isArray(report?.categories) ? report.categories : [],
   };
 };
@@ -359,6 +363,13 @@ function App() {
 
   // Manejar nuevo reporte enviado
   const handleNewReport = async (nuevoReporte, submissionResult = null) => {
+    const refreshedPlayer = {
+      nickname: submissionResult?.player?.nickname || nuevoReporte.nickname,
+      rid: resolvePlayerRid(submissionResult?.player || {}) || resolvePlayerRid(nuevoReporte),
+    };
+    setSearchPlayer(refreshedPlayer);
+    rememberPlayer(refreshedPlayer);
+    formReturnPath.current = '/';
     setCaseRevision(value => value + 1);
     try {
       const data = await fetchReportsFromAPI();
@@ -690,7 +701,7 @@ function App() {
 
   return (
     <div className={`app-container${canUseReports ? '' : ' app-container--access'}`} style={{ position: 'relative' }}>
-
+      <InterfaceSounds />
 
       {/* ============ ADMIN BANNER ============ */}
       {isAdmin && (
@@ -718,17 +729,13 @@ function App() {
             <span className="site-brand__department">DESPACHO DE INVESTIGACIÓN COMUNITARIA</span>
           </div>
         </div>
-        {canUseReports && <PersonSearch reports={reportes} knownPlayers={knownPlayers} onSelect={player => {
+        {canUseReports && <PersonSearch revision={caseRevision} reports={reportes} knownPlayers={knownPlayers} onSelect={player => {
           setSearchPlayer(player);
           setDeskReset(value => value + 1);
           navigate('/');
         }} />}
         {/* Información de usuario y botón de login/logout */}
         <div className="site-header__actions">
-          <InterfaceSounds />
-          {canUseReports && <button type="button" className="cyber-button-small mw-cyber-button" onClick={() => path === '/denunciar' ? navigate(formReturnPath.current) : startReport()}>
-            <CyberButtonLabel>{path === '/denunciar' ? 'Volver al despacho' : 'Registrar reporte'}</CyberButtonLabel>
-          </button>}
           {user ? (
             <>
               <span className="site-header__username notranslate" translate="no">{user.username}</span>
@@ -752,9 +759,9 @@ function App() {
         <a href={isDemo ? '/?demo=true' : '/'} aria-current={path !== '/denunciar' ? 'page' : undefined} onClick={event => { if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); setSearchPlayer(null); setDeskReset(value => value + 1); navigate('/'); } }}>
           <span aria-hidden="true">01</span> Archivo de investigación
         </a>
-        <a href={isDemo ? '/denunciar?demo=true' : '/denunciar'} aria-current={path === '/denunciar' ? 'page' : undefined} onClick={event => { if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); if (path !== '/denunciar') startReport(); } }}>
+        {path === '/denunciar' && <a href={isDemo ? '/denunciar?demo=true' : '/denunciar'} aria-current="page">
           <span aria-hidden="true">02</span> Mesa de denuncias
-        </a>
+        </a>}
         <span className="desk-navigation__notice">Registro comunitario · No es una autoridad policial</span>
       </nav>}
       {/* Modal de ayuda */}

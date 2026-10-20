@@ -25,9 +25,12 @@ export function playerCandidates(reports, query) {
   for (const report of reports) {
     const nickname = String(report.usuario || '').trim();
     const rid = resolvePlayerRid(report);
-    if (!nickname.toLocaleLowerCase().includes(normalized) && !rid.includes(normalized)) continue;
+    const names = [nickname, ...(Array.isArray(report.aliases) ? report.aliases : [])]
+      .map(name => String(name || '').trim()).filter(Boolean);
+    if (!names.some(name => name.toLocaleLowerCase().includes(normalized)) && !rid.includes(normalized)) continue;
     const key = rid ? `rid:${rid}` : `name:${nickname.toLocaleLowerCase()}`;
-    if (!players.has(key)) players.set(key, { nickname, rid, key, count: 0 });
+    if (!players.has(key)) players.set(key, { nickname, rid, key, names: [], count: 0 });
+    players.get(key).names = [...new Set([...players.get(key).names, ...names])];
     players.get(key).count += 1;
   }
   return [...players.values()];

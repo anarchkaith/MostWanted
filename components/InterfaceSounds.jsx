@@ -1,21 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
-import CyberButtonLabel from './CyberButtonLabel';
-import { createInterfaceAudio, INTERFACE_AUDIO_STORAGE_KEY } from '../src/services/interfaceAudio';
+import { useEffect, useState } from 'react';
+import { createInterfaceAudio } from '../src/services/interfaceAudio';
+import { getInterfaceHover } from '../src/services/interfaceHover';
 
 const DIALOGS = '.modal, .rfm-confirmation, .delete-confirm-modal, .ai-bubble__panel, .image-viewer, .image-viewer-overlay';
 const CLOSE_ACTIONS = '.modal__close, .ai-bubble__close, [data-ui-sound="reject"]';
 
 export default function InterfaceSounds() {
-  const [enabled, setEnabled] = useState(() => {
-    try {
-      return localStorage.getItem(INTERFACE_AUDIO_STORAGE_KEY) !== 'off';
-    } catch (error) {
-      console.warn('No se pudo leer la preferencia de sonidos de interfaz.', error);
-      return true;
-    }
-  });
   const [error, setError] = useState('');
-  const audioRef = useRef(null);
 
   useEffect(() => {
     const audio = createInterfaceAudio({
@@ -26,10 +17,16 @@ export default function InterfaceSounds() {
         setError('Audio no disponible. Comprueba tu conexión o los permisos de sonido del navegador.');
       },
     });
-    audioRef.current = audio;
     let interacted = false;
     let dialogs = new Set(document.querySelectorAll(DIALOGS));
     const timers = new Set();
+    const onInteraction = () => { interacted = true; };
+    const onHover = event => {
+      if (event.pointerType === 'touch' || (!interacted && !navigator.userActivation?.hasBeenActive)) return;
+      const target = event.target instanceof Element ? event.target : null;
+      const kind = getInterfaceHover(target, event.relatedTarget);
+      if (kind) void audio.play(kind);
+    };
     const onClick = event => {
       const target = event.target instanceof Element ? event.target : null;
       if (!target) return;
@@ -58,41 +55,20 @@ export default function InterfaceSounds() {
     observer.observe(document.body, { childList: true, subtree: true });
     document.addEventListener('click', onClick, true);
     document.addEventListener('keydown', onKeyDown, true);
+    document.addEventListener('pointerdown', onInteraction, true);
+    document.addEventListener('keydown', onInteraction, true);
+    document.addEventListener('pointerover', onHover, true);
     return () => {
       observer.disconnect();
       document.removeEventListener('click', onClick, true);
       document.removeEventListener('keydown', onKeyDown, true);
+      document.removeEventListener('pointerdown', onInteraction, true);
+      document.removeEventListener('keydown', onInteraction, true);
+      document.removeEventListener('pointerover', onHover, true);
       for (const timer of timers) clearTimeout(timer);
       audio.dispose();
-      audioRef.current = null;
     };
   }, []);
 
-  useEffect(() => {
-    audioRef.current?.setEnabled(enabled);
-  }, [enabled]);
-
-  const toggle = () => {
-    const next = !enabled;
-    audioRef.current?.setEnabled(next);
-    setEnabled(next);
-    setError('');
-    try {
-      localStorage.setItem(INTERFACE_AUDIO_STORAGE_KEY, next ? 'on' : 'off');
-    } catch (cause) {
-      console.warn('No se pudo guardar la preferencia de sonidos de interfaz.', cause);
-      setError('La preferencia de sonido no se pudo guardar para la próxima visita.');
-    }
-    if (next) void audioRef.current?.play('accept');
-  };
-
-  return (
-    <div className="interface-sounds" data-ui-sound="off">
-      <button type="button" className="cyber-button-small mw-cyber-button mw-cyber-button--secondary"
-        aria-label="Sonidos de interfaz" aria-pressed={enabled} onClick={toggle}>
-        <CyberButtonLabel>{enabled ? 'Sonido: activado' : 'Sonido: silenciado'}</CyberButtonLabel>
-      </button>
-      {error && <span className="interface-sounds__error" role="status">{error}</span>}
-    </div>
-  );
+  return error ? <p className="interface-sounds__error" role="status">{error}</p> : null;
 }

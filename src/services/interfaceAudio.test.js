@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createInterfaceAudio, INTERFACE_AUDIO_SOURCES } from './interfaceAudio.js';
+import { getInterfaceHover } from './interfaceHover.js';
 
 function fixture(play = () => Promise.resolve()) {
   const tracks = [];
@@ -24,10 +25,10 @@ function fixture(play = () => Promise.resolve()) {
   return { audio, tracks, errors, get ready() { return ready; } };
 }
 
-test('loads the three demo sounds lazily, at low volume, and reuses tracks', async () => {
+test('loads all five interface sounds lazily, at low volume, and reuses tracks', async () => {
   const f = fixture();
   assert.equal(f.tracks.length, 0);
-  for (const kind of ['slide', 'accept', 'reject']) {
+  for (const kind of ['slide', 'accept', 'reject', 'hoverOption', 'hoverButton']) {
     await f.audio.play(kind);
     const track = f.tracks.at(-1);
     assert.equal(track.source, INTERFACE_AUDIO_SOURCES[kind]);
@@ -36,12 +37,38 @@ test('loads the three demo sounds lazily, at low volume, and reuses tracks', asy
     assert.equal(track.currentTime, 0);
   }
   await f.audio.play('slide');
-  assert.equal(f.tracks.length, 3);
+  assert.equal(f.tracks.length, 5);
   assert.equal(f.tracks[0].plays, 2);
   assert.equal(f.tracks[0].pauses, 1);
   assert.equal(f.tracks[1].pauses, 1);
   assert.equal(f.tracks[2].pauses, 1);
-  assert.equal(f.ready, 4);
+  assert.equal(f.ready, 6);
+  assert.equal(INTERFACE_AUDIO_SOURCES.hoverOption, 'https://cdn.freesound.org/previews/370/370962_5450487-lq.mp3');
+  assert.equal(INTERFACE_AUDIO_SOURCES.hoverButton, 'https://cdn.freesound.org/previews/703/703884_6142149-lq.mp3');
+});
+
+test('delegates hover once per control, prioritizes selector items, and respects disabled and opt-out controls', () => {
+  const child = {};
+  const previousSibling = {};
+  let item = false;
+  let disabled = false;
+  let off = false;
+  const control = {
+    closest: selector => selector === '[data-ui-sound="off"]' ? (off ? control : null) : control,
+    matches: selector => selector.includes(':disabled') ? disabled : item,
+    contains: node => node === child,
+  };
+  const target = { closest: () => control };
+  assert.equal(getInterfaceHover(null, null), null);
+  assert.equal(getInterfaceHover(target, previousSibling), 'hoverButton');
+  assert.equal(getInterfaceHover(target, child), null);
+  item = true;
+  assert.equal(getInterfaceHover(target, previousSibling), 'hoverOption');
+  disabled = true;
+  assert.equal(getInterfaceHover(target, null), null);
+  disabled = false;
+  off = true;
+  assert.equal(getInterfaceHover(target, null), null);
 });
 
 test('muting prevents requests, stops playback, and can be reversed', async () => {

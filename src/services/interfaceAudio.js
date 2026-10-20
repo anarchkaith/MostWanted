@@ -2,9 +2,9 @@ export const INTERFACE_AUDIO_SOURCES = {
   slide: 'https://cdn.freesound.org/previews/367/367997_6512973-lq.mp3',
   accept: 'https://cdn.freesound.org/previews/220/220166_4100837-lq.mp3',
   reject: 'https://cdn.freesound.org/previews/657/657950_6142149-lq.mp3',
+  hoverOption: 'https://cdn.freesound.org/previews/370/370962_5450487-lq.mp3',
+  hoverButton: 'https://cdn.freesound.org/previews/703/703884_6142149-lq.mp3',
 };
-
-export const INTERFACE_AUDIO_STORAGE_KEY = 'mostwanted_interface_sounds';
 
 export function createInterfaceAudio({ createAudio, onError, onReady }) {
   const tracks = new Map();

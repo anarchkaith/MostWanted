@@ -222,6 +222,9 @@ export function validateIncomingReportSubmission(body = {}) {
   // Campos opcionales de información del jugador
   const avatar1 = toTrimmedString(report?.avatar1);
   const avatar2 = toTrimmedString(report?.avatar2);
+  if ([avatar1, avatar2].some(url => url && !/^https?:\/\/\S+$/i.test(url))) {
+    return { ok: false, status: 400, error: 'Los avatares deben ser URLs HTTP o HTTPS.' };
+  }
   const parsedRid = Number(report?.rid);
   const rid = Number.isFinite(parsedRid) ? parsedRid : null;
   const playerId = buildPlayerId({ nickname, rid });

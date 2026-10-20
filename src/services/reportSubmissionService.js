@@ -108,6 +108,7 @@ export async function fetchWordpressReportsSnapshot({ perPage = 100, page = 1 } 
   const endpoint = `${getWordpressApiBaseUrl()}/wp-json/mostwanted/v1/reports?per_page=${safePerPage}&page=${safePage}`;
   const response = await fetch(endpoint, {
     method: 'GET',
+    cache: 'no-store',
     headers: { Accept: 'application/json' },
   });
 
@@ -128,6 +129,7 @@ export async function fetchWordpressPlayerInsights({ username = '', rid = '', si
   const endpoint = `${getWordpressApiBaseUrl()}/wp-json/mostwanted/v1/player-insights?${params.toString()}`;
   const response = await fetch(endpoint, {
     method: 'GET',
+    cache: 'no-store',
     signal,
     headers: { Accept: 'application/json' },
   });

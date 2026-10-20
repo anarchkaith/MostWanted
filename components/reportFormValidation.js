@@ -22,10 +22,12 @@ export const reportFormValidationSchema = Yup.object({
 
   avatar1: Yup.string()
     .trim()
+    .matches(/^https?:\/\/\S+$/i, { message: 'Usa una URL de imagen HTTP o HTTPS', excludeEmptyString: true })
     .nullable(),
 
   avatar2: Yup.string()
     .trim()
+    .matches(/^https?:\/\/\S+$/i, { message: 'Usa una URL de imagen HTTP o HTTPS', excludeEmptyString: true })
     .nullable(),
 
   rid: Yup.number()

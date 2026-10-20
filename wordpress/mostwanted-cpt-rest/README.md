@@ -4,7 +4,9 @@ Plugin WordPress para registrar CPT de jugadores/reportes y exponer endpoints RE
 
 ## 1) Instalacion rapida
 
-Versión 0.6.2: recupera el RID desde el formato exacto `playerId: "RID-<números>"` cuando el campo numérico falta, tanto al guardar como al publicar reportes históricos. Un RID explícito tiene prioridad. Conserva la protección de los datos del reportante.
+Versión 0.6.3: conserva nombres, crews y URLs de avatares al recibir nuevos reportes. Los datos vacíos no borran avatares conocidos y los nombres ausentes del reporte nuevo mantienen su fecha previa. La consulta por nombres históricos usa los alias registrados y nunca combina RIDs conocidos diferentes. `player-insights` añade `avatarHistory` y `crewHistory`, con fechas de registro cuando se conocen; no convierte los datos reportados en identidad externa verificada. El historial conserva URLs, no copias de imágenes alojadas por terceros.
+
+Mantiene la recuperación del RID desde el formato exacto `playerId: "RID-<números>"` cuando el campo numérico falta, tanto al guardar como al publicar reportes históricos. Un RID explícito tiene prioridad. Conserva la protección de los datos del reportante.
 
 Para actualizar desde un ZIP: **Plugins > Añadir nuevo plugin > Subir plugin**, selecciona el archivo y confirma **Reemplazar el actual con el subido**. No desinstales el plugin ni borres sus datos. Después, purga la caché REST/CDN.
 
@@ -46,6 +48,7 @@ La API devuelve historial enriquecido de reportes por jugador, incluyendo `evide
 Al actualizar el plugin, purga las respuestas REST cacheadas en WordPress/CDN. La aplicación consulta estas rutas directamente desde el navegador: actualizar solo el backend Node no protege una versión antigua del plugin.
 
 Validación local sin una instalación de WordPress: `php wordpress/mostwanted-cpt-rest/privacy.test.php` desde la raíz del repositorio.
+Historial y actualizaciones parciales: `php wordpress/mostwanted-cpt-rest/profileHistory.test.php`.
 
 Los titulos de `mw_player` y `mw_report` se normalizan como `NICKNAME [RID <valor>]` cuando hay RID.
 

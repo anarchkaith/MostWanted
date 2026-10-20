@@ -5,6 +5,7 @@ import VoteSystem from './VoteSystem';
 import ImageUpload from './ImageUpload';
 import { buildApiUrl } from '../src/services/apiConfig';
 import CyberButtonLabel from './CyberButtonLabel';
+import CyberSelect from './CyberSelect';
 
 /**
  * ReportDetailModal - Modal para ver detalles completos de un reporte
@@ -112,10 +113,10 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
 
   // Mapeo de severidad
   const severityLabels = {
-    critica: 'CRÍTICA',
-    alta: 'ALTA',
+    baja: 'BAJA',
     media: 'MEDIA',
-    baja: 'BAJA'
+    alta: 'ALTA',
+    critica: 'CRÍTICA'
   };
 
   // Mapeo de estados de validación
@@ -492,18 +493,12 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
               <div style={{ flex: 1, minWidth: '150px' }}>
                 <div className="report-detail__label">Categoría</div>
                 {isEditing ? (
-                  <div className="cyber-select-full mw-cyber-select">
-                  <select
-                    className="report-detail__select"
+                  <CyberSelect
                     aria-label="Categoría"
                     value={editData.categoria}
-                    onChange={(e) => setEditData({ ...editData, categoria: e.target.value })}
-                  >
-                    <option value="modder">MODDER</option>
-                    <option value="griffer">GRIFFER</option>
-                    <option value="ardido">ARDIDO</option>
-                  </select>
-                  </div>
+                    onChange={value => setEditData({ ...editData, categoria: value })}
+                    options={Object.entries(categoryLabels).map(([value, label]) => ({ value, label }))}
+                  />
                 ) : (
                   <div className="report-detail__value">
                     <span className={`report-card__tag report-card__tag--${reporte.categoria || 'modder'}`}>
@@ -515,19 +510,12 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
               <div style={{ flex: 1, minWidth: '150px' }}>
                 <div className="report-detail__label">Severidad</div>
                 {isEditing ? (
-                  <div className="cyber-select-full mw-cyber-select">
-                  <select
-                    className="report-detail__select"
+                  <CyberSelect
                     aria-label="Severidad"
                     value={editData.severidad}
-                    onChange={(e) => setEditData({ ...editData, severidad: e.target.value })}
-                  >
-                    <option value="baja">BAJA</option>
-                    <option value="media">MEDIA</option>
-                    <option value="alta">ALTA</option>
-                    <option value="critica">CRÍTICA</option>
-                  </select>
-                  </div>
+                    onChange={value => setEditData({ ...editData, severidad: value })}
+                    options={Object.entries(severityLabels).map(([value, label]) => ({ value, label }))}
+                  />
                 ) : (
                   <div className="report-detail__value">
                     <span className="report-card__severity">

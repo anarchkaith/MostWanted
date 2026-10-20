@@ -1,9 +1,12 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import CORSPermission from './CORSPermission';
-import { investigatePlayerBackground } from './backgroundInvestigation';
-import { isBlockedReportedUsername } from './blockedUsernames';
+import usePlayerInvestigation from './usePlayerInvestigation';
 import ImageViewer from './ImageViewer';
 import CyberButtonLabel from './CyberButtonLabel';
+import { mergePlayerProfile } from '../src/services/playerProfile';
+
+const getSocialClubMemberUrl = name => String(name || '').trim()
+  ? `https://socialclub.rockstargames.com/members/${encodeURIComponent(String(name).trim())}/` : '';
 
 /**
  * PlayerBackgroundPanel - Ficha de investigación de usuario.
@@ -14,47 +17,22 @@ export default function PlayerBackgroundPanel({
   variant = 'default',
   onInvestigationChange = null,
   investigateToken = 0,
+  initialInvestigation = null,
+  reports = null,
   onInvestigatingChange = null,
 }) {
-  const [investigation, setInvestigation] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const request = useMemo(() => investigateToken > 0 ? { username, rid, token: investigateToken } : null, [username, rid, investigateToken]);
+  const { investigation, isLoading, error } = usePlayerInvestigation({
+    request, initialInvestigation, onChange: onInvestigationChange, onLoadingChange: onInvestigatingChange,
+  });
   const [showCorsPermissionPopup, setShowCorsPermissionPopup] = useState(false);
   const [avatarRenderState, setAvatarRenderState] = useState({});
   const [expandedAvatar, setExpandedAvatar] = useState(null);
+  const [historicalAvatarErrors, setHistoricalAvatarErrors] = useState({});
   const [historyOpen, setHistoryOpen] = useState(() => window.matchMedia('(min-width: 1101px)').matches);
   const closeAvatar = React.useCallback(() => setExpandedAvatar(null), []);
-  const onInvestigationChangeRef = useRef(onInvestigationChange);
-  const onInvestigatingChangeRef = useRef(onInvestigatingChange);
 
-  useEffect(() => {
-    onInvestigationChangeRef.current = onInvestigationChange;
-  }, [onInvestigationChange]);
-
-  useEffect(() => {
-    onInvestigatingChangeRef.current = onInvestigatingChange;
-  }, [onInvestigatingChange]);
-
-  const socialClubProfileUrl = useMemo(() => {
-    const inputName = typeof username === 'string' ? username.trim() : '';
-    if (!inputName) return '';
-    return `https://socialclub.rockstargames.com/members/${encodeURIComponent(inputName)}/`;
-  }, [username]);
-
-  const getSocialClubMemberUrl = (name = '') => {
-    const originalName = typeof name === 'string' ? name : String(name || '');
-    const normalizedForUrl = originalName.trim();
-    if (!normalizedForUrl) return '';
-    return `https://socialclub.rockstargames.com/members/${encodeURIComponent(normalizedForUrl)}/`;
-  };
-
-  const crews = useMemo(() => {
-    const sourceCrews = Array.isArray(investigation?.reportInsights?.crews)
-      ? investigation.reportInsights.crews
-      : [];
-
-    return Array.from(new Set(sourceCrews.map((item) => String(item || '').trim()).filter(Boolean)));
-  }, [investigation]);
+  const socialClubProfileUrl = getSocialClubMemberUrl(investigation?.currentProfile?.name || username);
 
   const reportInsights = useMemo(() => {
     const raw = investigation?.reportInsights;
@@ -62,63 +40,15 @@ export default function PlayerBackgroundPanel({
     return raw;
   }, [investigation]);
 
-  const crewsFromReports = useMemo(() => {
-    return Array.isArray(reportInsights?.crews)
-      ? reportInsights.crews.map((item) => String(item || '').trim()).filter(Boolean)
-      : [];
-  }, [reportInsights]);
+  const displayedProfile = useMemo(() => investigation ? mergePlayerProfile({
+    username, rid: investigation.rid || rid, profile: investigation.currentProfile,
+    reportInsights: investigation.reportInsights, reports: reports || [],
+  }) : null, [investigation, username, rid, reports]);
+  const crewsWithSource = displayedProfile?.crewHistory || [];
 
-  const crewsWithSource = useMemo(() => {
-    return crewsFromReports.map((crew) => ({
-      name: crew,
-      source: 'Archivo WordPress',
-    }));
-  }, [crewsFromReports]);
-
-  const aliases = useMemo(() => {
-    const aliasesFromReports = Array.isArray(investigation?.reportInsights?.names)
-      ? investigation.reportInsights.names
-        .map((entry) => {
-          if (typeof entry === 'string') return entry;
-          if (entry && typeof entry === 'object') return entry.name || '';
-          return '';
-        })
-        .filter(Boolean)
-      : [];
-
-    return Array.from(new Set([...aliasesFromReports, ...(investigation?.profile?.aliases || [])].map((item) => String(item || '').trim()).filter(Boolean)));
-  }, [investigation]);
-
-  const nameHistory = useMemo(() => {
-    const reportHistory = Array.isArray(investigation?.profile?.nameHistory)
-      ? investigation.profile.nameHistory
-        .map((entry) => {
-          if (!entry || typeof entry !== 'object') return null;
-          if (!entry.name) return null;
-          return {
-            name: String(entry.name),
-            time: Number.isFinite(Number(entry.time)) ? Number(entry.time) : 0,
-            timeReadable: entry.timeReadable || null,
-            timeIso: entry.timeIso || null,
-            source: entry.source || 'Archivo WordPress',
-          };
-        })
-        .filter(Boolean)
-      : [];
-
-    const uniqueByName = new Map();
-    for (const item of reportHistory) {
-      const key = String(item.name || '').trim().toLowerCase();
-      if (!key) continue;
-      const existing = uniqueByName.get(key);
-      if (!existing || (Number(item.time) || 0) > (Number(existing.time) || 0)) {
-        uniqueByName.set(key, item);
-      }
-    }
-
-    return Array.from(uniqueByName.values())
-      .sort((a, b) => (Number(b.time) || 0) - (Number(a.time) || 0));
-  }, [investigation]);
+  const nameHistory = useMemo(() => (displayedProfile?.nameHistory || []).map(entry => ({
+    ...entry, timeReadable: entry.time > 0 ? new Date(entry.time * 1000).toLocaleString('es-ES') : null,
+  })), [displayedProfile]);
 
   const panelStats = useMemo(() => ([
     { label: 'Reportes previos', value: reportInsights ? String(reportInsights.reportCount ?? 'Desconocido') : 'Desconocido' },
@@ -212,77 +142,6 @@ export default function PlayerBackgroundPanel({
     });
   };
 
-  // Investigar solo cuando el padre emite un token de investigación manual.
-  useEffect(() => {
-    if (!investigateToken || investigateToken < 1) {
-      return;
-    }
-
-    const targetUsername = typeof username === 'string' ? username.trim() : '';
-
-    if ((!targetUsername || targetUsername.length < 2) && !rid) {
-      setInvestigation(null);
-      setError(null);
-      setShowCorsPermissionPopup(false);
-      if (onInvestigationChangeRef.current) {
-        onInvestigationChangeRef.current(null);
-      }
-      return;
-    }
-
-    if (isBlockedReportedUsername(targetUsername)) {
-      setInvestigation(null);
-      setError(null);
-      setShowCorsPermissionPopup(false);
-      if (onInvestigationChangeRef.current) {
-        onInvestigationChangeRef.current(null);
-      }
-      return;
-    }
-
-    let active = true;
-    const performInvestigation = async () => {
-      setIsLoading(true);
-      setError(null);
-      if (onInvestigatingChangeRef.current) {
-        onInvestigatingChangeRef.current(true);
-      }
-
-      try {
-        const result = await investigatePlayerBackground(targetUsername, rid);
-        if (!active) return;
-        setInvestigation(result);
-
-        // Notificar al padre sobre la investigación exitosa
-        if (onInvestigationChangeRef.current) {
-          onInvestigationChangeRef.current(result);
-        }
-      } catch (err) {
-        if (!active) return;
-        setError(err.message);
-        setInvestigation(null);
-
-        // Notificar error al padre
-        if (onInvestigationChangeRef.current) {
-          onInvestigationChangeRef.current(null);
-        }
-      } finally {
-        if (active) setIsLoading(false);
-        if (active && onInvestigatingChangeRef.current) {
-          onInvestigatingChangeRef.current(false);
-        }
-      }
-    };
-
-    performInvestigation();
-    return () => { active = false; };
-  }, [investigateToken]);
-
-  useEffect(() => () => {
-    if (onInvestigatingChangeRef.current) {
-      onInvestigatingChangeRef.current(false);
-    }
-  }, []);
 
   if ((!username || username.trim().length === 0) && !rid) {
     return null;
@@ -951,7 +810,7 @@ export default function PlayerBackgroundPanel({
           {isLoading && (
             <div className="pbp-status pbp-status--loading" role="status" aria-live="polite">
               <strong className="pbp-status__title">Investigando...</strong>
-              <span className="pbp-status__detail">Consultando perfil, avatares y estado de cuenta.</span>
+              <span className="pbp-status__detail">Consultando Social Club/sc-cache y el archivo de WordPress.</span>
             </div>
           )}
 
@@ -971,7 +830,7 @@ export default function PlayerBackgroundPanel({
                   <span className="pbp-dossier-kicker__value">Archivo de jugadores</span>
                 </div>
                 <div className="pbp-evidence-card">
-                  <div className="pbp-current__label">REGISTRO FOTOGRÁFICO</div>
+                  <div className="pbp-current__label">{investigation.rid ? 'AVATARES ACTUALES / ROCKSTAR' : 'AVATARES ARCHIVADOS'}</div>
                   <div className="pbp-current__avatars">
                     {avatarSlotsToRender.map((slot) => {
                       const avatar = investigation.avatares?.find((item) => item.index === slot);
@@ -1000,7 +859,7 @@ export default function PlayerBackgroundPanel({
               <div className="pbp-identity-panel">
                 <div className="pbp-identity-header">
                   <div className="pbp-identity-header__copy">
-                    <div className="pbp-identity-header__eyebrow">IDENTIDAD CONSULTADA</div>
+                    <div className="pbp-identity-header__eyebrow">{investigation.currentProfile ? 'PERFIL EXTERNO ACTUAL' : investigation.reportInsights ? 'IDENTIDAD ARCHIVADA / REPORTADA' : 'IDENTIDAD CONSULTADA / SIN CONFIRMAR'}</div>
                     <div className="pbp-current__name notranslate" translate="no">{investigation.nombre}</div>
                     <div className="pbp-identity-rid"><span>RID (ROCKSTAR ID)</span><strong>{investigation.rid || rid || 'Sin confirmar'}</strong></div>
                     <div className="pbp-current__label">
@@ -1067,22 +926,6 @@ export default function PlayerBackgroundPanel({
                         </li>
                       ))}
                     </ol>
-                  ) : aliases.length > 0 ? (
-                    <div className="pbp-alias-links">
-                      {aliases.map((alias, index) => (
-                        <a
-                          key={`${alias}-${index}`}
-                          href={getSocialClubMemberUrl(alias)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="pbp-alias-link notranslate"
-                          translate="no"
-                          title={`Buscar ${alias} en Social Club`}
-                        >
-                          {alias}
-                        </a>
-                      ))}
-                    </div>
                   ) : (
                     <div className="pbp-empty">Sin alias detectados.</div>
                   )}
@@ -1096,6 +939,7 @@ export default function PlayerBackgroundPanel({
                         <span key={`${crew.name}-${crew.source}`} className="pbp-chip">
                           {crew.name}
                           <span className="pbp-chip__source">{crew.source}</span>
+                          {crew.time > 0 && <span className="pbp-chip__source">{new Date(crew.time * 1000).toLocaleString('es-ES')}</span>}
                         </span>
                       ))}
                     </div>
@@ -1104,6 +948,18 @@ export default function PlayerBackgroundPanel({
                   )}
                 </div>
 
+                <div className="pbp-section">
+                  <div className="pbp-current__label">Historial de avatares reportados</div>
+                  <p className="case-muted">Registro de URLs y fuentes. Una URL de Rockstar puede cambiar su imagen; no es una copia histórica del archivo.</p>
+                  {displayedProfile?.historicalAvatars.length ? <div className="pbp-avatar-history">
+                    {displayedProfile.historicalAvatars.map(avatar => <figure key={avatar.avatarUrl}>
+                      <button type="button" className="pbp-history-avatar" onClick={() => setExpandedAvatar({ src: avatar.avatarUrl, label: `Avatar archivado de ${investigation.nombre}` })} aria-label={`Ampliar avatar archivado: ${avatar.source}`}>
+                        {historicalAvatarErrors[avatar.avatarUrl] ? <span>Imagen no disponible</span> : <img src={avatar.avatarUrl} alt="Avatar registrado" loading="lazy" onError={() => setHistoricalAvatarErrors(current => ({ ...current, [avatar.avatarUrl]: true }))} />}
+                      </button>
+                      <figcaption>{avatar.source}{avatar.time > 0 ? ` · ${new Date(avatar.time * 1000).toLocaleString('es-ES')}` : ' · Fecha desconocida'}</figcaption>
+                    </figure>)}
+                  </div> : <p className="pbp-empty">Sin avatares archivados.</p>}
+                </div>
               </details>
             </div>
 

@@ -45,35 +45,31 @@ export async function submitWordpressReport({
   });
 
   const player = wordpressResult.delivery?.player ?? null;
+  if (!wordpressResult.delivery.ok) {
+    return {
+      status: 502,
+      payload: { ok: false, error: wordpressResult.delivery.message || 'No se pudo guardar el reporte en WordPress.' },
+    };
+  }
   const discordDelivery = await sendDiscordDelivery({ discordWebhookUrl, player, logger });
 
-  if (wordpressResult.delivery.ok) {
-    let warning = null;
-    if (refreshPlayerCase) {
-      try {
-        await refreshPlayerCase({ nickname: submission.report.nickname, rid: submission.report.rid || '', reportId: wordpressResult.delivery.reportId });
-      } catch (error) {
-        logger.error('[reports] Reporte guardado, pero no se pudo actualizar la clasificación IA:', error);
-        warning = 'El reporte se guardó, pero la clasificación IA quedó pendiente de actualización.';
-      }
+  let warning = null;
+  if (refreshPlayerCase) {
+    try {
+      await refreshPlayerCase({ nickname: submission.report.nickname, rid: submission.report.rid || '', reportId: wordpressResult.delivery.reportId });
+    } catch (error) {
+      logger.error('[reports] Reporte guardado, pero no se pudo actualizar la clasificación IA:', error);
+      warning = 'El reporte se guardó, pero la clasificación IA quedó pendiente de actualización.';
     }
-    return {
-      status: 201,
-      payload: {
-        ok: true,
-        player,
-        discordDelivery,
-        ...(warning ? { warning } : {}),
-      },
-    };
   }
 
   return {
-    status: 202,
+    status: 201,
     payload: {
       ok: true,
       player,
       discordDelivery,
+      ...(warning ? { warning } : {}),
     },
   };
 }

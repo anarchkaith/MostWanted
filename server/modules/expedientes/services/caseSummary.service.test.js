@@ -144,6 +144,11 @@ try {
   const invalid = await submitWordpressReport({ ...submission, body: {} });
   assert.equal(invalid.status, 400);
   assert.equal(refreshed, 1, 'invalid reports do not trigger AI');
+  globalThis.fetch = async () => new Response(JSON.stringify({ error: 'WordPress offline' }), { status: 503 });
+  const failedSubmission = await submitWordpressReport(submission);
+  assert.equal(failedSubmission.status, 502);
+  assert.equal(failedSubmission.payload.ok, false, 'a failed save must not update the player as though it succeeded');
+  assert.equal(refreshed, 1);
 } finally {
   globalThis.fetch = originalFetch;
   fs.rmSync(rootDir, { recursive: true, force: true });

@@ -19,6 +19,7 @@ assert.equal(unified[0].rid, '298932732');
 assert.deepEqual(unified[0].sources, ['Reportes', 'Analizado en esta sesión']);
 assert.equal(mergePlayerMatches(historical, [{ nickname: 'Sazxxin', rid: '999' }], 'Saz').length, 2);
 assert.equal(playerCandidates([{ usuario: 'Sazxxin', playerId: 'RID-298932732' }], '298932732').length, 1);
+assert.equal(playerCandidates([{ usuario: 'NewName', wpRid: '123', aliases: ['OldName'] }], 'OldName')[0].rid, '123');
 
 const reports = [
   { id: 1, usuario: 'Igual', wpRid: '100', fecha: '2026-01-01T12:00:00Z', categories: ['MODDER', 'GRIFFER'], validacion: 'pendiente', motivo: 'Texto', votos: { up: 3, down: 1 } },
