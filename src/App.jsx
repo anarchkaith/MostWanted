@@ -11,6 +11,7 @@ import { buildApiUrl, getApiBaseUrl } from './services/apiConfig';
 import { assignExpedienteIds } from './services/expedienteIds';
 import { normalizeReportValidation } from './services/casePresentation';
 import { resolvePlayerRid } from '../shared/playerIdentity';
+import { version as appVersion } from '../package.json';
 import {
   fetchWordpressReportsSnapshot,
   submitWordpressCommunityVerificationVote,
@@ -31,24 +32,9 @@ import {
 const API_BASE_URL = getApiBaseUrl();
 
 // Obtener referencia de expediente desde la URL.
-const getExpedienteFromURL = () => {
-  const path = window.location.pathname;
-
-  const byExpedienteId = path.match(/^\/expediente\/(\d+)$/);
-  if (byExpedienteId && byExpedienteId[1]) {
-    return { expedienteId: Number(byExpedienteId[1]), usuario: '' };
-  }
-
-  // Compatibilidad con enlaces viejos /usuario/:nombre
-  const byUsuario = path.match(/^\/usuario\/(.+)$/);
-  if (byUsuario && byUsuario[1]) {
-    return {
-      expedienteId: null,
-      usuario: decodeURIComponent(byUsuario[1]).replace(/_/g, ' '),
-    };
-  }
-
-  return { expedienteId: null, usuario: '' };
+const getExpedienteIdFromURL = () => {
+  const match = window.location.pathname.match(/^\/expediente\/(\d+)$/);
+  return match ? Number(match[1]) : null;
 };
 
 // Enlace estable a un reporte por su ID de WordPress (lo usan los botones del embed de Discord).
@@ -196,7 +182,8 @@ function App() {
   useEffect(() => {
     const onPopState = () => {
       setPath(window.location.pathname);
-      if (window.location.pathname === '/') { setSearchPlayer(null); setDeskReset(value => value + 1); }
+      setSearchPlayer(null);
+      setDeskReset(value => value + 1);
     };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
@@ -312,20 +299,15 @@ function App() {
   // Manejar navegación por URL (abrir expediente desde URL)
   useEffect(() => {
     const abrirExpedienteDesdeURL = () => {
-      const referencia = getExpedienteFromURL();
+      const expedienteId = getExpedienteIdFromURL();
       if (reportes.length > 0) {
         let reporte = null;
 
         const reporteId = getReporteIdFromURL();
         if (reporteId) {
           reporte = reportes.find(r => Number(r.id) === reporteId);
-        } else if (referencia?.expedienteId) {
-          reporte = reportes.find(r => Number(r.expedienteId) === Number(referencia.expedienteId));
-        } else if (referencia?.usuario) {
-          reporte = reportes.find(r =>
-            String(r.usuario || '').toLowerCase() === referencia.usuario.toLowerCase() ||
-            String(r.usuario || '').toLowerCase().replace(/\s+/g, '_') === referencia.usuario.toLowerCase()
-          );
+        } else if (expedienteId) {
+          reporte = reportes.find(r => Number(r.expedienteId) === expedienteId);
         }
 
         if (reporte) {
@@ -725,7 +707,7 @@ function App() {
           <img src="/Logo.png" alt="Kaith's Rebels" width="44" height="44" />
           <div>
             <span className="site-brand__eyebrow">KAITH'S REBELS / DIVISIÓN H.E.X.</span>
-            <h1>MOST WANTED<span className="site-brand__glitch cyber-glitch-2" aria-hidden="true">MOST WANTED</span></h1>
+            <h1>MOST WANTED<span className="site-brand__glitch" aria-hidden="true">MOST WANTED</span><span className="site-brand__glitch site-brand__glitch--echo" aria-hidden="true">MOST WANTED</span></h1>
             <span className="site-brand__department">DESPACHO DE INVESTIGACIÓN COMUNITARIA</span>
           </div>
         </div>
@@ -812,7 +794,7 @@ function App() {
 
       <footer className="site-footer">
         <span className="site-footer__text">H.E.X. / Archivo de investigación comunitaria</span>
-        <span className="site-footer__version" style={{ marginLeft: '8px' }}>v{__APP_VERSION__}</span>
+        <span className="site-footer__version" style={{ marginLeft: '8px' }}>v{appVersion}</span>
         <img src="/Logo.png" width="20" style={{ marginLeft: '8px' }} alt="Kaith's Rebels" className="site-footer__logo" />
       </footer>
 

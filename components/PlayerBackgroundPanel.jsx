@@ -4,6 +4,7 @@ import usePlayerInvestigation from './usePlayerInvestigation';
 import ImageViewer from './ImageViewer';
 import CyberButtonLabel from './CyberButtonLabel';
 import { mergePlayerProfile } from '../src/services/playerProfile';
+import PlayerObservations from './PlayerObservations';
 
 const getSocialClubMemberUrl = name => String(name || '').trim()
   ? `https://socialclub.rockstargames.com/members/${encodeURIComponent(String(name).trim())}/` : '';
@@ -29,7 +30,6 @@ export default function PlayerBackgroundPanel({
   const [avatarRenderState, setAvatarRenderState] = useState({});
   const [expandedAvatar, setExpandedAvatar] = useState(null);
   const [historicalAvatarErrors, setHistoricalAvatarErrors] = useState({});
-  const [historyOpen, setHistoryOpen] = useState(() => window.matchMedia('(min-width: 1101px)').matches);
   const closeAvatar = React.useCallback(() => setExpandedAvatar(null), []);
 
   const socialClubProfileUrl = getSocialClubMemberUrl(investigation?.currentProfile?.name || username);
@@ -42,13 +42,11 @@ export default function PlayerBackgroundPanel({
 
   const displayedProfile = useMemo(() => investigation ? mergePlayerProfile({
     username, rid: investigation.rid || rid, profile: investigation.currentProfile,
-    reportInsights: investigation.reportInsights, reports: reports || [],
+    reportInsights: investigation.reportInsights, reports: reports || [], currentAvatars: investigation.avatares || [],
   }) : null, [investigation, username, rid, reports]);
   const crewsWithSource = displayedProfile?.crewHistory || [];
 
-  const nameHistory = useMemo(() => (displayedProfile?.nameHistory || []).map(entry => ({
-    ...entry, timeReadable: entry.time > 0 ? new Date(entry.time * 1000).toLocaleString('es-ES') : null,
-  })), [displayedProfile]);
+  const nameHistory = displayedProfile?.nameHistory || [];
 
   const panelStats = useMemo(() => ([
     { label: 'Reportes previos', value: reportInsights ? String(reportInsights.reportCount ?? 'Desconocido') : 'Desconocido' },
@@ -810,7 +808,7 @@ export default function PlayerBackgroundPanel({
           {isLoading && (
             <div className="pbp-status pbp-status--loading" role="status" aria-live="polite">
               <strong className="pbp-status__title">Investigando...</strong>
-              <span className="pbp-status__detail">Consultando Social Club/sc-cache y el archivo de WordPress.</span>
+              <span className="pbp-status__detail">Consultando Social Club y los reportes registrados.</span>
             </div>
           )}
 
@@ -904,8 +902,8 @@ export default function PlayerBackgroundPanel({
                 </div>}
               </div>
 
-              <details className="pbp-intel-panel" open={variant !== 'dossier' || historyOpen} onToggle={event => setHistoryOpen(event.currentTarget.open)}>
-                <summary className="pbp-panel-title">Nombres y afiliaciones detectadas</summary>
+              <section className="pbp-intel-panel" aria-label="Nombres y afiliaciones detectadas">
+                <h3 className="pbp-panel-title">Nombres y afiliaciones detectadas</h3>
                 <div className="pbp-section">
                   <div className="pbp-current__label">Otros nombres</div>
                   {nameHistory.length > 0 ? (
@@ -922,7 +920,7 @@ export default function PlayerBackgroundPanel({
                           >
                             <strong>{entry.name}</strong>
                           </a>
-                          <span className="pbp-history-time">{entry.timeReadable || 'Fecha desconocida'} · {entry.source}</span>
+                          <PlayerObservations entry={entry} />
                         </li>
                       ))}
                     </ol>
@@ -937,9 +935,8 @@ export default function PlayerBackgroundPanel({
                     <div className="pbp-current__crews">
                       {crewsWithSource.map((crew) => (
                         <span key={`${crew.name}-${crew.source}`} className="pbp-chip">
-                          {crew.name}
-                          <span className="pbp-chip__source">{crew.source}</span>
-                          {crew.time > 0 && <span className="pbp-chip__source">{new Date(crew.time * 1000).toLocaleString('es-ES')}</span>}
+                          <strong>{crew.name}</strong>
+                          <PlayerObservations entry={crew} />
                         </span>
                       ))}
                     </div>
@@ -953,14 +950,14 @@ export default function PlayerBackgroundPanel({
                   <p className="case-muted">Registro de URLs y fuentes. Una URL de Rockstar puede cambiar su imagen; no es una copia histórica del archivo.</p>
                   {displayedProfile?.historicalAvatars.length ? <div className="pbp-avatar-history">
                     {displayedProfile.historicalAvatars.map(avatar => <figure key={avatar.avatarUrl}>
-                      <button type="button" className="pbp-history-avatar" onClick={() => setExpandedAvatar({ src: avatar.avatarUrl, label: `Avatar archivado de ${investigation.nombre}` })} aria-label={`Ampliar avatar archivado: ${avatar.source}`}>
+                      <button type="button" className="pbp-history-avatar" onClick={() => setExpandedAvatar({ src: avatar.avatarUrl, label: `Avatar archivado de ${investigation.nombre}` })} aria-label={`Ampliar avatar archivado${avatar.source ? `: ${avatar.source}` : ''}`}>
                         {historicalAvatarErrors[avatar.avatarUrl] ? <span>Imagen no disponible</span> : <img src={avatar.avatarUrl} alt="Avatar registrado" loading="lazy" onError={() => setHistoricalAvatarErrors(current => ({ ...current, [avatar.avatarUrl]: true }))} />}
                       </button>
-                      <figcaption>{avatar.source}{avatar.time > 0 ? ` · ${new Date(avatar.time * 1000).toLocaleString('es-ES')}` : ' · Fecha desconocida'}</figcaption>
+                      <figcaption>{[avatar.source, avatar.time > 0 ? new Date(avatar.time * 1000).toLocaleString('es-ES') : 'Fecha desconocida'].filter(Boolean).join(' · ')}</figcaption>
                     </figure>)}
                   </div> : <p className="pbp-empty">Sin avatares archivados.</p>}
                 </div>
-              </details>
+              </section>
             </div>
 
           )}

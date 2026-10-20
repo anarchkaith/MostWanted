@@ -63,22 +63,52 @@ body {
   color: var(--hex-accent);
   background: transparent;
   text-shadow: 2px 0 var(--hex-shadow), -1px -1px var(--color-red-dark);
-  animation: hex-interface-glitch var(--glitch-duration, 3.7s) linear infinite;
+  animation: hex-interface-glitch var(--glitch-duration, 3.7s) steps(1, end) infinite;
 }
 .mw-cyber-button .glitchtext::before {
   inset: 1px;
   background: #101010;
   clip-path: var(--hex-panel-clip);
 }
-.glitch-letters { display: inline-block; white-space: pre-wrap; }
-.glitch-letters > span { display: inline-block; }
-.glitch-letters > span:nth-child(7n + 2),
-.glitch-letters > span:nth-child(7n + 5) { transform: scaleY(-1); }
-.glitch-letters > span:nth-child(7n + 3),
-.glitch-letters > span:nth-child(7n + 6) { transform: scale(-1); }
 .site-brand__glitch {
-  animation: hex-interface-glitch 5.9s linear infinite;
-  text-shadow: 2px 0 var(--hex-shadow), -2px 0 var(--color-red-dark);
+  color: var(--hex-accent);
+  animation: hex-brand-signal 1.13s steps(1, end) -0.37s infinite;
+  text-shadow: 3px 0 var(--hex-shadow), -3px 0 var(--color-red-dark);
+  will-change: transform, clip-path;
+}
+.site-brand__glitch--echo {
+  color: var(--hex-shadow);
+  animation: hex-brand-echo 1.73s steps(1, end) -0.91s infinite reverse;
+  text-shadow: -3px 0 var(--hex-accent), 2px 0 var(--color-red-dark);
+}
+@keyframes hex-brand-signal {
+  0%, 17%, 39%, 66%, 88%, 100% { clip-path: inset(50% 0 50%); transform: translate(0); }
+  3% { clip-path: inset(8% 0 74%); transform: translate(-6px, 1px) skewX(-8deg); }
+  6% { clip-path: inset(59% 0 15%); transform: translate(8px, -1px); }
+  10% { clip-path: inset(27% 0 58%); transform: translate(-3px, 2px) skewX(5deg); }
+  24% { clip-path: inset(72% 0 7%); transform: translate(5px, -2px); }
+  28% { clip-path: inset(14% 0 65%); transform: translate(-8px, 0); }
+  31% { clip-path: inset(43% 0 41%); transform: translate(4px, 1px) skewX(-6deg); }
+  47% { clip-path: inset(6% 0 81%); transform: translate(7px, 0); }
+  51% { clip-path: inset(54% 0 19%); transform: translate(-5px, -1px) skewX(9deg); }
+  55% { clip-path: inset(35% 0 49%); transform: translate(2px, 2px); }
+  74% { clip-path: inset(79% 0 4%); transform: translate(-7px, 1px); }
+  77% { clip-path: inset(22% 0 61%); transform: translate(5px, -2px) skewX(-5deg); }
+  81% { clip-path: inset(48% 0 29%); transform: translate(-2px, 0); }
+}
+@keyframes hex-brand-echo {
+  0%, 12%, 35%, 61%, 85%, 100% { clip-path: inset(50% 0 50%); transform: translate(0); }
+  4% { clip-path: inset(64% 0 20%); transform: translate(6px, -1px); }
+  7% { clip-path: inset(17% 0 72%); transform: translate(-4px, 1px) skewX(7deg); }
+  22% { clip-path: inset(36% 0 51%); transform: translate(-7px, 0); }
+  26% { clip-path: inset(81% 0 3%); transform: translate(4px, -2px); }
+  29% { clip-path: inset(5% 0 84%); transform: translate(-2px, 0); }
+  44% { clip-path: inset(24% 0 57%); transform: translate(7px, 1px) skewX(-9deg); }
+  48% { clip-path: inset(68% 0 13%); transform: translate(-5px, -1px); }
+  53% { clip-path: inset(41% 0 46%); transform: translate(3px, 0); }
+  72% { clip-path: inset(9% 0 76%); transform: translate(-6px, 2px); }
+  76% { clip-path: inset(53% 0 32%); transform: translate(5px, -1px) skewX(6deg); }
+  79% { clip-path: inset(31% 0 55%); transform: translate(-3px, 0); }
 }
 @keyframes hex-interface-glitch {
   0% { clip-path: var(--hex-glitch-wide); transform: translate(0); }

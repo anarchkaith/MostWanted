@@ -1,3 +1,5 @@
+import { getPlayerAvatarUrl } from './playerAvatars.js';
+
 const text = value => String(value ?? '').trim();
 const list = value => Array.isArray(value) ? value : [];
 const unix = value => {
@@ -7,34 +9,42 @@ const unix = value => {
   return Number.isFinite(parsed) ? Math.floor(parsed / 1000) : 0;
 };
 
-export function mergePlayerProfile({ username = '', rid = '', profile = null, reportInsights = null, reports = [] }) {
+export function mergePlayerProfile({ username = '', rid = '', profile = null, reportInsights = null, reports = [], currentAvatars = [] }) {
   const names = new Map();
   const crews = new Map();
   const avatars = new Map();
-  const addName = (value, time, source) => {
-    const name = text(value);
-    if (!name) return;
-    const key = `${name.toLowerCase()}:${source}`;
-    const entry = { name, time: unix(time), source };
-    if (!names.has(key) || names.get(key).time < entry.time) names.set(key, entry);
-  };
-  const addCrew = (value, time, source) => {
+  const currentUrls = new Set([
+    ...(rid ? [0, 1].map(index => getPlayerAvatarUrl(rid, index)) : []),
+    ...currentAvatars.flatMap(avatar => typeof avatar === 'string' ? [avatar] : [avatar?.avatarUrl, avatar?.avatarDataUrl]),
+  ].filter(Boolean));
+  const addObservation = (collection, value, time, source, reportId = null) => {
     const name = text(typeof value === 'string' ? value : value?.name || value?.raw);
     if (!name) return;
-    const entry = { name, time: unix(time), source, url: text(value?.url) };
-    const key = `${name.toLowerCase()}:${source}`;
-    if (!crews.has(key) || crews.get(key).time < entry.time) crews.set(key, entry);
+    const key = name.toLowerCase();
+    const entry = collection.get(key) || { name, time: 0, source: '', url: '', observations: [] };
+    entry.time = Math.max(entry.time, unix(time));
+    entry.url ||= text(value?.url);
+    if (source) {
+      const previous = entry.observations.find(item => item.source === source);
+      if (previous) previous.time = Math.max(previous.time, unix(time));
+      else entry.observations.push({ source, time: unix(time), reportId });
+    }
+    entry.source = entry.observations.map(item => item.source).join(' · ');
+    collection.set(key, entry);
   };
+  const addName = (value, time, source, reportId) => addObservation(names, value, time, source, reportId);
+  const addCrew = (value, time, source, reportId) => addObservation(crews, value, time, source, reportId);
   const addAvatar = (value, time, source) => {
     const url = text(typeof value === 'string' ? value : value?.url || value?.avatarUrl);
-    if (!/^https?:\/\//i.test(url)) return;
+    if (!/^https?:\/\//i.test(url) || currentUrls.has(url)) return;
     const key = url;
     const entry = { avatarUrl: url, time: unix(time), source, available: true };
     const previous = avatars.get(key);
-    const sources = [...new Set([...(previous?.sources || []), source])];
+    const sources = [...new Set([...(previous?.sources || []), source].filter(Boolean))];
     avatars.set(key, { ...entry, sources, source: sources.join(' / '), time: Math.max(previous?.time || 0, entry.time) });
   };
-  const archive = 'Archivo WordPress / datos reportados';
+  // Insights aggregate reports; they must not create another source.
+  const archive = '';
   for (const entry of list(reportInsights?.names)) addName(typeof entry === 'string' ? entry : entry?.name, entry?.time, archive);
   for (const entry of list(reportInsights?.aliases)) addName(typeof entry === 'string' ? entry : entry?.alias || entry?.name, entry?.time, archive);
   addName(reportInsights?.username, reportInsights?.lastReportAt, archive);
@@ -45,13 +55,13 @@ export function mergePlayerProfile({ username = '', rid = '', profile = null, re
   for (const report of reports) {
     const source = `Reporte #${report.id}`;
     const time = report.fecha || report.createdAt;
-    addName(report.usuario || report.nickname, time, source);
-    for (const alias of list(report.aliases)) addName(alias, time, source);
-    for (const crew of list(report.crews)) addCrew(crew, time, source);
+    addName(report.usuario || report.nickname, time, source, report.id);
+    for (const alias of list(report.aliases)) addName(alias, time, source, report.id);
+    for (const crew of list(report.crews)) addCrew(crew, time, source, report.id);
     addAvatar(report.avatar1, time, source);
     addAvatar(report.avatar2, time, source);
   }
-  const current = 'Social Club / sc-cache';
+  const current = 'Social Club';
   addName(profile?.name, profile?.lastSeenUnix, current);
   for (const entry of list(profile?.nameHistory)) addName(entry?.name, entry?.time, current);
   for (const alias of list(profile?.aliases)) addName(alias, 0, current);

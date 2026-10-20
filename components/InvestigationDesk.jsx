@@ -6,12 +6,16 @@ import CyberSelect from './CyberSelect';
 import { requestCase } from '../src/services/casesService';
 import { CASE_STATUSES, VALIDATION_LABELS, filterCaseReports, reportCategories, summarizeVotes, formatCaseDate } from '../src/services/casePresentation';
 import { mergePlayerProfile } from '../src/services/playerProfile';
+import { playerPath, readPlayerRoute } from '../src/services/playerRoute';
 
 const EMPTY_FILTERS = { category: '', validation: '', from: '', to: '', query: '' };
 const PAGE_SIZE = 10;
 
 export default function InvestigationDesk({ initialPlayer, onPlayerResolved, reportsError, path, onNavigate, onOpenReport, onStartReport, mapReport, canManageCases, revision }) {
-  const [selection] = useState(initialPlayer);
+  const [selection] = useState(() => {
+    const routePlayer = readPlayerRoute(path).player;
+    return routePlayer && routePlayer.nickname !== initialPlayer?.nickname ? routePlayer : initialPlayer;
+  });
   const [foundPlayer, setFoundPlayer] = useState(null);
   const [investigationCompleted, setInvestigationCompleted] = useState(false);
   const [payload, setPayload] = useState(null);
@@ -29,28 +33,35 @@ export default function InvestigationDesk({ initialPlayer, onPlayerResolved, rep
     setInvestigationCompleted(true);
     if (identity) onPlayerResolved(identity);
   }, [onPlayerResolved]);
-  const caseId = path.match(/^\/jugador\/([^/]+)$/)?.[1] || '';
+  const route = useMemo(() => readPlayerRoute(path), [path]);
+  const caseId = route.caseId;
+  const lookupPlayer = foundPlayer || selection || route.player;
   const dossier = payload?.case || null;
-  const player = dossier?.player || selection;
+  const player = dossier?.player || lookupPlayer;
   const linkedReports = useMemo(() => (payload?.reports || []).map(mapReport), [payload, mapReport]);
   const filtered = useMemo(() => filterCaseReports(linkedReports, filters), [linkedReports, filters]);
   const categories = useMemo(() => [...new Set(linkedReports.flatMap(reportCategories))], [linkedReports]);
   const votes = useMemo(() => summarizeVotes(linkedReports), [linkedReports]);
   useEffect(() => {
-    if (!caseId && !selection) return undefined;
+    if (!caseId && !lookupPlayer) return undefined;
     const controller = new AbortController();
-    const params = new URLSearchParams({ username: selection?.nickname || '', rid: selection?.rid || '' });
+    const params = new URLSearchParams({ username: lookupPlayer?.nickname || '', rid: lookupPlayer?.rid || '' });
     setLoading(true);
     setError('');
     requestCase(caseId ? `/${encodeURIComponent(caseId)}` : `/lookup?${params}`, { signal: controller.signal })
       .then(data => {
         setPayload(data);
-        if (data.case?.id && !caseId && path === '/') onNavigate(`/jugador/${encodeURIComponent(data.case.id)}`, true);
       })
       .catch(error => { if (!controller.signal.aborted) setError(error.message); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [caseId, path, selection, revision, version, onNavigate]);
+  }, [caseId, lookupPlayer?.nickname, lookupPlayer?.rid, revision, version]);
+
+  useEffect(() => {
+    if (!foundPlayer?.nickname || path === '/denunciar' || /^\/(reporte|expediente)\//.test(path)) return;
+    const canonical = playerPath(foundPlayer.nickname);
+    if (path !== canonical) onNavigate(canonical, true);
+  }, [foundPlayer, path, onNavigate]);
 
   const updateFilter = (key, value) => { setFilters(current => ({ ...current, [key]: value })); setPage(1); };
   const visiblePage = Math.min(page, Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)));
@@ -79,8 +90,9 @@ export default function InvestigationDesk({ initialPlayer, onPlayerResolved, rep
         <span>{canManageCases ? 'Staff autorizado' : 'Consulta de antecedentes'}</span>
       </div>
       {reportsError && <p className="rfm-submit-error" role="alert">{reportsError}</p>}
+      {route.error && <p className="rfm-submit-error" role="alert">{route.error}</p>}
       {error && <div className="rfm-submit-error" role="alert"><p>{error}</p>{payload && <p>Los datos anteriores pueden estar desactualizados.</p>}<button type="button" className="cyber-button-small mw-cyber-button mw-cyber-button--secondary" onClick={() => setVersion(value => value + 1)}>Reintentar consulta</button></div>}
-      {payload?.source?.stale && <div className="rfm-submit-error" role="alert"><p>Los datos de WordPress pueden estar desactualizados. {payload.source.error || 'No se pudo completar la actualización.'}</p><button type="button" className="cyber-button-small mw-cyber-button mw-cyber-button--secondary" onClick={() => setVersion(value => value + 1)}>Actualizar expediente</button></div>}
+      {payload?.source?.stale && <div className="rfm-submit-error" role="alert"><p>Los reportes pueden estar desactualizados. {payload.source.error || 'No se pudo completar la actualización.'}</p><button type="button" className="cyber-button-small mw-cyber-button mw-cyber-button--secondary" onClick={() => setVersion(value => value + 1)}>Actualizar expediente</button></div>}
       <div className="desk-columns" aria-busy={loading}>
         <section className="case-file" aria-label="Expediente del jugador">
           <header className="case-file__header">

@@ -655,8 +655,12 @@ table.case-table :is(th, td) { padding: 14px 10px; border: 1px solid var(--surfa
 .player-background-panel--dossier .pbp-current { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 20px 28px; align-items: start; }
 .player-background-panel--dossier .pbp-evidence-panel { grid-column: 1; grid-row: 1 / 3; }
 .player-background-panel--dossier .pbp-intel-panel { grid-column: 2; padding: 0; border: 0; background: transparent; }
-.player-background-panel--dossier .pbp-intel-panel[open] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.player-background-panel--dossier .pbp-intel-panel summary { grid-column: 1 / -1; padding: 12px 0; border-block: 1px solid var(--surface-border); }
+.player-background-panel--dossier .pbp-intel-panel { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.player-background-panel--dossier .pbp-intel-panel > .pbp-panel-title { grid-column: 1 / -1; padding: 12px 0; margin: 0; border-block: 1px solid var(--surface-border); }
+.pbp-observations, .pbp-observation { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 0.75rem; color: var(--color-text-muted); }
+.pbp-observations { flex-direction: column; }
+.pbp-observation a { color: inherit; }
+.pbp-current__crews .pbp-chip { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 .player-background-panel--dossier .pbp-intel-panel .pbp-section { margin: 0; }
 .player-background-panel--dossier .pbp-history-list { max-height: none; overflow: visible; }
 .player-background-panel--dossier .pbp-evidence-card { padding: 0; border: 0; background: transparent; }
@@ -717,7 +721,7 @@ table.case-table :is(th, td) { padding: 14px 10px; border: 1px solid var(--surfa
   .player-background-panel--dossier .pbp-evidence-panel { grid-column: auto; grid-row: auto; width: 100%; }
   .player-background-panel--dossier .pbp-current__avatars { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .player-background-panel--dossier .pbp-intel-panel { grid-column: auto; }
-  .player-background-panel--dossier .pbp-intel-panel[open] { grid-template-columns: minmax(0, 1fr); }
+  .player-background-panel--dossier .pbp-intel-panel { grid-template-columns: minmax(0, 1fr); }
   .case-supplemental > .case-section + .case-section { border-left: 0; }
   .case-supplemental > .case-staff { grid-row: auto; }
   .case-identity-context { padding: 16px; }

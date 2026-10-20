@@ -1,6 +1,7 @@
 ﻿import { BLOCKED_REPORTED_USERNAME_MESSAGE, isBlockedReportedUsername } from './blockedUsernames';
 import { fetchWordpressPlayerInsights } from '../src/services/reportSubmissionService';
 import { mergePlayerProfile } from '../src/services/playerProfile';
+import { getPlayerAvatarUrl } from '../src/services/playerAvatars';
 
 const CORS_ANYWHERE_BASE_URL = 'https://cors-anywhere.herokuapp.com/';
 const CORS_PERMISSION_URL = `${CORS_ANYWHERE_BASE_URL}https://mostwanted.kaithsrebels.com/`;
@@ -269,14 +270,6 @@ async function getPlayerProfile(rid, signal) {
   };
 }
 
-function getPlayerAvatarUrl(rid, index = 0) {
-  if (!rid) {
-    throw new Error('RID invalido para obtener avatar');
-  }
-
-  return `https://prod.cloud.rockstargames.com/members/sc/6266/${encodeURIComponent(String(rid))}/publish/gta5/mpchars/${index}.png`;
-}
-
 function buildRidAvatars(rid) {
   if (!rid) return [];
 
@@ -349,7 +342,7 @@ export async function investigatePlayerBackground(username, knownRid = '') {
     knownRid ? Promise.resolve({ rid: knownRid, usedProxy: false }) : getPlayerRid(trimmedUsername),
   ]);
   let reportInsights = insightsResult.status === 'fulfilled' ? insightsResult.value : null;
-  if (insightsResult.status === 'rejected') warnings.push(`Archivo WordPress no disponible: ${insightsResult.reason.message}`);
+  if (insightsResult.status === 'rejected') warnings.push(`Reportes no disponibles: ${insightsResult.reason.message}`);
   if (ridResult.status === 'rejected') warnings.push(`No se pudo resolver el RID externo: ${ridResult.reason.message}`);
   const rid = String(ridResult.status === 'fulfilled' ? ridResult.value.rid : reportInsights?.rid || knownRid || '');
   if (rid && String(reportInsights?.rid || '') !== rid) {
@@ -358,7 +351,7 @@ export async function investigatePlayerBackground(username, knownRid = '') {
       reportInsights = await getPlayerReportInsights({ rid });
     } catch (error) {
       reportInsights = null;
-      warnings.push(`Archivo WordPress por RID no disponible: ${error.message}`);
+      warnings.push(`Reportes por RID no disponibles: ${error.message}`);
     }
   }
   let currentProfile = null;
@@ -376,7 +369,7 @@ export async function investigatePlayerBackground(username, knownRid = '') {
     rid,
     nombre: profile.name,
     avatares: resolvePanelAvatars(reportInsights, rid).map(avatar => ({
-      ...avatar, source: rid ? 'Rockstar / consulta actual' : 'Archivo WordPress / datos reportados',
+      ...avatar, source: rid ? 'Rockstar / consulta actual' : 'Datos reportados',
     })),
     currentProfile,
     profile,

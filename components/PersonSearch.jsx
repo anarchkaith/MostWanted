@@ -5,6 +5,8 @@ import { mergePlayerMatches } from '../src/services/playerSearch';
 import { lookupCachedPlayer } from './backgroundInvestigation';
 import CyberButtonLabel from './CyberButtonLabel';
 
+const SEARCH_SOURCES = ['Reportes registrados', 'Social Club'];
+
 export default function PersonSearch({ reports, knownPlayers, onSelect, revision }) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
@@ -48,7 +50,7 @@ export default function PersonSearch({ reports, knownPlayers, onSelect, revision
         lookupCachedPlayer(term, controller.signal),
       ].map((request, index) => request.then(player => {
         if (controller.signal.aborted || !player) return;
-        const source = index === 0 ? 'Archivo WordPress' : 'Social Club / sc-cache';
+        const source = SEARCH_SOURCES[index];
         found.push({ ...player, nickname: player.username || player.nickname, count: player.reportCount || 0, source });
         setRemote([...found]);
       })));
@@ -56,7 +58,7 @@ export default function PersonSearch({ reports, knownPlayers, onSelect, revision
       clearTimeout(deadline);
       const errors = [];
       results.forEach((result, index) => {
-        const source = index === 0 ? 'Archivo WordPress' : 'Social Club / sc-cache';
+        const source = SEARCH_SOURCES[index];
         if (result.status === 'rejected') {
           errors.push(`${source}: ${result.reason.message}`);
         }
