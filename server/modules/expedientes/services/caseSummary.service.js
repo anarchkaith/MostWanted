@@ -91,8 +91,8 @@ export async function refreshCaseSummary({ rootDir, id, generate, logger = conso
     text = await generate({ reports: job.reports });
     if (typeof text !== 'string' || !text.trim() || text.length > 10000) throw new Error('case_summary_invalid_response');
   } catch (cause) {
-    logger.error('[cases] No se pudo generar la clasificación IA:', cause);
-    error = 'No se pudo actualizar el resumen de IA. Se reintentará en la próxima consulta después de cinco minutos.';
+    logger.error('[cases] No se pudo generar la clasificación HEX:', cause);
+    error = 'No se pudo actualizar el resumen de HEX. Se reintentará en la próxima consulta después de cinco minutos.';
   }
 
   item = updateExpedientes(rootDir, (items) => {

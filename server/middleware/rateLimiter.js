@@ -126,7 +126,7 @@ export const RATE_LIMITS = {
     windowMs: 60 * 1000,  // 1 minuto
     max: 15,               // 15 requests/min por IP
     blockMs: 2 * 60 * 1000, // bloqueo 2 min al superarlo
-    message: 'Límite de consultas IA alcanzado. Espera un momento antes de continuar.',
+    message: 'Límite de consultas HEX alcanzado. Espera un momento antes de continuar.',
   }),
 
   /** Endpoints de intención: más ligeros, algo más permisivos */

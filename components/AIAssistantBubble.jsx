@@ -141,7 +141,7 @@ export default function AIAssistantBubble({ isAuthenticated = false, onSessionEx
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      content: 'Soy H.E.X. la IA de apoyo de Most Wanted. Preguntame lo que necesites.'
+      content: "Soy H.E.X. el asistente de apoyo de Kaith's Rebels . Preguntame lo que necesites."
     }
   ]);
 
@@ -292,7 +292,7 @@ export default function AIAssistantBubble({ isAuthenticated = false, onSessionEx
 
         if (response.status === 401) {
           onSessionExpired?.();
-          throw new Error('Tu sesión de Discord expiró. Inicia sesión de nuevo para usar la IA.');
+          throw new Error('Tu sesión de Discord expiró. Inicia sesión de nuevo para usar a HEX.');
         }
 
         if (!response.ok) {
@@ -313,7 +313,7 @@ export default function AIAssistantBubble({ isAuthenticated = false, onSessionEx
           }
 
           const detail = typeof data?.details === 'string' ? data.details.slice(0, 200) : '';
-          const message = data?.error || `Error IA (${response.status}).`;
+          const message = data?.error || `Error HEX (${response.status}).`;
           throw new Error(detail ? `${message} Detalle: ${detail}` : message);
         }
 

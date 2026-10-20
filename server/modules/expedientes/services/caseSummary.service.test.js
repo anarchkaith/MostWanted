@@ -18,7 +18,7 @@ let calls = 0;
 const generateCaseSummary = async ({ reports: input }) => {
   calls++;
   assert.equal(JSON.stringify(summaryInput(input)).includes('PRIVATE'), false);
-  return `Resumen IA de ${input.length} reportes; no implica culpabilidad.`;
+  return `Resumen HEX de ${input.length} reportes; no implica culpabilidad.`;
 };
 const query = { rootDir, source: async () => reports, nickname: 'Player', rid: '123', generateCaseSummary };
 const logger = { error() {} };

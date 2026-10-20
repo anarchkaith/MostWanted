@@ -76,7 +76,7 @@ export async function requestAiGenerate({ config, payload, timeoutMs = 120000 })
     return {
       ok: false,
       status: 500,
-      error: 'No hay proveedores IA configurados (Ollama local o API de produccion).',
+      error: 'No hay proveedores HEX configurados.',
       details: 'Configura KAITH_AI_USE_LOCAL_OLLAMA y/o KAITH_AI_USER + KAITH_AI_PASSWORD.',
     };
   }
@@ -183,7 +183,7 @@ export async function requestAiGenerate({ config, payload, timeoutMs = 120000 })
   return {
     ok: false,
     status: lastAttempt.status && lastAttempt.status > 0 ? lastAttempt.status : 502,
-    error: 'No se pudo conectar con proveedores IA disponibles.',
+    error: 'No se pudo conectar con proveedores HEX disponibles.',
     details: attempts.map((item) => `${item.provider}: ${item.reason}`).join(' | ').slice(0, 240),
     attempts,
   };

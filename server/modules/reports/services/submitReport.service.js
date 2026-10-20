@@ -58,8 +58,8 @@ export async function submitWordpressReport({
     try {
       await refreshPlayerCase({ nickname: submission.report.nickname, rid: submission.report.rid || '', reportId: wordpressResult.delivery.reportId });
     } catch (error) {
-      logger.error('[reports] Reporte guardado, pero no se pudo actualizar la clasificación IA:', error);
-      warning = 'El reporte se guardó, pero la clasificación IA quedó pendiente de actualización.';
+      logger.error('[reports] Reporte guardado, pero no se pudo actualizar la clasificación HEX:', error);
+      warning = 'El reporte se guardó, pero la clasificación HEX quedó pendiente de actualización.';
     }
   }
 

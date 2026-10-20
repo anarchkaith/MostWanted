@@ -73,8 +73,8 @@ export default function InvestigationDesk({ initialPlayer, onPlayerResolved, rep
       <h3>Clasificación</h3>
       {dossier?.classification?.text ? <>
         <p className="case-classification__text">{dossier.classification.text}</p>
-        <p className="case-muted">Resumen generado con IA · {dossier.classification.reportCount} reporte(s) · {formatCaseDate(dossier.classification.updatedAt, true)}</p>
-      </> : <p className="case-muted">{linkedReports.length ? 'El resumen de IA aún no está disponible.' : 'Sin reportes para generar un resumen.'}</p>}
+        <p className="case-muted">Resumen generado por HEX · {dossier.classification.reportCount} reporte(s) · {formatCaseDate(dossier.classification.updatedAt, true)}</p>
+      </> : <p className="case-muted">{linkedReports.length ? 'El resumen de HEX aún no está disponible.' : 'Sin reportes para generar un resumen.'}</p>}
       {dossier?.classification?.stale && <p className="case-muted" role="status">Resumen pendiente de actualizar.</p>}
       {dossier?.classification?.error && <p className="rfm-submit-error" role="alert">{dossier.classification.error}</p>}
       {dossier?.classification?.pending && <p className="case-muted" role="status">Generando resumen…</p>}

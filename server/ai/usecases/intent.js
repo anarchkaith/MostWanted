@@ -127,7 +127,7 @@ function buildFallbackIntent(query, candidateUsuarios = []) {
       recentDays: null,
     },
     confidence: 0,
-    reason: 'Clasificador IA no disponible; el usuario debe proporcionarlo directamente o activar el servicio IA.',
+    reason: 'Clasificador HEX no disponible; el usuario debe proporcionarlo directamente o activar el servicio HEX.',
   };
 }
 

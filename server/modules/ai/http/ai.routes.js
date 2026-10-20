@@ -25,7 +25,7 @@ function enforceAiDailyQuota(req, res, next) {
   res.set('X-AI-Quota-Remaining', String(quota.remaining));
   if (!quota.allowed) {
     return res.status(429).json({
-      error: `Alcanzaste el límite de ${AI_DAILY_QUOTA_PER_USER} consultas IA por día. Se reinicia a medianoche (hora de Buenos Aires).`,
+      error: `Alcanzaste el límite de ${AI_DAILY_QUOTA_PER_USER} consultas HEX por día. Se reinicia a medianoche (hora de Buenos Aires).`,
       quota: { limit: quota.limit, used: quota.used, remaining: 0 },
     });
   }
@@ -39,7 +39,7 @@ function ensureAiProvider(config) {
   return function ensureAiProviderMiddleware(req, res, next) {
     if (!hasAiProvider(config)) {
       return res.status(500).json({
-        error: 'No hay proveedores IA configurados. Activa Ollama local o credenciales de produccion.',
+        error: 'No hay proveedores HEX configurados. Activa Ollama local o credenciales de produccion.',
       });
     }
     return next();
@@ -83,7 +83,7 @@ export function registerAiRoutes(app, deps) {
       return res.status(result.status).json({ error: result.error, details: result.details });
     }
     return res.status(result.status).json(result.payload);
-  }, 'El chat IA no respondio a tiempo.', 'No se pudo conectar con la API IA.', mapUpstreamError));
+  }, 'El chat HEX no respondio a tiempo.', 'No se pudo conectar con la API HEX.', mapUpstreamError));
 
   app.post('/api/ia-intent', rateLimits.intent, requireAiSession, requireBodyObject, withAiErrorHandler(async (req, res) => {
     const result = await executeIntentUseCase({ config: aiConfig, body: req.body });
@@ -100,5 +100,5 @@ export function registerAiRoutes(app, deps) {
       return res.status(result.status).json({ error: result.error, details: result.details });
     }
     return res.status(result.status).json(result.payload);
-  }, 'La correlacion IA no respondio a tiempo.', 'No se pudo correlacionar el reporte.', mapUpstreamError));
+  }, 'La correlacion HEX no respondio a tiempo.', 'No se pudo correlacionar el reporte.', mapUpstreamError));
 }
