@@ -11,6 +11,7 @@ import { buildApiUrl, getApiBaseUrl } from './services/apiConfig';
 import { assignExpedienteIds } from './services/expedienteIds';
 import { normalizeReportValidation } from './services/casePresentation';
 import { resolvePlayerRid } from '../shared/playerIdentity';
+import { playerPath } from './services/playerRoute';
 import { version as appVersion } from '../package.json';
 import {
   fetchWordpressReportsSnapshot,
@@ -351,7 +352,7 @@ function App() {
     };
     setSearchPlayer(refreshedPlayer);
     rememberPlayer(refreshedPlayer);
-    formReturnPath.current = '/';
+    formReturnPath.current = refreshedPlayer.nickname ? playerPath(refreshedPlayer.nickname) : '/';
     setCaseRevision(value => value + 1);
     try {
       const data = await fetchReportsFromAPI();
@@ -676,10 +677,13 @@ function App() {
 
   const canUseReports = Boolean(user) || isDemo;
   const startReport = (player = null) => {
-    formReturnPath.current = path === '/denunciar' ? formReturnPath.current : path;
+    formReturnPath.current = player?.nickname ? playerPath(player.nickname) : path === '/denunciar' ? formReturnPath.current : path;
+    setSearchPlayer(player);
     setReportPlayer(player);
     navigate('/denunciar');
   };
+  const archivePath = path === '/denunciar' ? formReturnPath.current
+    : path.startsWith('/reporte/') ? detailReturnPath.current : path;
 
   return (
     <div className={`app-container${canUseReports ? '' : ' app-container--access'}`} style={{ position: 'relative' }}>
@@ -708,13 +712,12 @@ function App() {
           <div>
             <span className="site-brand__eyebrow">KAITH'S REBELS / DIVISIÓN H.E.X.</span>
             <h1>MOST WANTED<span className="site-brand__glitch" aria-hidden="true">MOST WANTED</span><span className="site-brand__glitch site-brand__glitch--echo" aria-hidden="true">MOST WANTED</span></h1>
-            <span className="site-brand__department">DESPACHO DE INVESTIGACIÓN COMUNITARIA</span>
           </div>
         </div>
         {canUseReports && <PersonSearch revision={caseRevision} reports={reportes} knownPlayers={knownPlayers} onSelect={player => {
           setSearchPlayer(player);
           setDeskReset(value => value + 1);
-          navigate('/');
+          navigate(playerPath(player.nickname || player.rid));
         }} />}
         {/* Información de usuario y botón de login/logout */}
         <div className="site-header__actions">
@@ -738,13 +741,12 @@ function App() {
         </div>
       </header>
       {canUseReports && <nav className="desk-navigation" aria-label="Áreas del despacho">
-        <a href={isDemo ? '/?demo=true' : '/'} aria-current={path !== '/denunciar' ? 'page' : undefined} onClick={event => { if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); setSearchPlayer(null); setDeskReset(value => value + 1); navigate('/'); } }}>
+        <a href={`${archivePath}${isDemo ? '?demo=true' : ''}`} aria-current={path !== '/denunciar' ? 'page' : undefined} onClick={event => { if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); if (path !== archivePath) navigate(archivePath); } }}>
           <span aria-hidden="true">01</span> Archivo de investigación
         </a>
         {path === '/denunciar' && <a href={isDemo ? '/denunciar?demo=true' : '/denunciar'} aria-current="page">
           <span aria-hidden="true">02</span> Mesa de denuncias
         </a>}
-        <span className="desk-navigation__notice">Registro comunitario · No es una autoridad policial</span>
       </nav>}
       {/* Modal de ayuda */}
       <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />
@@ -754,11 +756,8 @@ function App() {
       {path === '/denunciar' ? <main id="reportar" className="report-workspace">
         <div className="workspace-intro">
           <div>
-            <p className="workspace-eyebrow">02 / MESA DE DENUNCIAS</p>
             <h2 className="cyber-h">Registrar un reporte</h2>
-            <p>Identifica al jugador, documenta lo ocurrido y envía la información a H.E.X.</p>
           </div>
-          <span className="workspace-intro__code" aria-hidden="true">HEX / REPORT_01</span>
         </div>
         <ReportFormModal onSubmit={handleNewReport} currentUser={user} isDemo={isDemo} initialPlayer={reportPlayer} onReturnToCase={() => navigate(formReturnPath.current)} />
       </main> : <InvestigationDesk key={deskReset} initialPlayer={searchPlayer} onPlayerResolved={rememberPlayer} reportsError={reportsError} path={path} onNavigate={navigate} onOpenReport={handleCardClick} onStartReport={startReport} mapReport={mapWordpressReportToReporte} canManageCases={isAuthChecked && Boolean(user) && capabilities.manageCases} revision={caseRevision} />}
@@ -766,9 +765,8 @@ function App() {
       ) : (
         <main className="desk-access-stage">
           <section className="desk-access" aria-labelledby="desk-access-title">
-          <p className="workspace-eyebrow">H.E.X. / CONTROL DE ACCESO</p>
           <h2 id="desk-access-title" className="cyber-h">Acceso al despacho</h2>
-          <p>Inicia sesión para consultar expedientes y documentar reportes de la comunidad.</p>
+          <p>Consulta jugadores y registra reportes de la comunidad.</p>
           <button
             type="button"
             onClick={handleLogin}

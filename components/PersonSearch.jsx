@@ -5,7 +5,7 @@ import { mergePlayerMatches } from '../src/services/playerSearch';
 import { lookupCachedPlayer } from './backgroundInvestigation';
 import CyberButtonLabel from './CyberButtonLabel';
 
-const SEARCH_SOURCES = ['Reportes registrados', 'Social Club'];
+const SEARCH_SOURCES = ['Reportes registrados', 'Perfiles de jugadores'];
 
 export default function PersonSearch({ reports, knownPlayers, onSelect, revision }) {
   const [query, setQuery] = useState('');
@@ -91,7 +91,7 @@ export default function PersonSearch({ reports, knownPlayers, onSelect, revision
   return (
     <div className="person-search" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
       <form role="search" aria-label="Buscar personas" onSubmit={submit}>
-        <label htmlFor="person-search">BUSCAR PERSONA / NOMBRE O RID</label>
+        <label htmlFor="person-search">Buscar jugador</label>
         <div className="person-search__row">
           <div className="cyber-input-full mw-cyber-input">
             <input id="person-search" type="search" role="combobox" aria-label="Nombre de jugador o RID" aria-autocomplete="list" aria-expanded={open && Boolean(term)} aria-controls="person-search-results" aria-activedescendant={open && active >= 0 && active < 12 && matches[active] ? `person-match-${active}` : undefined} value={query} autoComplete="off" placeholder="Nombre, alias o RID…" onFocus={() => setOpen(true)} onChange={event => { setQuery(event.target.value); setActive(-1); setOpen(true); }} onKeyDown={event => {
@@ -115,12 +115,12 @@ export default function PersonSearch({ reports, knownPlayers, onSelect, revision
         <div id="person-search-results" role="listbox" aria-label="Personas encontradas">
           {matches.slice(0, 12).map((player, index) => <button type="button" role="option" aria-selected={active === index} id={`person-match-${index}`} key={player.key} onMouseDown={event => event.preventDefault()} onClick={() => choose(player)}>
             <strong translate="no">{player.nickname || `RID ${player.rid}`}</strong>
-            <span>{player.rid ? `RID ${player.rid}` : 'Solo nombre'} · {player.sources.join(' / ')}{player.count > 0 ? ` · ${player.count} reporte(s)` : ''}</span>
+            <span>{player.rid ? `RID ${player.rid}` : 'Solo nombre'}{player.count > 0 ? ` · ${player.count} reporte(s)` : ''}</span>
           </button>)}
         </div>
-        {loading && <p role="status">Buscando en archivo y caché…</p>}
-        {!loading && !matches.length && <p role="status">No se encontraron coincidencias disponibles. Pulsa Buscar para analizar este nombre o RID.</p>}
-        {matches.length > 1 && <p>Selecciona una identidad; un nombre compartido no confirma que sea la misma persona.</p>}
+        {loading && <p role="status">Buscando…</p>}
+        {!loading && !matches.length && <p role="status">Sin coincidencias. Pulsa Buscar para consultar o reportar.</p>}
+        {matches.length > 1 && <p>Selecciona al jugador.</p>}
         {matches.length > 12 && <p>Mostrando 12 de {matches.length} coincidencias. Precisa el nombre o utiliza el RID.</p>}
         {warnings.length > 0 && <p role="alert">{warnings.join(' · ')}</p>}
       </div>

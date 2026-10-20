@@ -384,7 +384,7 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
           <header className="modal__header">
             <div className="modal__header-main">
               <h2 className="modal__title" id="modal-title">
-                ARCHIVO / REPORTE #{numeroReporte}
+                REPORTE #{numeroReporte}
                 {isEditing && <span style={{ color: '#ffaa00', marginLeft: '0.5rem' }}>(Editando)</span>}
               </h2>
               <div style={{
@@ -421,7 +421,6 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
 
           {/* URL compartible */}
           <div className="modal__url-bar">
-            <span className="modal__url-label">📎 Enlace directo:</span>
             <code className="modal__url-code">{urlReporte}</code>
             <button
               className="modal__url-copy"
@@ -468,7 +467,7 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
 
             {/* Usuario */}
             <div className="report-detail__field">
-              <div className="report-detail__label">Usuario Reportado</div>
+              <div className="report-detail__label">Jugador</div>
               {isEditing ? (
                 <div className="cyber-input-full mw-cyber-input">
                 <input
@@ -532,7 +531,7 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
 
             {/* Motivo completo */}
             <div className="report-detail__field">
-              <div className="report-detail__label">Motivo del Reporte</div>
+              <div className="report-detail__label">Motivo</div>
               {isEditing ? (
                 <div className="cyber-input-full mw-cyber-input">
                 <textarea
@@ -553,7 +552,7 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
 
             {/* Evidencia Visual */}
             <div className="report-detail__field">
-              <div className="report-detail__label">Evidencia Visual</div>
+              <div className="report-detail__label">Evidencias</div>
               {loadingEvidencias ? (
                 <div className="report-detail__evidence">
                   <div className="report-detail__evidence-icon" aria-hidden="true">

@@ -15,5 +15,5 @@ export function readPlayerRoute(path) {
   if (match[1] === 'jugador' && /^case-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(name)) {
     return { caseId: name, player: null };
   }
-  return { caseId: '', player: { nickname: name, rid: '' } };
+  return { caseId: '', player: /^\d+$/.test(name) ? { nickname: '', rid: name } : { nickname: name, rid: '' } };
 }

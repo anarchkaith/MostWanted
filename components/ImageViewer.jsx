@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import PlayerAvatarImage from './PlayerAvatarImage';
 
 export default function ImageViewer({ image, onClose }) {
   const closeRef = useRef(null);
@@ -24,7 +25,7 @@ export default function ImageViewer({ image, onClose }) {
     <div className="image-viewer" role="dialog" aria-modal="true" aria-label={image.label}>
       <button ref={closeRef} type="button" className="site-help" data-ui-sound="reject" onClick={onClose} aria-label="Cerrar imagen ampliada">Cerrar ×</button>
       {failed && <p role="alert">No se pudo cargar la imagen. Cierra esta vista para volver al expediente.</p>}
-      <img src={image.src} alt={image.label} onError={() => setFailed(true)} />
+      <PlayerAvatarImage src={image.src} alt={image.label} normalizeAlpha={image.normalizeAlpha} onError={() => setFailed(true)} />
     </div>, document.body,
   );
 }

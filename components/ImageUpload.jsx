@@ -140,8 +140,7 @@ const ImageUpload = forwardRef(({ onImagesChange, maxImages = 5, globalPaste = f
               ) : (
                 <>
                   <span className="image-upload__text--primary">Arrastra imágenes aquí</span>
-                  <span className="image-upload__text--secondary">o haz clic para seleccionar</span>
-                  <span className="image-upload__text--hint">💡 También puedes usar <kbd>CTRL</kbd>+<kbd>V</kbd> para pegar</span>
+                  <span className="image-upload__text--secondary">Selecciona archivos o pega con Ctrl+V</span>
                 </>
               )}
             </div>

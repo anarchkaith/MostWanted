@@ -401,7 +401,6 @@ export default function AIAssistantBubble({ isAuthenticated = false, onSessionEx
           <header className="ai-bubble__header">
             <div>
               <strong id="ai-bubble-title">Asistente H.E.X.</strong>
-              <p className="ai-bubble__status">System online</p>
             </div>
             <div className="ai-bubble__header-actions">
               <button
@@ -492,7 +491,7 @@ export default function AIAssistantBubble({ isAuthenticated = false, onSessionEx
                 aria-label="Mensaje para H.E.X."
                 value={formik.values.message}
                 onChange={formik.handleChange}
-                placeholder="Escribe tu pregunta y presiona Enter..."
+                placeholder="Escribe tu pregunta…"
                 maxLength={1200}
               />
               </div>

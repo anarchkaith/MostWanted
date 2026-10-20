@@ -3,7 +3,28 @@ import test from 'node:test';
 import { mergePlayerProfile } from './playerProfile.js';
 import { completeReportPlayerDraft, reportPlayerDraft } from './reportPlayerDraft.js';
 import { playerPath, readPlayerRoute } from './playerRoute.js';
-import { getPlayerAvatarUrl } from './playerAvatars.js';
+import { getPlayerAvatarUrl, isRockstarPlayerAvatar } from './playerAvatars.js';
+
+test('recognizes Rockstar portrait images without altering evidence or unrelated archived images', () => {
+  assert.equal(isRockstarPlayerAvatar(getPlayerAvatarUrl('298932732', 0)), true);
+  assert.equal(isRockstarPlayerAvatar(`${getPlayerAvatarUrl('298932732', 1)}?v=2`), true);
+  for (const url of ['', undefined, 'invalid', 'https://images.test/avatar.png',
+    'https://prod.cloud.rockstargames.com.example.com/members/sc/6266/298932732/publish/gta5/mpchars/0.png',
+    'https://prod.cloud.rockstargames.com/evidence.png']) {
+    assert.equal(isRockstarPlayerAvatar(url), false);
+  }
+});
+
+test('carries automatic avatar metadata without requiring report form input', () => {
+  const avatars = [0, 1].map(index => ({ avatarUrl: getPlayerAvatarUrl('298932732', index) }));
+  const draft = reportPlayerDraft({
+    nickname: 'Player', rid: '298932732', investigationCompleted: true,
+    investigation: { nombre: 'Player', avatares: avatars },
+  });
+  assert.equal(draft.avatar1, avatars[0].avatarUrl);
+  assert.equal(draft.avatar2, avatars[1].avatarUrl);
+  assert.equal(reportPlayerDraft({ nickname: 'Unknown' }).avatar1, '');
+});
 
 test('combines current SC identity with archived and reported values without hiding sources', () => {
   const result = mergePlayerProfile({
@@ -28,7 +49,7 @@ test('combines current SC identity with archived and reported values without hid
   assert.equal(new Date(result.historicalAvatars[0].time * 1000).getDate(), 1, 'date-only reports retain their local calendar day');
 });
 
-test('completing player data preserves manual edits and ignores responses for a different name', () => {
+test('completing player data refreshes automatic aliases, preserves report edits and ignores other identities', () => {
   const values = { nickname: 'Known', rid: '', aliases: 'ManualAlias', crews: '', avatar1: 'https://images.test/manual.png', reason: 'New evidence' };
   const player = {
     nickname: 'Known', investigationCompleted: true,
@@ -37,13 +58,18 @@ test('completing player data preserves manual edits and ignores responses for a 
   const completed = completeReportPlayerDraft(values, player);
   assert.equal(completed.rid, '123');
   assert.equal(completed.investigation_status, 'resolved');
-  assert.equal(completed.aliases, 'ManualAlias');
+  assert.equal(completed.aliases, 'Archive');
   assert.equal(completed.avatar1, values.avatar1);
   assert.equal(completed.crews, 'Crew');
   assert.equal(completed.reason, values.reason);
   const renamed = { ...values, nickname: 'DifferentAccount' };
   assert.equal(completeReportPlayerDraft(renamed, player), renamed);
   assert.equal(completeReportPlayerDraft(renamed, { ...player, rid: '123' }).rid, '123');
+  const otherRid = { ...values, rid: '456' };
+  assert.equal(completeReportPlayerDraft(otherRid, { ...player, rid: '123' }), otherRid);
+  const resolved = completeReportPlayerDraft(values, { ...player, investigation: { ...player.investigation, nombre: 'CurrentName' } });
+  assert.equal(resolved.nickname, 'CurrentName');
+  assert.equal(completeReportPlayerDraft(values, { nickname: 'Known', investigationCompleted: true }).aliases, '');
   assert.equal(completeReportPlayerDraft(values, { nickname: 'Known', investigationCompleted: true }).investigation_status, 'not_found');
 });
 
@@ -95,6 +121,7 @@ test('player routes preserve exact names and support legacy case and user links'
   }
   assert.equal(playerPath('Mixed_Name'), '/jugador/Mixed_Name');
   assert.equal(readPlayerRoute('/usuario/Mixed_Name').player.nickname, 'Mixed_Name');
+  assert.deepEqual(readPlayerRoute(playerPath('298932732')).player, { nickname: '', rid: '298932732' });
   const id = 'case-328bbec5-9d20-4832-83b6-d0e0d05a9567';
   assert.equal(readPlayerRoute(`/jugador/${id}`).caseId, id);
   assert.equal(readPlayerRoute('/').player, null);
@@ -113,7 +140,7 @@ test('draft carries resolved data and accepts new reports when no sources matche
   assert.equal(draft.nickname, 'NewName');
   assert.equal(draft.rid, '123');
   assert.equal(draft.investigation_status, 'resolved');
-  assert.equal(draft.aliases, 'OldName, NewName');
+  assert.equal(draft.aliases, 'OldName');
   assert.equal(draft.crews, 'Crew');
   assert.equal(draft.avatar1, 'https://images.test/current.png');
   const unknown = reportPlayerDraft({ nickname: 'Unknown', investigationCompleted: true });

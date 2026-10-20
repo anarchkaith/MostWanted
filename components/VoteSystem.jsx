@@ -188,15 +188,13 @@ const VoteSystem = ({
   return (
     <div className="vote-system">
       <div className="vote-system__header">
-        <span className="vote-system__title">🗳️ VERIFICACION COMUNITARIA</span>
+        <span className="vote-system__title">¿Este reporte es legítimo?</span>
         {statusText && (
           <span className={`vote-system__badge ${esVerificadoComunidad ? 'vote-system__badge--verified' : 'vote-system__badge--rejected'}`}>
             {statusText}
           </span>
         )}
       </div>
-
-      <div className="vote-system__question">¿Este reporte es legitimo?</div>
 
       <div className="vote-system__buttons">
         <button

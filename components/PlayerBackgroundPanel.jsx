@@ -5,6 +5,8 @@ import ImageViewer from './ImageViewer';
 import CyberButtonLabel from './CyberButtonLabel';
 import { mergePlayerProfile } from '../src/services/playerProfile';
 import PlayerObservations from './PlayerObservations';
+import PlayerAvatarImage from './PlayerAvatarImage';
+import { isRockstarPlayerAvatar } from '../src/services/playerAvatars';
 
 const getSocialClubMemberUrl = name => String(name || '').trim()
   ? `https://socialclub.rockstargames.com/members/${encodeURIComponent(String(name).trim())}/` : '';
@@ -368,42 +370,12 @@ export default function PlayerBackgroundPanel({
           max-height: none;
         }
 
-        .pbp-current__avatar-layer {
-          display: block;
-          width: auto;
-          height: auto;
-          max-width: none;
-          max-height: none;
-          pointer-events: none;
-        }
-
-        .pbp-current__avatar-stage img + img {
-          position: absolute;
-          inset: 0;
-        }
-
         .pbp-current__avatar-slot {
           font-family: var(--font-mono, 'Courier New', monospace);
           font-size: 0.6rem;
           color: rgba(255, 255, 255, 0.45);
           letter-spacing: 0.05em;
           text-transform: uppercase;
-        }
-
-        .pbp-current__avatar-layer--1 {
-          opacity: 0.24;
-        }
-
-        .pbp-current__avatar-layer--2 {
-          opacity: 0.42;
-        }
-
-        .pbp-current__avatar-layer--3 {
-          opacity: 0.7;
-        }
-
-        .pbp-current__avatar-layer--4 {
-          opacity: 1;
         }
 
         .pbp-current__info {
@@ -807,8 +779,7 @@ export default function PlayerBackgroundPanel({
         <div className="pbp-content">
           {isLoading && (
             <div className="pbp-status pbp-status--loading" role="status" aria-live="polite">
-              <strong className="pbp-status__title">Investigando...</strong>
-              <span className="pbp-status__detail">Consultando Social Club y los reportes registrados.</span>
+              <strong className="pbp-status__title">Cargando perfil…</strong>
             </div>
           )}
 
@@ -823,12 +794,8 @@ export default function PlayerBackgroundPanel({
           {investigation && (
             <div className="pbp-current">
               <div className="pbp-evidence-panel">
-                <div className="pbp-dossier-kicker">
-                  <span className="pbp-dossier-kicker__label">Resolución del perfil</span>
-                  <span className="pbp-dossier-kicker__value">Archivo de jugadores</span>
-                </div>
                 <div className="pbp-evidence-card">
-                  <div className="pbp-current__label">{investigation.rid ? 'AVATARES ACTUALES / ROCKSTAR' : 'AVATARES ARCHIVADOS'}</div>
+                  <div className="pbp-current__label">{investigation.rid ? 'Avatares actuales' : 'Avatares archivados'}</div>
                   <div className="pbp-current__avatars">
                     {avatarSlotsToRender.map((slot) => {
                       const avatar = investigation.avatares?.find((item) => item.index === slot);
@@ -836,10 +803,10 @@ export default function PlayerBackgroundPanel({
                       const avatarSrc = renderState?.src || avatar?.avatarDataUrl || avatar?.avatarUrl || '';
                       const avatarFailed = renderState?.failed || avatar?.available === false;
                       return (
-                        <button type="button" key={slot} className="pbp-current__avatar" aria-label={`Ampliar avatar ${slot + 1}`} disabled={!avatarSrc || avatarFailed} onClick={() => setExpandedAvatar({ src: avatarSrc, label: `Avatar ${slot + 1} de ${investigation.nombre}` })}>
+                        <button type="button" key={slot} className="pbp-current__avatar" aria-label={`Ampliar avatar ${slot + 1}`} disabled={!avatarSrc || avatarFailed} onClick={() => setExpandedAvatar({ src: avatarSrc, label: `Avatar ${slot + 1} de ${investigation.nombre}`, normalizeAlpha: isRockstarPlayerAvatar(avatar?.avatarUrl) })}>
                           {avatarSrc && !avatarFailed ? (
                             <div className="pbp-current__avatar-stage">
-                              <img className="pbp-current__avatar-layer pbp-current__avatar-layer--4" src={avatarSrc} alt={`Avatar ${slot}`} onError={() => handleAvatarError(slot, avatar)} />
+                              <PlayerAvatarImage className="pbp-current__avatar-image" src={avatarSrc} alt={`Avatar ${slot + 1}`} normalizeAlpha={isRockstarPlayerAvatar(avatar?.avatarUrl)} onError={() => handleAvatarError(slot, avatar)} />
                             </div>
                           ) : (
                             <>
@@ -857,14 +824,9 @@ export default function PlayerBackgroundPanel({
               <div className="pbp-identity-panel">
                 <div className="pbp-identity-header">
                   <div className="pbp-identity-header__copy">
-                    <div className="pbp-identity-header__eyebrow">{investigation.currentProfile ? 'PERFIL EXTERNO ACTUAL' : investigation.reportInsights ? 'IDENTIDAD ARCHIVADA / REPORTADA' : 'IDENTIDAD CONSULTADA / SIN CONFIRMAR'}</div>
+                    {!investigation.currentProfile && <div className="pbp-identity-header__eyebrow">{investigation.reportInsights ? 'Perfil archivado' : 'Identidad sin confirmar'}</div>}
                     <div className="pbp-current__name notranslate" translate="no">{investigation.nombre}</div>
-                    <div className="pbp-identity-rid"><span>RID (ROCKSTAR ID)</span><strong>{investigation.rid || rid || 'Sin confirmar'}</strong></div>
-                    <div className="pbp-current__label">
-                      {investigation.rid || rid
-                        ? 'Identidad consultada por RID. Las coincidencias de reportes se indican por separado.'
-                        : 'Identidad basada en nombres del archivo; RID sin confirmar.'}
-                    </div>
+                    <div className="pbp-identity-rid"><span>RID</span><strong>{investigation.rid || rid || 'Sin confirmar'}</strong></div>
                   </div>
                   {socialClubProfileUrl && (
                     <a
@@ -902,10 +864,10 @@ export default function PlayerBackgroundPanel({
                 </div>}
               </div>
 
-              <section className="pbp-intel-panel" aria-label="Nombres y afiliaciones detectadas">
-                <h3 className="pbp-panel-title">Nombres y afiliaciones detectadas</h3>
+              <section className="pbp-intel-panel" aria-label="Historial del jugador">
+                <h3 className="pbp-panel-title">Historial</h3>
                 <div className="pbp-section">
-                  <div className="pbp-current__label">Otros nombres</div>
+                  <div className="pbp-current__label">Nombres</div>
                   {nameHistory.length > 0 ? (
                     <ol className="pbp-history-list" aria-label="Historial de nombres con fechas y fuentes">
                       {nameHistory.map((entry, index) => (
@@ -930,7 +892,7 @@ export default function PlayerBackgroundPanel({
                 </div>
 
                 <div className="pbp-section">
-                  <div className="pbp-current__label">Afiliaciones detectadas</div>
+                  <div className="pbp-current__label">Crews</div>
                   {crewsWithSource.length > 0 ? (
                     <div className="pbp-current__crews">
                       {crewsWithSource.map((crew) => (
@@ -941,17 +903,16 @@ export default function PlayerBackgroundPanel({
                       ))}
                     </div>
                   ) : (
-                    <div className="pbp-empty">Sin información de crews disponible.</div>
+                    <div className="pbp-empty">Sin crews registradas.</div>
                   )}
                 </div>
 
                 <div className="pbp-section">
-                  <div className="pbp-current__label">Historial de avatares reportados</div>
-                  <p className="case-muted">Registro de URLs y fuentes. Una URL de Rockstar puede cambiar su imagen; no es una copia histórica del archivo.</p>
+                  <div className="pbp-current__label" title="Las imágenes enlazadas pueden cambiar; no son copias históricas.">Avatares anteriores</div>
                   {displayedProfile?.historicalAvatars.length ? <div className="pbp-avatar-history">
                     {displayedProfile.historicalAvatars.map(avatar => <figure key={avatar.avatarUrl}>
-                      <button type="button" className="pbp-history-avatar" onClick={() => setExpandedAvatar({ src: avatar.avatarUrl, label: `Avatar archivado de ${investigation.nombre}` })} aria-label={`Ampliar avatar archivado${avatar.source ? `: ${avatar.source}` : ''}`}>
-                        {historicalAvatarErrors[avatar.avatarUrl] ? <span>Imagen no disponible</span> : <img src={avatar.avatarUrl} alt="Avatar registrado" loading="lazy" onError={() => setHistoricalAvatarErrors(current => ({ ...current, [avatar.avatarUrl]: true }))} />}
+                      <button type="button" className="pbp-history-avatar" onClick={() => setExpandedAvatar({ src: avatar.avatarUrl, label: `Avatar archivado de ${investigation.nombre}`, normalizeAlpha: isRockstarPlayerAvatar(avatar.avatarUrl) })} aria-label={`Ampliar avatar archivado${avatar.source ? `: ${avatar.source}` : ''}`}>
+                        {historicalAvatarErrors[avatar.avatarUrl] ? <span>Imagen no disponible</span> : <PlayerAvatarImage src={avatar.avatarUrl} alt="Avatar registrado" loading="lazy" normalizeAlpha={isRockstarPlayerAvatar(avatar.avatarUrl)} onError={() => setHistoricalAvatarErrors(current => ({ ...current, [avatar.avatarUrl]: true }))} />}
                       </button>
                       <figcaption>{[avatar.source, avatar.time > 0 ? new Date(avatar.time * 1000).toLocaleString('es-ES') : 'Fecha desconocida'].filter(Boolean).join(' · ')}</figcaption>
                     </figure>)}

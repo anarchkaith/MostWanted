@@ -7,9 +7,13 @@ const Tooltip = ({ text, children }) => {
     <span
       className="help-tooltip"
       onMouseEnter={() => setVisible(true)}
-      onMouseLeave={() => setVisible(false)}
+      onMouseLeave={event => {
+        if (!event.currentTarget.matches(':focus-within')) setVisible(false);
+      }}
       onFocus={() => setVisible(true)}
-      onBlur={() => setVisible(false)}
+      onBlur={event => {
+        if (!event.currentTarget.matches(':hover')) setVisible(false);
+      }}
       onKeyDown={(event) => {
         if (event.key === 'Escape') {
           event.stopPropagation();

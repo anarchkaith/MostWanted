@@ -4,6 +4,7 @@
    ============================================ */
 
 /* Importar paleta de colores y tipografía centralizada */
+@layer legacy, cyberpunk;
 @import './variables.css';
 
 @layer legacy {

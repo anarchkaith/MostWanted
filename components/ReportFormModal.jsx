@@ -1,7 +1,5 @@
 import EtiquetasSelector from './EtiquetasSelector';
 import { useState, useRef, useCallback, useEffect } from 'react';
-import Tooltip from './Tooltip';
-import HelpIcon from './HelpIcon';
 import ImageUpload from './ImageUpload';
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import { reportFormValidationSchema } from './reportFormValidation';
@@ -158,14 +156,10 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false, initial
           <div ref={confirmationRef} className="rfm-confirmation" role="dialog" aria-modal="true" aria-labelledby="report-confirmation-title">
             <div className="rfm-confirmation__icon" aria-hidden="true">✅</div>
             <h2 id="report-confirmation-title">
-              {botDeliveryState?.ok && !submissionWarning ? 'Reporte cargado satisfactoriamente' : 'Reporte cargado con observaciones'}
+              {botDeliveryState?.ok && !submissionWarning ? 'Reporte guardado' : 'Reporte guardado con avisos'}
             </h2>
             <p>
-              {botDeliveryState?.ok ? (
-                <>El reporte contra <span className="notranslate" translate="no" style={{ color: '#e8e8b8', fontWeight: 700 }}>{showSuccess.nickname}</span> fue enviado al equipo de Staff de Kaith&apos;s Rebels</>
-              ) : (
-                <>El reporte contra <span className="notranslate" translate="no" style={{ color: '#e8e8b8', fontWeight: 700 }}>{showSuccess.nickname}</span> fue registrado en la web, pero la sincronizacion con el bot requiere revision.</>
-              )}
+              Jugador: <span className="notranslate" translate="no" style={{ color: '#e8e8b8', fontWeight: 700 }}>{showSuccess.nickname}</span>
             </p>
             <div className={`rfm-delivery-status rfm-delivery-status--${botDeliveryState?.ok ? 'success' : 'warning'}`}>
               {botDeliveryState?.ok
@@ -454,7 +448,7 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false, initial
                 <div className="cyber-banner-short mw-cyber-banner">
                   <span>
                     <strong>Modo de demostración</strong>
-                    El formulario contiene datos de prueba. Los envíos son reales: no envíes sin intención.
+                    Datos de prueba. Los envíos son reales.
                   </span>
                 </div>
               )}
@@ -489,19 +483,16 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false, initial
                   </div>
                 )}
 
-                <ReportPlayerIdentity initialPlayer={initialPlayer} onReturnToCase={onReturnToCase} />
+                <ReportPlayerIdentity initialPlayer={initialPlayer} />
                 <div className="rfm-panel mw-cyber-panel">
                   <div className="cyber-tile mw-cyber-frame" aria-hidden="true" />
                   <h3 className="rfm-panel__title cyber-h mw-cyber-heading">
-                    Datos del jugador
-                    <Tooltip text="Completa las crews separadas por coma. Se generara un enlace de Social Club para cada una.">
-                      <span style={{ cursor: 'help' }}><HelpIcon style={{ width: 15, height: 15, opacity: 0.6 }} /></span>
-                    </Tooltip>
+                    Datos adicionales
                   </h3>
 
                   <div className="rfm-field-row" style={{ marginBottom: '0.75rem' }}>
                     <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label htmlFor="rid" className="form-group__label">RID</label>
+                      <label htmlFor="rid" className="form-group__label">{initialPlayer?.rid || values.investigation_status === 'resolved' ? 'RID' : 'RID (opcional)'}</label>
                       <div className="cyber-input-full mw-cyber-input">
                         <Field
                           type="text"
@@ -509,16 +500,12 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false, initial
                           name="rid"
                           aria-invalid={Boolean(touched.rid && errors.rid)}
                           className="form-group__input"
-                          placeholder="RID opcional si lo conoces"
+                          placeholder="ID numérico"
                           autoComplete="off"
                           disabled={isSubmitting || Boolean(initialPlayer?.rid) || values.investigation_status === 'resolved'}
                         />
                       </div>
-                      <div className="form-group__hint" style={{ fontSize: '0.74rem' }}>
-                        {initialPlayer?.rid || values.investigation_status === 'resolved'
-                          ? 'RID bloqueado: identifica la cuenta consultada.'
-                          : 'RID opcional: complétalo si conoces la cuenta.'}
-                      </div>
+                      {(initialPlayer?.rid || values.investigation_status === 'resolved') && <div className="form-group__hint">Cuenta asociada al reporte.</div>}
                       <ErrorMessage name="rid" component="span" className="form-group__hint" style={{ color: '#ff3333' }} />
                     </div>
 
@@ -531,7 +518,7 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false, initial
                           name="crews"
                           aria-invalid={Boolean(touched.crews && errors.crews)}
                           className="form-group__input"
-                          placeholder="Ej: Kaiths Rebels, Crew Secundaria"
+                          placeholder="Separadas por coma"
                           autoComplete="off"
                           disabled={isSubmitting}
                         />
@@ -540,30 +527,19 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false, initial
                     </div>
                   </div>
 
-                  <div className="rfm-note" style={{ marginTop: '0.45rem' }}>
-                    Los datos aportados se guardan con este reporte y se añaden al historial; no certifican que sigan vigentes en Social Club.
-                  </div>
                   <div className="form-group">
-                    <label htmlFor="aliases" className="form-group__label">Otros nombres conocidos</label>
-                    <div className="cyber-input-full mw-cyber-input"><Field id="aliases" name="aliases" type="text" placeholder="Nombres anteriores separados por coma" disabled={isSubmitting} /></div>
+                    <span id="report-aliases-label" className="form-group__label">Otros nombres conocidos</span>
+                    <p className="rfm-player-aliases notranslate" translate="no" aria-labelledby="report-aliases-label">{values.aliases || 'Sin otros nombres registrados.'}</p>
                     <ErrorMessage name="aliases" component="span" className="form-group__hint" />
                   </div>
-                  {[1, 2].map(slot => <div className="form-group" key={slot}>
-                    <label htmlFor={`avatar${slot}`} className="form-group__label">Avatar {slot} (URL)</label>
-                    <div className="cyber-input-full mw-cyber-input"><Field id={`avatar${slot}`} name={`avatar${slot}`} type="url" placeholder="https://…" disabled={isSubmitting} /></div>
-                    <ErrorMessage name={`avatar${slot}`} component="span" className="form-group__hint" />
-                  </div>)}
                 </div>
 
                 <div className="rfm-panel mw-cyber-panel">
                   <div className="cyber-tile mw-cyber-frame" aria-hidden="true" />
                   <h3 className="rfm-panel__title cyber-h mw-cyber-heading">
-                    Tipo(s) de Infracción
-                    <Tooltip text="Selecciona una o varias categorías que describan la infracción.">
-                      <span style={{ cursor: 'help' }}><HelpIcon style={{ width: 15, height: 15, opacity: 0.6 }} /></span>
-                    </Tooltip>
+                    Infracciones
                   </h3>
-                  <p className="rfm-section-description">Selecciona una o varias categorías para describir lo ocurrido.</p>
+                  <p className="rfm-section-description">Puedes elegir varias.</p>
                   <div className="form-group" style={{ marginBottom: 0 }}>
                     <TipoInfraccionSelector
                       value={values.typesOfInfraction}
@@ -571,7 +547,6 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false, initial
                       options={TIPOS_ETIQUETAS}
                       disabled={isSubmitting}
                     />
-                    <div className="rfm-note">Seleccionadas: {values.typesOfInfraction.length} categoría(s)</div>
                     <ErrorMessage name="typesOfInfraction" component="span" className="form-group__hint" style={{ color: '#ff3333' }} />
                   </div>
                 </div>
@@ -581,13 +556,10 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false, initial
                   <div className="rfm-panel mw-cyber-panel" style={{ display: 'flex', flexDirection: 'column' }}>
                     <div className="cyber-tile mw-cyber-frame" aria-hidden="true" />
                     <h3 className="rfm-panel__title cyber-h mw-cyber-heading">
-                      Motivo del Reporte
-                      <Tooltip text="Describe con detalle lo que sucedió: ¿qué hizo, cuándo, dónde?">
-                        <span style={{ cursor: 'help' }}><HelpIcon style={{ width: 15, height: 15, opacity: 0.6 }} /></span>
-                      </Tooltip>
+                      Motivo
                     </h3>
                     <div className="form-group" style={{ marginBottom: 0, flex: 1, display: 'flex', flexDirection: 'column' }}>
-                      <div className="cyber-input-full mw-cyber-input">
+                      <div className="cyber-input-full mw-cyber-input rfm-reason-input">
                       <Field
                         as="textarea"
                         id="reason"
@@ -611,18 +583,12 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false, initial
                   <div className="rfm-panel mw-cyber-panel" style={{ display: 'flex', flexDirection: 'column' }}>
                     <div className="cyber-tile mw-cyber-frame" aria-hidden="true" />
                     <h3 className="rfm-panel__title cyber-h mw-cyber-heading">
-                      Adjuntar evidencias
+                      Evidencias
                       <span className="rfm-optional">Opcional</span>
-                      <Tooltip text="Arrastra imágenes, selecciona archivos o pega con Ctrl+V. Hasta 5 imágenes, máx. 5MB c/u.">
-                        <span style={{ cursor: 'help' }}><HelpIcon style={{ width: 16, height: 16 }} /></span>
-                      </Tooltip>
                     </h3>
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                       <ImageUpload ref={imageUploadRef} onImagesChange={setImages} maxImages={5} globalPaste={false} disabled={isSubmitting} />
                     </div>
-                    <span className="form-group__hint" style={{ fontSize: '0.8em', color: '#9a9a9a', fontStyle: 'italic', display: 'block', marginTop: '0.4rem', flexShrink: 0 }}>
-                      JPG, PNG, GIF, WEBP · máx. 5MB
-                    </span>
                   </div>
                 </div>
 
@@ -630,7 +596,7 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false, initial
                 {values.typesOfInfraction.length > 0 && (
                   <div className="rfm-panel mw-cyber-panel">
                     <div className="cyber-tile mw-cyber-frame" aria-hidden="true" />
-                    <h3 className="rfm-panel__title cyber-h mw-cyber-heading">Etiquetas de amenaza</h3>
+                    <h3 className="rfm-panel__title cyber-h mw-cyber-heading">Conductas</h3>
                     <EtiquetasSelector
                       categorias={values.typesOfInfraction}
                       etiquetas={values.labels}
@@ -650,8 +616,7 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false, initial
                     disabled={isSubmitting}
                     style={{ opacity: isSubmitting ? 0.7 : 1, cursor: isSubmitting ? 'wait' : 'pointer' }}
                   >
-                    <CyberButtonLabel>{isSubmitting ? '⏳ Enviando...' : '📨 Enviar Reporte a H.E.X.'}</CyberButtonLabel>
-                    <span className="tag" aria-hidden="true">HEX</span>
+                    <CyberButtonLabel>{isSubmitting ? 'Enviando...' : 'Enviar reporte'}</CyberButtonLabel>
                   </button>
                 </div>
 
