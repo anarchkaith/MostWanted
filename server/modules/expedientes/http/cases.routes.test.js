@@ -30,6 +30,12 @@ assert.equal(calculatePriority([report(1, 'alta', 0, 100)]).level, 'high');
 assert.equal(calculatePriority([report(1, 'media', 8, 4)]).level, 'normal');
 assert.equal(calculatePriority([report(1, 'media', 9, 4)]).level, 'high');
 assert.equal(JSON.stringify(report(1)).includes('PRIVATE'), false);
+const historicalReport = publicReport({ id: 6789, nickname: 'Sazxxin', rid: '', playerId: 'RID-298932732' });
+assert.equal(historicalReport.rid, '298932732');
+assert.equal(matchReports([historicalReport], { nickname: 'Sazxxin', rid: '298932732' }).length, 1);
+assert.equal(matchReports([historicalReport], { nickname: 'Sazxxin', rid: '999' }).length, 0);
+assert.equal(publicReport({ rid: '999', playerId: 'RID-298932732' }).rid, '999');
+assert.equal(publicReport({ playerId: 'TMP-298932732' }).rid, null);
 assert.deepEqual(matchReports([report(1), report(1), { ...report(2), rid: '999' }, { ...report(3), rid: null }],
   { nickname: 'Player', rid: '123' }).map((item) => item.id), [1, 3]);
 assert.deepEqual(matchReports([report(1)], { nickname: 'Player', rid: '999' }), []);

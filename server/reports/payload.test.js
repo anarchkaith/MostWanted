@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { buildHexbotReportPayload } from './payload.js';
+import { buildWordpressReportPayload } from './payload.js';
 import { validateIncomingReportSubmission } from './validation.js';
 import { buildDiscordReportPayload } from './discordReportEmbed.js';
 import { buildDiscordAvatarUrl, attachSessionAvatarToReporter } from '../shared/auth/discordAvatar.js';
@@ -32,7 +32,7 @@ function runTest(name, fn) {
   }
 }
 
-runTest('validateIncomingReportSubmission acepta un reporte valido y buildHexbotReportPayload respeta el contrato de HEXBOT', () => {
+runTest('validateIncomingReportSubmission acepta un reporte valido y buildWordpressReportPayload respeta el contrato de WordPress', () => {
   const validation = validateIncomingReportSubmission({
     report: {
       usuario: 'Jugador123',
@@ -59,7 +59,7 @@ runTest('validateIncomingReportSubmission acepta un reporte valido y buildHexbot
 
   assert.equal(validation.ok, true);
 
-  const payload = buildHexbotReportPayload(validation.value);
+  const payload = buildWordpressReportPayload(validation.value);
 
   assert.deepEqual(payload, {
     username: 'Jugador123',
@@ -139,7 +139,7 @@ runTest('validateIncomingReportSubmission acepta labels por IDs y los expone com
   assert.deepEqual(validation.value.report.labelIds, [7, 12, aimbotId]);
   assert.deepEqual(validation.value.report.labels, ['Aimbot']);
 
-  const payload = buildHexbotReportPayload(validation.value);
+  const payload = buildWordpressReportPayload(validation.value);
   assert.equal(Object.prototype.hasOwnProperty.call(payload, 'crewCurrent'), false);
   assert.equal(Object.prototype.hasOwnProperty.call(payload, 'crew1'), false);
   assert.equal(Object.prototype.hasOwnProperty.call(payload, 'crewsAssigned'), false);

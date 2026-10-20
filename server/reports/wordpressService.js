@@ -1,4 +1,4 @@
-﻿import { buildHexbotReportPayload } from './payload.js';
+import { buildWordpressReportPayload } from './payload.js';
 import { createWordpressCustomPost, getWordpressHealth, postWordpressReport } from './wordpressClient.js';
 import { hasWordpressReportsConfig } from './wordpressConfig.js';
 
@@ -117,7 +117,7 @@ export async function checkWordpressIntegration({ config, logger = console }) {
 }
 
 export async function sendReportToWordpress({ config, submission, logger = console }) {
-  const payload = buildHexbotReportPayload(submission);
+  const payload = buildWordpressReportPayload(submission);
 
   if (!hasWordpressReportsConfig(config)) {
     const missing = {

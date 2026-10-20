@@ -4,6 +4,10 @@ Plugin WordPress para registrar CPT de jugadores/reportes y exponer endpoints RE
 
 ## 1) Instalacion rapida
 
+Versión 0.6.2: recupera el RID desde el formato exacto `playerId: "RID-<números>"` cuando el campo numérico falta, tanto al guardar como al publicar reportes históricos. Un RID explícito tiene prioridad. Conserva la protección de los datos del reportante.
+
+Para actualizar desde un ZIP: **Plugins > Añadir nuevo plugin > Subir plugin**, selecciona el archivo y confirma **Reemplazar el actual con el subido**. No desinstales el plugin ni borres sus datos. Después, purga la caché REST/CDN.
+
 1. Copia la carpeta `mostwanted-cpt-rest` dentro de `wp-content/plugins/`.
 2. Activa el plugin desde **Plugins** en el panel de WordPress.
 3. Configura el secreto de una de estas 2 formas:

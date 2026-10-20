@@ -1,10 +1,12 @@
+import { resolvePlayerRid } from '../../shared/playerIdentity.js';
+
 export function mergePlayerMatches(reported, known, query) {
   const text = query.trim().toLocaleLowerCase();
   if (!text) return [];
   const matches = new Map();
   for (const player of [...reported, ...known]) {
     const nickname = String(player.nickname || '').trim();
-    const rid = String(player.rid || '').trim();
+    const rid = resolvePlayerRid(player);
     const names = [nickname, ...(player.names || []).map(item => typeof item === 'string' ? item : item?.name)];
     if (!names.some(name => String(name || '').toLocaleLowerCase().includes(text)) && !rid.includes(text)) continue;
     const key = rid ? `rid:${rid}` : `name:${nickname.toLocaleLowerCase()}`;

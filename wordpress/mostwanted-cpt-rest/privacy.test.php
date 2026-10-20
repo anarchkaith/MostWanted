@@ -46,3 +46,15 @@ unset($GLOBALS['test_meta']['_mw_report_payload']['reporter']);
 $GLOBALS['test_meta']['_mw_reporter'] = ['name' => 'PRIVATE_LEGACY_NAME'];
 check(strpos(json_encode(mw_map_report_item(1)), 'PRIVATE') === false, 'Legacy reporter meta stays private');
 echo "OK WordPress public report privacy and preserved internal storage\n";
+check(mw_resolve_player_rid(['rid' => '', 'playerId' => 'RID-298932732']) === 298932732, 'Recover RID from canonical playerId');
+check(mw_resolve_player_rid(['rid' => '999', 'playerId' => 'RID-298932732']) === 999, 'Explicit RID takes precedence');
+check(mw_resolve_player_rid(['rid' => '', 'playerId' => 'RID-298932732'], '999') === 999, 'Stored numeric RID takes precedence');
+foreach (['TMP-123', 'RID-0', 'RID-123-extra', 'RID-1.5', '123'] as $invalid) {
+    check(mw_resolve_player_rid(['playerId' => $invalid]) === null, 'Do not infer identity from arbitrary IDs');
+}
+$GLOBALS['test_meta']['_mw_report_payload']['rid'] = '';
+$GLOBALS['test_meta']['_mw_report_payload']['playerId'] = 'RID-298932732';
+$report = mw_map_report_item(1);
+check($report['rid'] === '298932732', 'Historical public reports recover RID');
+check(strpos(json_encode($report), 'PRIVATE') === false, 'RID recovery preserves reporter privacy');
+echo "OK WordPress historical RID normalization\n";

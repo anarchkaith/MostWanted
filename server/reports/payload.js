@@ -12,7 +12,7 @@ function pickAnalysis(input = {}) {
   return analysis;
 }
 
-export function buildHexbotReportPayload(input = {}) {
+export function buildWordpressReportPayload(input = {}) {
   const reporter = input?.reporter || {};
   const reporterName = reporter.name || 'Anónimo';
   const analysis = pickAnalysis(input);

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: MostWanted CPT + REST
  * Description: CPT de jugadores/reportes y API REST para ingesta y consulta desde MostWanted.
- * Version: 0.6.1
+ * Version: 0.6.2
  * Author: KaithHacks
  */
 
@@ -93,6 +93,19 @@ function mw_int_or_null($value) {
     if (is_numeric($value)) {
         $parsed = intval($value);
         return $parsed > 0 ? $parsed : null;
+    }
+    return null;
+}
+
+function mw_resolve_player_rid($payload, $stored_rid = null) {
+    foreach ([$payload['rid'] ?? null, $stored_rid] as $value) {
+        $rid = mw_int_or_null($value);
+        if ($rid !== null) {
+            return $rid;
+        }
+    }
+    if (preg_match('/^RID-([0-9]+)$/D', mw_str($payload['playerId'] ?? ''), $match)) {
+        return mw_int_or_null($match[1]);
     }
     return null;
 }
@@ -528,7 +541,7 @@ function mw_normalize_crews_from_payload($payload) {
 
 function mw_merge_player_profile($player_post_id, $payload) {
     $nickname = mw_str($payload['nickname'] ?? '');
-    $rid = mw_int_or_null($payload['rid'] ?? null);
+    $rid = mw_resolve_player_rid($payload, get_post_meta($player_post_id, '_mw_rid', true));
     $player_id = mw_str($payload['playerId'] ?? '');
     $aliases_incoming = mw_aliases_from_mixed($payload['aliases'] ?? []);
     $crew_current = mw_str($payload['crewCurrent'] ?? '');
@@ -635,7 +648,8 @@ function mw_merge_player_profile($player_post_id, $payload) {
 function mw_store_report($player_post_id, $payload) {
     $reason = mw_str($payload['reason'] ?? '');
     $nickname = mw_str($payload['nickname'] ?? '');
-    $rid = mw_int_or_null($payload['rid'] ?? null);
+    $rid = mw_resolve_player_rid($payload);
+    $payload['rid'] = $rid;
     $created_at = current_time('mysql');
     $title = mw_build_player_display_title($nickname, $rid);
     $investigation_status = mw_str($payload['investigation_status'] ?? '');
@@ -743,7 +757,8 @@ function mw_map_report_item($report_post_id) {
     $safe_payload = is_array($payload) ? $payload : [];
 
     $nickname = mw_str($safe_payload['nickname'] ?? get_post_meta($report_post_id, '_mw_nickname', true));
-    $rid = mw_str($safe_payload['rid'] ?? get_post_meta($report_post_id, '_mw_rid', true));
+    $rid = mw_resolve_player_rid($safe_payload, get_post_meta($report_post_id, '_mw_rid', true));
+    $rid = $rid !== null ? strval($rid) : '';
     $reason = mw_str($safe_payload['reason'] ?? get_post_meta($report_post_id, '_mw_reason', true));
     $types = is_array($safe_payload['typesOfInfraction'] ?? null)
         ? $safe_payload['typesOfInfraction']
@@ -1139,7 +1154,8 @@ function mw_ingest_payload_array($payload) {
 
     $nickname = mw_str($payload['nickname'] ?? '');
     $reason = mw_str($payload['reason'] ?? '');
-    $rid = mw_int_or_null($payload['rid'] ?? null);
+    $rid = mw_resolve_player_rid($payload);
+    $payload['rid'] = $rid;
     $player_id = mw_str($payload['playerId'] ?? '');
 
     if ($nickname === '' || $reason === '') {

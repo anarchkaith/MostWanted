@@ -4,7 +4,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import session from 'express-session';
 import { createAiConfig } from '../ai/config.js';
-import { createHexbotConfig } from '../reports/config.js';
 import { createWordpressReportsConfig } from '../reports/wordpressConfig.js';
 import { buildPlayerInsightsWithScCache, getReportesSnapshot } from '../reportes/store.js';
 import { RATE_LIMITS } from '../middleware/rateLimiter.js';
@@ -42,7 +41,6 @@ export function createApp({ rootDir, isProduction }) {
   const app = express();
 
   const aiConfig = createAiConfig(process.env);
-  const hexbotConfig = createHexbotConfig(process.env);
   const wordpressReportsConfig = createWordpressReportsConfig(process.env);
 
   const debugMode = process.env.DEBUG_MODE === 'true';
@@ -134,7 +132,6 @@ export function createApp({ rootDir, isProduction }) {
   registerRoutes(app, {
     rootDir,
     aiConfig,
-    hexbotConfig,
     wordpressReportsConfig,
     debugMode,
     discordAuth,
@@ -168,7 +165,6 @@ export function createApp({ rootDir, isProduction }) {
   return {
     app,
     diagnostics: {
-      hexbotConfig,
       wordpressReportsConfig,
     },
   };

@@ -1,6 +1,24 @@
 import assert from 'node:assert/strict';
 import { playerCandidates, filterCaseReports, summarizeVotes, formatCaseDate, normalizeReportValidation } from './casePresentation.js';
 import { mergePlayerMatches } from './playerSearch.js';
+import { resolvePlayerRid } from '../../shared/playerIdentity.js';
+
+assert.equal(resolvePlayerRid({ rid: '', playerId: 'RID-298932732' }), '298932732');
+assert.equal(resolvePlayerRid({ rid: '200', playerId: 'RID-100' }), '200');
+assert.equal(resolvePlayerRid({ rid: '00100' }), '100');
+for (const playerId of ['TMP-298932732', 'RID-0', 'RID-123-extra', '123', 'RID-1.5', 'RID--123']) {
+  assert.equal(resolvePlayerRid({ playerId }), '', `Do not infer identity from ${playerId}`);
+}
+const historical = playerCandidates([{ usuario: 'Sazxxin', wpRid: '', playerId: 'RID-298932732' }], 'Saz');
+const unified = mergePlayerMatches(historical, [
+  { nickname: 'Sazxxin', rid: '298932732', source: 'Analizado en esta sesión' },
+], 'Saz');
+assert.equal(unified.length, 1);
+assert.equal(unified[0].count, 1);
+assert.equal(unified[0].rid, '298932732');
+assert.deepEqual(unified[0].sources, ['Reportes', 'Analizado en esta sesión']);
+assert.equal(mergePlayerMatches(historical, [{ nickname: 'Sazxxin', rid: '999' }], 'Saz').length, 2);
+assert.equal(playerCandidates([{ usuario: 'Sazxxin', playerId: 'RID-298932732' }], '298932732').length, 1);
 
 const reports = [
   { id: 1, usuario: 'Igual', wpRid: '100', fecha: '2026-01-01T12:00:00Z', categories: ['MODDER', 'GRIFFER'], validacion: 'pendiente', motivo: 'Texto', votos: { up: 3, down: 1 } },

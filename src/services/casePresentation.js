@@ -1,3 +1,5 @@
+import { resolvePlayerRid } from '../../shared/playerIdentity.js';
+
 export const CASE_STATUSES = { open: 'Abierto', investigating: 'En investigación', closed: 'Cerrado' };
 export const VALIDATION_LABELS = { pendiente: 'Pendiente', investigando: 'En investigación', verificado: 'Verificado', rechazado: 'Rechazado' };
 
@@ -22,7 +24,7 @@ export function playerCandidates(reports, query) {
   const players = new Map();
   for (const report of reports) {
     const nickname = String(report.usuario || '').trim();
-    const rid = String(report.wpRid || '').trim();
+    const rid = resolvePlayerRid(report);
     if (!nickname.toLocaleLowerCase().includes(normalized) && !rid.includes(normalized)) continue;
     const key = rid ? `rid:${rid}` : `name:${nickname.toLocaleLowerCase()}`;
     if (!players.has(key)) players.set(key, { nickname, rid, key, count: 0 });

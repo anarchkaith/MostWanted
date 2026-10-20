@@ -1,3 +1,5 @@
+import { resolvePlayerRid } from '../../../../shared/playerIdentity.js';
+
 const text = (value) => value == null ? '' : String(value).trim();
 export const normalizeName = (value) => text(value).toLowerCase().normalize('NFD')
   .replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ');
@@ -23,7 +25,7 @@ export function publicReport(raw) {
     id: raw.id,
     title: text(raw.title),
     nickname: text(raw.nickname || raw.usuario || raw.username),
-    rid: normalizeRid(raw.rid || raw.playerRid || raw.player_rid) || null,
+    rid: resolvePlayerRid(raw) || null,
     categories: strings(raw.categories || raw.typesOfInfraction || raw.categoria),
     typesOfInfraction: strings(raw.typesOfInfraction || raw.categories || raw.categoria),
     labels: list(raw.labels || raw.etiquetas).map((item) => typeof item === 'object'

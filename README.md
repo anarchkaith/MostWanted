@@ -67,6 +67,8 @@ El sitio reutiliza botones, tiles, encabezados, campos, tablas, listas y franjas
 
 ## Despacho de investigación
 
+- La identidad se normaliza por RID numérico. Para reportes históricos con `rid` vacío se admite el formato exacto `playerId: "RID-<números>"`; frontend y backend recuperan el RID y reúnen las fuentes en una coincidencia. Un RID explícito tiene prioridad. Los IDs temporales y los nombres iguales sin RID no se usan para fusionar identidades. El plugin WordPress aplica la misma recuperación al guardar y al publicar reportes antiguos, sin migrar ni modificar estos últimos al leerlos; su actualización requiere desplegar el plugin y purgar las cachés REST/CDN.
+
 - La vista principal consulta por nombre o RID y muestra identidades seleccionables. El archivo es vertical en todas las pantallas: panel del jugador a todo el ancho arriba y lista de reportes debajo. Dentro del panel, fotografías e identidad comparten espacio con el estado del caso; clasificación, evidencias y verificación se distribuyen en columnas. La información se apila en móvil y la tabla pasa a tarjetas.
 - El buscador central de la cabecera funciona desde el archivo y desde la mesa de denuncias. Combina coincidencias parciales de reportes cargados y perfiles analizados durante la sesión con búsquedas exactas en `player-insights` de WordPress y Social Club/sc-cache (nombre o RID). No presupone que un perfil tenga denuncias. Las consultas remotas esperan 450 ms, se cancelan al cambiar de texto y muestran fallos de fuente o tiempo de espera; las coincidencias llegan por fuente y se conservan si otra fuente falla o supera los 12 segundos. Seleccionar una identidad abre su ficha y consulta sus reportes. Enter analiza el texto cuando no hay coincidencias; si hay varias identidades, exige elegir una. No existe un índice de coincidencias parciales de todo sc-cache.
 - La ficha separa registro fotográfico, identidad/RID, nombres y afiliaciones con procedencia, situación del caso y resumen comunitario. El RID se muestra una sola vez como «RID (Rockstar ID)», sin indicadores redundantes de disponibilidad. No se muestran referencias técnicas ni prioridad.
@@ -112,7 +114,7 @@ npm run start
 | Endpoint | Método | Descripción |
 |---|---|---|
 | `/api/reports` | POST | Valida y guarda un reporte en WordPress, luego lo notifica a Discord |
-| `/api/reports/health` | GET | Estado de la integración con WordPress (y HEXBOT, opcional) |
+| `/api/reports/health` | GET | Estado de la integración con WordPress; devuelve 503 si no está configurada y 502 si falla |
 | `/api/reports/player-insights` | GET | Antecedentes de un jugador (`username`, `rid`) desde WordPress |
 | `/api/battleye-status` | GET | Estado de BattlEye |
 | `/api/auth/discord` | GET | Inicia el login con Discord (OAuth) |
@@ -171,12 +173,10 @@ Solo se documentan las variables privadas o sensibles. Las demás tienen valores
 | `KAITH_AI_USE_LOCAL_OLLAMA` | `true` activa Ollama local como proveedor. Por defecto `false` |
 | `KAITH_OLLAMA_ENDPOINT` / `KAITH_OLLAMA_MODEL` | Endpoint y modelo de Ollama local (solo si está activo) |
 | `KAITH_AI_ENDPOINT` / `KAITH_AI_USER` / `KAITH_AI_PASSWORD` | Proveedor de IA de producción |
-| `HEXBOT_API_SECRET` | Secreto de HEXBOT (legacy, solo para el healthcheck) |
-| `HEXBOT_API_BASE_URL` / `HEXBOT_API_TIMEOUT_MS` | HEXBOT (legacy). Solo se usa en el healthcheck |
 
 ## Persistencia en WordPress
 
-Los reportes se guardan en WordPress, no en HEXBOT. El flujo es:
+Los reportes se guardan en WordPress. El healthcheck consulta únicamente esa integración, sin servicios alternativos; no afecta al gateway de IA. El flujo es:
 
 1. El formulario sube las imágenes a ImgBB para obtener URLs públicas.
 2. El frontend llama a `POST /api/reports` con los datos del reporte y las URLs de evidencia.

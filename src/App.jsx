@@ -10,6 +10,7 @@ import PersonSearch from '../components/PersonSearch';
 import { buildApiUrl, getApiBaseUrl } from './services/apiConfig';
 import { assignExpedienteIds } from './services/expedienteIds';
 import { normalizeReportValidation } from './services/casePresentation';
+import { resolvePlayerRid } from '../shared/playerIdentity';
 import {
   fetchWordpressReportsSnapshot,
   submitWordpressCommunityVerificationVote,
@@ -137,7 +138,7 @@ const mapWordpressReportToReporte = (report = {}) => {
       down: Number(communityVerification?.down) || 0,
       comentarios: normalizedComments,
     },
-    wpRid: report?.rid || '',
+    wpRid: resolvePlayerRid(report),
     categories: Array.isArray(report?.categories) ? report.categories : [],
   };
 };

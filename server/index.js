@@ -16,11 +16,6 @@ const { app, diagnostics } = createApp({ rootDir, isProduction });
 
 const server = app.listen(port, () => {
   console.log(`Most Wanted server listening on http://localhost:${port}`);
-  console.log('[hexbot] Integration configuration', {
-    enabled: Boolean(diagnostics.hexbotConfig.baseUrl && diagnostics.hexbotConfig.apiSecret),
-    baseUrl: diagnostics.hexbotConfig.baseUrl || '(missing)',
-    timeoutMs: diagnostics.hexbotConfig.timeoutMs,
-  });
   console.log('[wordpress] Integration configuration', {
     enabled: Boolean(diagnostics.wordpressReportsConfig.enabled),
     baseUrl: diagnostics.wordpressReportsConfig.baseUrl || '(missing)',

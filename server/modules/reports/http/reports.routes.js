@@ -9,7 +9,6 @@ import { getSessionUser } from '../../../shared/auth/sessionAuth.js';
 export function registerReportsRoutes(app, deps) {
   const {
     rootDir,
-    hexbotConfig,
     wordpressReportsConfig,
     discordWebhookUrl,
     rateLimits,
@@ -22,7 +21,6 @@ export function registerReportsRoutes(app, deps) {
 
   app.get('/api/reports/health', rateLimits.webhook, async (req, res) => {
     const result = await checkReportsHealth({
-      hexbotConfig,
       wordpressReportsConfig,
       logger: console,
     });
