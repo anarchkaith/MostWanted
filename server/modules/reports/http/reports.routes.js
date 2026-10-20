@@ -17,6 +17,7 @@ export function registerReportsRoutes(app, deps) {
     requireNonEmptyBody,
     getReportesSnapshot,
     buildPlayerInsightsWithScCache,
+    refreshPlayerCase,
   } = deps;
 
   app.get('/api/reports/health', rateLimits.webhook, async (req, res) => {
@@ -36,6 +37,7 @@ export function registerReportsRoutes(app, deps) {
       wordpressReportsConfig,
       discordWebhookUrl,
       logger: console,
+      refreshPlayerCase,
     });
 
     return res.status(result.status).json(result.payload);

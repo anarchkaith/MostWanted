@@ -1,4 +1,5 @@
 import { getSessionUser, requireSessionAuth } from '../../../shared/auth/sessionAuth.js';
+import { createRequireCaseStaff } from '../../../shared/auth/discordStaff.js';
 import { submitWordpressReport } from '../../reports/services/submitReport.service.js';
 import { getPlayerInsights } from '../../background-investigation/services/playerInsights.service.js';
 import {
@@ -7,6 +8,7 @@ import {
   findExpedienteByPlayer,
   getExpedienteById,
   searchExpedientes,
+  publicLegacyExpediente,
 } from '../services/expedientesStore.service.js';
 
 /**
@@ -43,7 +45,15 @@ export function registerExpedientesRoutes(app, deps) {
     wordpressReportsConfig,
     getReportesSnapshot,
     buildPlayerInsightsWithScCache,
+    verifyCaseStaff,
+    refreshPlayerCase,
   } = deps;
+  const requireLegacyNoteStaff = createRequireCaseStaff(verifyCaseStaff);
+  const authorizeLegacyNotes = (req, res, next) => {
+    if (typeof req.body?.notes !== 'string' || !req.body.notes.trim()) return next();
+    if (req.body.notes.trim().length > 10000) return res.status(400).json({ ok: false, error: 'invalid_note_text' });
+    return requireLegacyNoteStaff(req, res, next);
+  };
 
   app.get('/api/players/investigate', rateLimits.general, async (req, res) => {
     const username = typeof req.query?.username === 'string' ? req.query.username.trim() : '';
@@ -69,7 +79,7 @@ export function registerExpedientesRoutes(app, deps) {
       return res.status(200).json({
         ok: true,
         investigation: insightsPayload,
-        expediente: expediente || null,
+        expediente: publicLegacyExpediente(expediente),
       });
     } catch (error) {
       return res.status(502).json({
@@ -80,7 +90,7 @@ export function registerExpedientesRoutes(app, deps) {
     }
   });
 
-  app.post('/api/expedientes/report', rateLimits.webhook, requireSessionAuth, requireBodyObject, async (req, res) => {
+  app.post('/api/expedientes/report', rateLimits.webhook, requireSessionAuth, requireBodyObject, authorizeLegacyNotes, async (req, res) => {
     const reporter = resolveReporter(req, req.body);
 
     const result = createOrAppendReport({
@@ -95,13 +105,14 @@ export function registerExpedientesRoutes(app, deps) {
         body: req.body,
         wordpressReportsConfig,
         logger: console,
+        refreshPlayerCase,
       });
     }
 
     return res.status(201).json({
       ok: true,
-      expediente: result.expediente,
-      appendedReport: result.appendedReport,
+      expediente: publicLegacyExpediente(result.expediente),
+      appendedReport: publicLegacyExpediente({ reports: [result.appendedReport] }).reports[0],
       createdExpediente: result.created,
       delivery,
     });
@@ -120,7 +131,7 @@ export function registerExpedientesRoutes(app, deps) {
     return res.status(200).json({
       ok: true,
       total: items.length,
-      items,
+      items: items.map(publicLegacyExpediente),
     });
   });
 
@@ -137,7 +148,7 @@ export function registerExpedientesRoutes(app, deps) {
 
     return res.status(200).json({
       ok: true,
-      expediente,
+      expediente: publicLegacyExpediente(expediente),
     });
   });
 
@@ -165,7 +176,7 @@ export function registerExpedientesRoutes(app, deps) {
 
     return res.status(200).json({
       ok: true,
-      expediente: result.expediente,
+      expediente: publicLegacyExpediente(result.expediente),
     });
   });
 }

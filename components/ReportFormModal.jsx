@@ -1,5 +1,5 @@
 import EtiquetasSelector from './EtiquetasSelector';
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import Tooltip from './Tooltip';
 import HelpIcon from './HelpIcon';
 import ImageUpload from './ImageUpload';
@@ -9,6 +9,7 @@ import TipoInfraccionSelector from './TipoInfraccionSelector';
 import { useMutation } from '@tanstack/react-query';
 import { TIPOS_ETIQUETAS } from './tiposEtiquetas';
 import PlayerBackgroundPanel from './PlayerBackgroundPanel';
+import CyberButtonLabel from './CyberButtonLabel';
 import { isBlockedReportedUsername } from './blockedUsernames';
 import {
   fetchWordpressPlayersSnapshot,
@@ -46,18 +47,19 @@ const demoValues = {
   aliases: '[DEMO] AltPlayer, DemoAlt',
   time: '1640000000',
   // Información del reporte
-  typesOfInfraction: ['Modder'],
+  typesOfInfraction: ['MODDER'],
   reason: '[REPORTE DE PRUEBA - NO VÁLIDO] Este es un reporte de demostración generado automáticamente para testear el formulario. El jugador ficticio utilizó Aimbot y Godmode durante una sesión de Freeroam de prueba. Este reporte no debe tomarse en cuenta.',
   evidence: [],
   labels: ['Aimbot', 'Godmode (hack)'],
 };
 
-const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
+const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false, initialPlayer = null, onReturnToCase = null }) => {
   const imageUploadRef = useRef(null);
   const [images, setImages] = useState([]);
   const [submitError, setSubmitError] = useState('');
   const [showSuccess, setShowSuccess] = useState(null); // nombre del usuario reportado
   const [botDeliveryState, setBotDeliveryState] = useState(null);
+  const [submissionWarning, setSubmissionWarning] = useState('');
   const [investigationToken, setInvestigationToken] = useState(0);
   const [isInvestigating, setIsInvestigating] = useState(false);
   const [investigationGate, setInvestigationGate] = useState({
@@ -65,6 +67,45 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
     completed: false,
   });
   const formikRef = useRef(null);
+  const confirmationRef = useRef(null);
+  const submitErrorRef = useRef(null);
+  const submitButtonRef = useRef(null);
+
+  useEffect(() => {
+    if (submitError) submitErrorRef.current?.focus();
+  }, [submitError]);
+
+  useEffect(() => {
+    if (!showSuccess) return undefined;
+    const previousFocus = document.activeElement === document.body ? submitButtonRef.current : document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const dialog = confirmationRef.current;
+    dialog.querySelector('button')?.focus();
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') setShowSuccess(null);
+      if (event.key !== 'Tab') return;
+      const controls = dialog.querySelectorAll('a[href], button:not(:disabled)');
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    dialog.addEventListener('keydown', handleKeyDown);
+    return () => {
+      dialog.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      const focusTarget = previousFocus instanceof HTMLElement && previousFocus.isConnected
+        ? previousFocus
+        : document.getElementById('nickname');
+      focusTarget?.focus();
+    };
+  }, [showSuccess]);
 
   const handleGlobalPaste = useCallback((e) => {
     const clipboardItems = e.clipboardData?.items;
@@ -102,6 +143,7 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
     imageUploadRef.current?.clearImages?.();
     setShowSuccess(null);
     setBotDeliveryState(null);
+    setSubmissionWarning('');
   };
 
   const severidadColorMap = {
@@ -113,110 +155,50 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
   };
 
   return (
-    <div className="rfm-shell" style={{ maxWidth: 1600, margin: '0 auto' }}>
+    <div className="rfm-shell">
 
       {/* ── POPUP ÉXITO ── fuera del Form para evitar problemas de z-index/Formik */}
       {showSuccess && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 9999,
-          background: 'rgba(0,0,0,0.85)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          backdropFilter: 'blur(4px)',
-        }}>
-          <div style={{
-            background: '#0f0f0f',
-            border: '2px solid #ff3333',
-            padding: '2.5rem 2rem',
-            maxWidth: 420, width: '90%',
-            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.25rem',
-            boxShadow: '0 0 40px rgba(255,51,51,0.3)',
-            textAlign: 'center',
-          }}>
-            <div style={{ fontSize: '3rem', lineHeight: 1 }}>✅</div>
-            <div style={{ fontFamily: 'var(--font-stencil)', fontSize: '1.3rem', color: '#ff3333', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-              {botDeliveryState?.ok ? 'Reporte cargado satisfactoriamente' : 'Reporte cargado con observaciones'}
-            </div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', color: '#9a9a9a' }}>
+        <div className="rfm-confirmation-overlay">
+          <div ref={confirmationRef} className="rfm-confirmation" role="dialog" aria-modal="true" aria-labelledby="report-confirmation-title">
+            <div className="rfm-confirmation__icon" aria-hidden="true">✅</div>
+            <h2 id="report-confirmation-title">
+              {botDeliveryState?.ok && !submissionWarning ? 'Reporte cargado satisfactoriamente' : 'Reporte cargado con observaciones'}
+            </h2>
+            <p>
               {botDeliveryState?.ok ? (
                 <>El reporte contra <span className="notranslate" translate="no" style={{ color: '#e8e8b8', fontWeight: 700 }}>{showSuccess.nickname}</span> fue enviado al equipo de Staff de Kaith&apos;s Rebels</>
               ) : (
                 <>El reporte contra <span className="notranslate" translate="no" style={{ color: '#e8e8b8', fontWeight: 700 }}>{showSuccess.nickname}</span> fue registrado en la web, pero la sincronizacion con el bot requiere revision.</>
               )}
-            </div>
-            <div style={{
-              width: '100%',
-              padding: '0.75rem 0.9rem',
-              border: `1px solid ${botDeliveryState?.ok ? 'rgba(34,197,94,0.5)' : 'rgba(255,179,71,0.45)'}`,
-              background: botDeliveryState?.ok ? 'rgba(34,197,94,0.08)' : 'rgba(255,179,71,0.08)',
-              color: botDeliveryState?.ok ? '#9ef0b1' : '#ffcf85',
-              fontFamily: 'var(--font-mono)',
-              fontSize: '0.78rem',
-              lineHeight: 1.5,
-            }}>
+            </p>
+            <div className={`rfm-delivery-status rfm-delivery-status--${botDeliveryState?.ok ? 'success' : 'warning'}`}>
               {botDeliveryState?.ok
                 ? 'Sincronizado con el bot de Discord.'
                 : `No se pudo confirmar el envio al bot de Discord${botDeliveryState?.message ? `: ${botDeliveryState.message}` : '.'}`}
             </div>
+            {submissionWarning && <p className="rfm-delivery-status rfm-delivery-status--warning" role="status">{submissionWarning}</p>}
             <a
               href="https://support.rockstargames.com/request/gta-v/online-play-support/report-another-player/pc"
               target="_blank"
               rel="noopener noreferrer"
-              style={{
-                width: '100%',
-                padding: '0.7rem 0.9rem',
-                border: '1px solid #e8e8b8',
-                color: '#e8e8b8',
-                textDecoration: 'none',
-                fontFamily: 'var(--font-stencil)',
-                fontSize: '0.82rem',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-                background: 'rgba(232,232,184,0.06)',
-                transition: 'background 0.2s, color 0.2s, border-color 0.2s',
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.background = 'rgba(232,232,184,0.16)';
-                e.currentTarget.style.borderColor = '#fff7c2';
-                e.currentTarget.style.color = '#fff7c2';
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.background = 'rgba(232,232,184,0.06)';
-                e.currentTarget.style.borderColor = '#e8e8b8';
-                e.currentTarget.style.color = '#e8e8b8';
-              }}
+              className="rfm-support-link"
             >
               Reportarlo tambien en Rockstar Support
             </a>
-            <div style={{ display: 'flex', gap: '0.75rem', width: '100%', marginTop: '0.5rem' }}>
+            <div className="rfm-confirmation__actions">
+              {onReturnToCase && <button type="button" className="cyber-button-small mw-cyber-button mw-cyber-button--secondary" onClick={() => { handleAceptar(); onReturnToCase(); }}>Volver al expediente</button>}
               <button
                 type="button"
                 onClick={() => setShowSuccess(null)}
-                style={{
-                  flex: 1, padding: '0.65rem 1rem',
-                  background: 'transparent', border: '1px solid #3a3a3a',
-                  color: '#9a9a9a', fontFamily: 'var(--font-stencil)',
-                  fontSize: '0.85rem', textTransform: 'uppercase',
-                  letterSpacing: '0.06em', cursor: 'pointer',
-                  transition: 'border-color 0.2s, color 0.2s',
-                }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = '#9a9a9a'; e.currentTarget.style.color = '#e8e8b8'; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = '#3a3a3a'; e.currentTarget.style.color = '#9a9a9a'; }}
+                className="cyber-button-small mw-cyber-button mw-cyber-button--secondary"
               >
                 ✏️ Volver y editar
               </button>
               <button
                 type="button"
                 onClick={handleAceptar}
-                style={{
-                  flex: 1, padding: '0.65rem 1rem',
-                  background: '#ff3333', border: '2px solid #ff3333',
-                  color: '#000', fontFamily: 'var(--font-stencil)',
-                  fontSize: '0.85rem', textTransform: 'uppercase',
-                  letterSpacing: '0.06em', cursor: 'pointer', fontWeight: 700,
-                  transition: 'background 0.2s',
-                }}
-                onMouseEnter={e => e.currentTarget.style.background = '#cc0000'}
-                onMouseLeave={e => e.currentTarget.style.background = '#ff3333'}
+                className="cyber-button-small mw-cyber-button"
               >
                 ✔ Aceptar
               </button>
@@ -226,6 +208,7 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
       )}
 
       <style>{`
+        @layer legacy {
         .rfm-shell {
           padding: 0.35rem;
           position: relative;
@@ -328,9 +311,9 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
         }
 
         .rfm-input--hero {
-          font-size: 1.08rem !important;
+          font-size: 1.08rem;
           letter-spacing: 0.06em;
-          padding: 0.65rem 0.85rem !important;
+          padding: 0.65rem 0.85rem;
         }
 
         .rfm-optional-toggle {
@@ -433,11 +416,12 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
           .rfm-intro { padding: 0.85rem 0.85rem; }
           .rfm-panel { padding: 0.85rem 0.8rem 0.8rem; }
         }
+        }
       `}</style>
 
       <Formik
         innerRef={formikRef}
-        initialValues={isDemo ? demoValues : initialValues}
+        initialValues={initialPlayer ? { ...initialValues, nickname: initialPlayer.nickname || '', rid: initialPlayer.rid || '' } : isDemo ? demoValues : initialValues}
         validationSchema={reportFormValidationSchema}
         onSubmit={async (values, { setSubmitting, resetForm }) => {
           setSubmitError('');
@@ -451,6 +435,7 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
             };
             const submissionResult = await crearReporte.mutateAsync(nuevoReporte);
             setBotDeliveryState(submissionResult?.discordDelivery || null);
+            setSubmissionWarning(submissionResult?.warning || '');
 
             if (submissionResult?.ok) {
               try {
@@ -469,7 +454,7 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
             }
 
             try {
-              onSubmit?.(nuevoReporte, submissionResult);
+              await onSubmit?.(nuevoReporte, submissionResult);
             } catch (callbackError) {
               console.warn('[MostWanted] onSubmit callback fallo despues del envio exitoso.', callbackError);
             }
@@ -481,7 +466,7 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
           }
         }}
       >
-        {({ values, isSubmitting, setFieldValue }) => {
+        {({ values, errors, touched, isSubmitting, setFieldValue }) => {
           const trimmedUsername = String(values.nickname || '').trim();
           const blockedUsername = isBlockedReportedUsername(trimmedUsername);
           const canInvestigate = trimmedUsername.length >= 2 && !blockedUsername && !isSubmitting && !isInvestigating;
@@ -498,25 +483,10 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
             <Form className="report-form" noValidate onPaste={handleGlobalPaste} style={{ position: 'relative' }}>
 
               {isDemo && (
-                <div style={{
-                  marginBottom: '0.85rem',
-                  padding: '0.6rem 1rem',
-                  background: 'rgba(255, 200, 0, 0.08)',
-                  border: '1px solid rgba(255, 200, 0, 0.45)',
-                  borderLeft: '3px solid #ffc800',
-                  borderRadius: '8px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.6rem',
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '0.78rem',
-                  color: '#ffc800',
-                  letterSpacing: '0.05em',
-                }}>
-                  <span style={{ fontSize: '1rem', flexShrink: 0 }}>🧪</span>
+                <div className="cyber-banner-short mw-cyber-banner">
                   <span>
-                    <strong>MODO DEMO ACTIVO</strong> — El formulario está precargado con datos de prueba.
-                    Los envíos realizados en este modo son reales; no envíes sin intención.
+                    <strong>Modo de demostración</strong>
+                    El formulario contiene datos de prueba. Los envíos son reales: no envíes sin intención.
                   </span>
                 </div>
               )}
@@ -546,55 +516,60 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
               <div className="rfm-stack">
 
                 {submitError && (
-                  <div style={{ color: '#ff3333', background: 'rgba(255,51,51,0.1)', padding: '0.75rem', borderLeft: '3px solid #ff3333', fontFamily: 'var(--font-mono)', fontSize: '0.82rem' }}>
+                  <div ref={submitErrorRef} className="rfm-submit-error" role="alert" tabIndex={-1}>
                     ⚠ {submitError}
                   </div>
                 )}
 
-                <div className="rfm-panel rfm-panel--objetivo">
-                  <div className="rfm-panel__title">
-                    Nombre del objetivo
+                <div className="rfm-panel rfm-panel--objetivo mw-cyber-panel">
+                  <div className="cyber-tile mw-cyber-frame" aria-hidden="true" />
+                  <h3 className="rfm-panel__title cyber-h mw-cyber-heading">
+                    <label htmlFor="nickname">Identificar al jugador</label>
                     <Tooltip text="Nombre exacto del jugador en el servidor.">
                       <span style={{ cursor: 'help' }}><HelpIcon style={{ width: 15, height: 15, opacity: 0.6 }} /></span>
                     </Tooltip>
-                  </div>
+                  </h3>
+                  <p className="rfm-section-description">Introduce su nombre exacto e investiga sus antecedentes antes de continuar.</p>
                   <div className="form-group" style={{ marginBottom: 0 }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: '0.5rem', alignItems: 'stretch' }}>
-                      <Field name="nickname">
-                        {({ field }) => (
-                          <input
-                            {...field}
-                            type="text"
-                            id="nickname"
-                            className="form-group__input rfm-input--hero"
-                            placeholder="Ej: CHEATER_123"
-                            maxLength={30}
-                            autoComplete="off"
-                            translate="no"
-                            disabled={isSubmitting}
-                            onChange={(event) => {
-                              const nextValue = event.target.value;
-                              const nextTrimmed = String(nextValue || '').trim();
-                              setFieldValue('nickname', nextValue);
+                    <div className="rfm-investigation-row">
+                      <div className="cyber-input-full mw-cyber-input">
+                        <Field name="nickname">
+                          {({ field }) => (
+                            <input
+                              {...field}
+                              aria-invalid={Boolean(touched.nickname && errors.nickname)}
+                              type="text"
+                              id="nickname"
+                              className="form-group__input rfm-input--hero"
+                              placeholder="Ej: CHEATER_123"
+                              maxLength={30}
+                              autoComplete="off"
+                              translate="no"
+                              disabled={isSubmitting}
+                              onChange={(event) => {
+                                const nextValue = event.target.value;
+                                const nextTrimmed = String(nextValue || '').trim();
+                                setFieldValue('nickname', nextValue);
 
-                              const changedFromLastAttempt = (
-                                investigationGate.username
-                                && investigationGate.username.toLowerCase() !== nextTrimmed.toLowerCase()
-                              );
+                                const changedFromLastAttempt = (
+                                  investigationGate.username
+                                  && investigationGate.username.toLowerCase() !== nextTrimmed.toLowerCase()
+                                );
 
-                              if (changedFromLastAttempt) {
-                                setFieldValue('investigation_status', 'not_attempted');
-                                setInvestigationGate({ username: '', completed: false });
-                                setInvestigationToken(0);
-                                setIsInvestigating(false);
-                              }
-                            }}
-                          />
-                        )}
-                      </Field>
+                                if (changedFromLastAttempt) {
+                                  setFieldValue('investigation_status', 'not_attempted');
+                                  setInvestigationGate({ username: '', completed: false });
+                                  setInvestigationToken(0);
+                                  setIsInvestigating(false);
+                                }
+                              }}
+                            />
+                          )}
+                        </Field>
+                      </div>
                       <button
                         type="button"
-                        className="rfm-investigate-btn notranslate"
+                        className="rfm-investigate-btn cyber-button-small mw-cyber-button mw-cyber-button--secondary notranslate"
                         translate="no"
                         disabled={!canInvestigate}
                         onClick={() => {
@@ -613,7 +588,7 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
                         }}
                       >
                         <span className={`rfm-investigate-btn__spinner ${isInvestigating ? '' : 'rfm-investigate-btn__spinner--hidden'}`} aria-hidden="true" />
-                        <span className="rfm-button-label">{isInvestigating ? 'Buscando...' : 'Investigar'}</span>
+                        <CyberButtonLabel>{isInvestigating ? 'Buscando...' : 'Investigar'}</CyberButtonLabel>
                       </button>
                     </div>
                     <ErrorMessage name="nickname" component="span" className="form-group__hint" style={{ color: '#ff3333' }} />
@@ -624,6 +599,7 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
                 {trimmedUsername && !blockedUsername && investigationToken > 0 && (
                   <PlayerBackgroundPanel
                     username={trimmedUsername}
+                    rid={initialPlayer?.nickname === trimmedUsername ? initialPlayer.rid || '' : ''}
                     investigateToken={investigationToken}
                     onInvestigatingChange={setIsInvestigating}
                     onInvestigationChange={(result) => {
@@ -666,26 +642,30 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
 
                 {canShowFullForm && (
                   <>
-                    <div className="rfm-panel">
-                      <div className="rfm-panel__title">
-                        Datos del jugador (editable)
+                    <div className="rfm-panel mw-cyber-panel">
+                      <div className="cyber-tile mw-cyber-frame" aria-hidden="true" />
+                      <h3 className="rfm-panel__title cyber-h mw-cyber-heading">
+                        Datos del jugador
                         <Tooltip text="Completa las crews separadas por coma. Se generara un enlace de Social Club para cada una.">
                           <span style={{ cursor: 'help' }}><HelpIcon style={{ width: 15, height: 15, opacity: 0.6 }} /></span>
                         </Tooltip>
-                      </div>
+                      </h3>
 
                       <div className="rfm-field-row" style={{ marginBottom: '0.75rem' }}>
                         <div className="form-group" style={{ marginBottom: 0 }}>
                           <label htmlFor="rid" className="form-group__label">RID</label>
-                          <Field
-                            type="text"
-                            id="rid"
-                            name="rid"
-                            className="form-group__input"
-                            placeholder={values.investigation_status === 'not_found' ? 'RID opcional si lo conoces' : 'RID detectado por investigacion'}
-                            autoComplete="off"
-                            disabled={isSubmitting || values.investigation_status === 'resolved'}
-                          />
+                          <div className="cyber-input-full mw-cyber-input">
+                            <Field
+                              type="text"
+                              id="rid"
+                              name="rid"
+                              aria-invalid={Boolean(touched.rid && errors.rid)}
+                              className="form-group__input"
+                              placeholder={values.investigation_status === 'not_found' ? 'RID opcional si lo conoces' : 'RID detectado por investigacion'}
+                              autoComplete="off"
+                              disabled={isSubmitting || values.investigation_status === 'resolved'}
+                            />
+                          </div>
                           <div className="form-group__hint" style={{ fontSize: '0.74rem' }}>
                             {values.investigation_status === 'resolved'
                               ? 'RID bloqueado: fue asignado por la investigacion.'
@@ -696,15 +676,18 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
 
                         <div className="form-group" style={{ marginBottom: 0 }}>
                           <label htmlFor="crews" className="form-group__label">Crews</label>
-                          <Field
-                            type="text"
-                            id="crews"
-                            name="crews"
-                            className="form-group__input"
-                            placeholder="Ej: Kaiths Rebels, Crew Secundaria"
-                            autoComplete="off"
-                            disabled={isSubmitting}
-                          />
+                          <div className="cyber-input-full mw-cyber-input">
+                            <Field
+                              type="text"
+                              id="crews"
+                              name="crews"
+                              aria-invalid={Boolean(touched.crews && errors.crews)}
+                              className="form-group__input"
+                              placeholder="Ej: Kaiths Rebels, Crew Secundaria"
+                              autoComplete="off"
+                              disabled={isSubmitting}
+                            />
+                          </div>
                           <ErrorMessage name="crews" component="span" className="form-group__hint" style={{ color: '#ff3333' }} />
                         </div>
                       </div>
@@ -714,13 +697,15 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
                       </div>
                     </div>
 
-                    <div className="rfm-panel">
-                      <div className="rfm-panel__title">
+                    <div className="rfm-panel mw-cyber-panel">
+                      <div className="cyber-tile mw-cyber-frame" aria-hidden="true" />
+                      <h3 className="rfm-panel__title cyber-h mw-cyber-heading">
                         Tipo(s) de Infracción
                         <Tooltip text="Selecciona una o varias categorías que describan la infracción.">
                           <span style={{ cursor: 'help' }}><HelpIcon style={{ width: 15, height: 15, opacity: 0.6 }} /></span>
                         </Tooltip>
-                      </div>
+                      </h3>
+                      <p className="rfm-section-description">Selecciona una o varias categorías para describir lo ocurrido.</p>
                       <div className="form-group" style={{ marginBottom: 0 }}>
                         <TipoInfraccionSelector
                           value={values.typesOfInfraction}
@@ -735,18 +720,21 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
 
                     {/* ── MOTIVO + EVIDENCIAS en la misma fila ── */}
                     <div className="rfm-motivo-row">
-                      <div className="rfm-panel" style={{ display: 'flex', flexDirection: 'column' }}>
-                        <div className="rfm-panel__title">
+                      <div className="rfm-panel mw-cyber-panel" style={{ display: 'flex', flexDirection: 'column' }}>
+                        <div className="cyber-tile mw-cyber-frame" aria-hidden="true" />
+                        <h3 className="rfm-panel__title cyber-h mw-cyber-heading">
                           Motivo del Reporte
                           <Tooltip text="Describe con detalle lo que sucedió: ¿qué hizo, cuándo, dónde?">
                             <span style={{ cursor: 'help' }}><HelpIcon style={{ width: 15, height: 15, opacity: 0.6 }} /></span>
                           </Tooltip>
-                        </div>
+                        </h3>
                         <div className="form-group" style={{ marginBottom: 0, flex: 1, display: 'flex', flexDirection: 'column' }}>
+                          <div className="cyber-input-full mw-cyber-input">
                           <Field
                             as="textarea"
                             id="reason"
                             name="reason"
+                            aria-invalid={Boolean(touched.reason && errors.reason)}
                             className="form-group__textarea"
                             aria-label="Motivo del Reporte"
                             placeholder="Describe lo que viste: qué hizo, cuándo, en qué sesión..."
@@ -754,6 +742,7 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
                             disabled={isSubmitting}
                             style={{ flex: 1, resize: 'none' }}
                           />
+                          </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                             <ErrorMessage name="reason" component="span" className="form-group__hint" style={{ color: '#ff3333' }} />
                             <span className="form-group__hint" style={{ marginLeft: 'auto' }}>{values.reason.length}/500</span>
@@ -761,14 +750,15 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
                         </div>
                       </div>
 
-                      <div className="rfm-panel" style={{ display: 'flex', flexDirection: 'column' }}>
-                        <div className="rfm-panel__title">
-                          📎 Adjuntar Evidencias
-                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'rgba(0,255,255,0.45)', fontWeight: 400, textTransform: 'none', letterSpacing: '0.05em', marginLeft: '0.4rem' }}>opcional</span>
+                      <div className="rfm-panel mw-cyber-panel" style={{ display: 'flex', flexDirection: 'column' }}>
+                        <div className="cyber-tile mw-cyber-frame" aria-hidden="true" />
+                        <h3 className="rfm-panel__title cyber-h mw-cyber-heading">
+                          Adjuntar evidencias
+                          <span className="rfm-optional">Opcional</span>
                           <Tooltip text="Arrastra imágenes, selecciona archivos o pega con Ctrl+V. Hasta 5 imágenes, máx. 5MB c/u.">
                             <span style={{ cursor: 'help' }}><HelpIcon style={{ width: 16, height: 16 }} /></span>
                           </Tooltip>
-                        </div>
+                        </h3>
                         <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                           <ImageUpload ref={imageUploadRef} onImagesChange={setImages} maxImages={5} globalPaste={false} disabled={isSubmitting} />
                         </div>
@@ -780,8 +770,9 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
 
                     {/* ── ETIQUETAS: visibles cuando hay categorías seleccionadas ── */}
                     {values.typesOfInfraction.length > 0 && (
-                      <div className="rfm-panel">
-                        <div className="rfm-panel__title">Etiquetas de amenaza</div>
+                      <div className="rfm-panel mw-cyber-panel">
+                        <div className="cyber-tile mw-cyber-frame" aria-hidden="true" />
+                        <h3 className="rfm-panel__title cyber-h mw-cyber-heading">Etiquetas de amenaza</h3>
                         <EtiquetasSelector
                           categorias={values.typesOfInfraction}
                           etiquetas={values.labels}
@@ -794,13 +785,15 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
 
                     <div className="rfm-submit-wrap">
                       <button
+                        ref={submitButtonRef}
                         type="submit"
-                        className="form__submit notranslate"
+                        className="cyber-button mw-cyber-button notranslate"
                         translate="no"
                         disabled={isSubmitting}
                         style={{ opacity: isSubmitting ? 0.7 : 1, cursor: isSubmitting ? 'wait' : 'pointer' }}
                       >
-                        <span className="rfm-button-label">{isSubmitting ? '⏳ Enviando...' : '📨 Enviar Reporte a H.E.X.'}</span>
+                        <CyberButtonLabel>{isSubmitting ? '⏳ Enviando...' : '📨 Enviar Reporte a H.E.X.'}</CyberButtonLabel>
+                        <span className="tag" aria-hidden="true">HEX</span>
                       </button>
                     </div>
 

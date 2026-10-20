@@ -7,6 +7,7 @@ import { buildReportesChatContext, readReportesFromLocalStorage } from './chatTo
 import { unwrapMarkdownFence } from './markdownUtils';
 import { getIaChatEndpoint, getIaIntentEndpoint } from '../src/services/apiConfig';
 import { inferReportIntent } from '../shared/reportIntent';
+import CyberButtonLabel from './CyberButtonLabel';
 
 const HEX_LOGO_RED = '/HEX_LOGO_RED.png';
 const IA_ENDPOINT = getIaChatEndpoint();
@@ -16,6 +17,11 @@ const PROGRESS_BASELINE_MS = MAX_REQUEST_TIMEOUT_MS;
 const MARKDOWN_COMPONENTS = {
   a: ({ children, ...props }) => (
     <a {...props} target="_blank" rel="noopener noreferrer">{children}</a>
+  ),
+  table: ({ children }) => (
+    <div className="mw-cyber-table-scroll" role="region" aria-label="Tabla de respuesta" tabIndex={0}>
+      <table className="cyber-table cyber-style-1 mw-cyber-table">{children}</table>
+    </div>
   ),
 };
 
@@ -218,14 +224,20 @@ export default function AIAssistantBubble({ isAuthenticated = false, onSessionEx
   }, [isOpen]);
 
   useEffect(() => {
-    if (!isFullscreen) return undefined;
+    if (!isOpen) return undefined;
 
     const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    const mobileViewport = window.matchMedia('(max-width: 640px)');
+    const syncOverflow = () => {
+      document.body.style.overflow = isFullscreen || mobileViewport.matches ? 'hidden' : previousOverflow;
+    };
+    syncOverflow();
+    mobileViewport.addEventListener('change', syncOverflow);
     return () => {
+      mobileViewport.removeEventListener('change', syncOverflow);
       document.body.style.overflow = previousOverflow;
     };
-  }, [isFullscreen]);
+  }, [isOpen, isFullscreen]);
 
   useEffect(() => () => stopProgressTicker(), []);
 
@@ -375,6 +387,7 @@ export default function AIAssistantBubble({ isAuthenticated = false, onSessionEx
             <button
               type="button"
               className="ai-bubble__backdrop"
+              data-ui-sound="reject"
               onClick={() => setIsFullscreen(false)}
               aria-label="Cerrar pantalla completa"
             />
@@ -472,16 +485,19 @@ export default function AIAssistantBubble({ isAuthenticated = false, onSessionEx
             </div>
 
             <form className="ai-bubble__form" onSubmit={formik.handleSubmit}>
+              <div className="cyber-input-full mw-cyber-input">
               <input
                 type="text"
                 name="message"
+                aria-label="Mensaje para H.E.X."
                 value={formik.values.message}
                 onChange={formik.handleChange}
                 placeholder="Escribe tu pregunta y presiona Enter..."
                 maxLength={1200}
               />
-              <button type="submit" disabled={!canSend}>
-                Enviar
+              </div>
+              <button className="cyber-button-small mw-cyber-button" type="submit" disabled={!canSend}>
+                <CyberButtonLabel>Enviar</CyberButtonLabel>
               </button>
             </form>
           </>

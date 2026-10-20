@@ -181,6 +181,7 @@ const ImageUpload = forwardRef(({ onImagesChange, maxImages = 5, globalPaste = f
       )}
 
       <style>{`
+        @layer legacy {
         .image-upload {
           width: 100%;
           height: 100%;
@@ -333,6 +334,7 @@ const ImageUpload = forwardRef(({ onImagesChange, maxImages = 5, globalPaste = f
           .image-upload__icon { font-size: 2rem; }
           .image-upload__text--primary { font-size: 0.95rem; }
           .image-upload__preview-grid { grid-template-columns: repeat(3, 1fr); }
+        }
         }
       `}</style>
     </div>

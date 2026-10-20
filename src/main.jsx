@@ -1,6 +1,8 @@
 ﻿import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import '../styles/App.css'
+import '../styles/Cyberpunk.css'
+import '../styles/GlitchTheme.css'
 import App from './App.jsx'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 

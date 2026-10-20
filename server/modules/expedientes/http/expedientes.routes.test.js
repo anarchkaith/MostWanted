@@ -46,3 +46,6 @@ requireSessionAuth(
 assert.equal(authenticatedNextCalled, true);
 
 console.log('OK expediente report authentication checks completed');
+await import('./cases.routes.test.js');
+await import('../../../shared/auth/discordStaff.test.js');
+await import('../../auth/http/auth.routes.test.js');

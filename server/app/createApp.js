@@ -10,6 +10,10 @@ import { buildPlayerInsightsWithScCache, getReportesSnapshot } from '../reportes
 import { RATE_LIMITS } from '../middleware/rateLimiter.js';
 import { mapUpstreamError, requireObjectBody } from '../middleware/requestValidation.js';
 import { createMaybeRequireSessionAuth } from '../shared/auth/sessionAuth.js';
+import { createDiscordStaffVerifier } from '../shared/auth/discordStaff.js';
+import { createCaseReportsSource } from '../modules/expedientes/services/caseReports.service.js';
+import { createCaseSummaryGenerator } from '../modules/expedientes/services/caseSummary.service.js';
+import { readCase } from '../modules/expedientes/services/cases.service.js';
 import { registerRoutes } from './registerRoutes.js';
 
 function readWebhookAllowedOrigins() {
@@ -51,10 +55,25 @@ export function createApp({ rootDir, isProduction }) {
       'http://localhost:5000/auth/discord/callback',
     ).trim(),
     apiUrl: String(process.env.DISCORD_API_URL || 'https://discord.com/api/v10').trim().replace(/\/+$/, ''),
-    oauthScopes: String(process.env.DISCORD_OAUTH_SCOPES || 'identify email').trim(),
+    oauthScopes: [...new Set(`${process.env.DISCORD_OAUTH_SCOPES || 'identify email'} guilds.members.read`.trim().split(/\s+/))].join(' '),
   };
 
   const authRequireLogin = process.env.AUTH_REQUIRE_LOGIN !== 'false';
+  const verifyCaseStaff = createDiscordStaffVerifier({
+    discordAuth,
+    guildId: String(process.env.DISCORD_STAFF_GUILD_ID || '').trim(),
+    roleIds: new Set(String(process.env.DISCORD_STAFF_ROLE_IDS || '').split(',').map((id) => id.trim()).filter(Boolean)),
+  });
+  const getCaseReports = createCaseReportsSource({ config: wordpressReportsConfig });
+  const generateCaseSummary = createCaseSummaryGenerator({ config: aiConfig });
+  const refreshPlayerCase = async ({ nickname, rid, reportId }) => {
+    const result = await readCase({ rootDir, source: getCaseReports, generateCaseSummary, nickname, rid });
+    if (!result.payload.ok || result.payload.source.stale) throw new Error('case_reports_refresh_failed');
+    if (!result.payload.case || (reportId != null && !result.payload.case.reportIds.some((id) => String(id) === String(reportId)))) {
+      throw new Error('new_report_not_available_for_summary');
+    }
+    if (result.payload.case?.classification?.error) throw new Error('case_summary_refresh_failed');
+  };
   const authAllowedDiscordUserIds = new Set(
     String(process.env.AUTH_ALLOWED_DISCORD_USER_IDS || '')
       .split(',')
@@ -119,6 +138,10 @@ export function createApp({ rootDir, isProduction }) {
     wordpressReportsConfig,
     debugMode,
     discordAuth,
+    verifyCaseStaff,
+    getCaseReports,
+    generateCaseSummary,
+    refreshPlayerCase,
     authFrontendSuccessUrl,
     authFrontendFailureUrl,
     authAllowedDiscordUserIds,

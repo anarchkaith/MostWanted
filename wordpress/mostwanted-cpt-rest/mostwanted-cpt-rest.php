@@ -722,9 +722,7 @@ function mw_community_verification_public($community_data, $voter_id = '') {
         }
 
         $confirmations[] = [
-            'reporterName' => mw_str($item['author'] ?? ''),
             'reason' => $reason,
-            'voterIp' => mw_str($item['ip'] ?? ''),
         ];
     }
 
@@ -757,7 +755,6 @@ function mw_map_report_item($report_post_id) {
         ? $safe_payload['labelIds']
         : (is_array($safe_payload['tagIds'] ?? null) ? $safe_payload['tagIds'] : []);
     $labels_table = mw_build_labels_table($labels, $label_ids);
-    $reporter = is_array($safe_payload['reporter'] ?? null) ? $safe_payload['reporter'] : mw_safe_meta_array($report_post_id, '_mw_reporter');
     $evidence = is_array($safe_payload['evidence'] ?? null)
         ? $safe_payload['evidence']
         : mw_safe_meta_array($report_post_id, '_mw_evidence');
@@ -802,13 +799,19 @@ function mw_map_report_item($report_post_id) {
         $crews = $normalized_crews;
     }
 
-    unset($safe_payload['crewsAssigned']);
-    unset($safe_payload['crews_assigned']);
     $aliases = mw_aliases_from_mixed($safe_payload['aliases'] ?? []);
 
-    $reporter_name = mw_str($reporter['name'] ?? '');
-    if (mb_strtolower($reporter_name) === 'formulario web') {
-        $reporter['name'] = 'Anónimo';
+    // La autoria se conserva en post meta, nunca en respuestas publicas.
+    $safe_payload = array_intersect_key($safe_payload, array_flip([
+        'username', 'playerId', 'avatar1', 'avatar2', 'time', 'reason',
+        'typesOfInfraction', 'labelIds', 'tagIds', 'investigation_status',
+        'severity', 'severidad', 'validation', 'validacion', 'anonymous', 'source',
+    ]));
+    $report_metadata = is_array($payload['report'] ?? null) ? $payload['report'] : [];
+    if ($report_metadata) {
+        $safe_payload['report'] = array_intersect_key($report_metadata, array_flip([
+            'categories', 'tags', 'tagIds', 'investigation_status', 'analysis',
+        ]));
     }
 
     $flattened_payload = array_merge($safe_payload, [
@@ -818,7 +821,6 @@ function mw_map_report_item($report_post_id) {
         'content' => $reason,
         'categories' => $types,
         'labels' => $labels_table,
-        'reporter' => $reporter,
         'crews' => $crews,
         'evidence' => $evidence,
         'analysis' => $analysis,
@@ -834,7 +836,6 @@ function mw_map_report_item($report_post_id) {
         'content' => $reason,
         'categories' => $types,
         'labels' => $labels_table,
-        'reporter' => $reporter,
         'crews' => $crews,
         'evidence' => $evidence,
         'analysis' => $analysis,

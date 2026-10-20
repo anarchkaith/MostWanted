@@ -1,5 +1,6 @@
 ﻿import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 
 const FILE_NAME = 'expedientes.json';
 
@@ -15,39 +16,6 @@ function toTrimmedString(value) {
  */
 function toArray(values) {
   return Array.isArray(values) ? values : [];
-}
-
-function removePrivateDiscordIdentity(identity) {
-  if (!identity || typeof identity !== 'object' || Array.isArray(identity)) {
-    return identity;
-  }
-
-  return Object.fromEntries(
-    Object.entries(identity).filter(([key]) => !['id', 'discordId', 'tag'].includes(key)),
-  );
-}
-
-function removePrivateExpedienteIdentities(expediente) {
-  return {
-    ...expediente,
-    ...(Array.isArray(expediente?.reports) ? {
-      reports: expediente.reports.map((report) => ({
-        ...report,
-        ...(report?.reporter ? { reporter: removePrivateDiscordIdentity(report.reporter) } : {}),
-      })),
-    } : {}),
-    ...(expediente?.votes && typeof expediente.votes === 'object' ? {
-      votes: {
-        ...expediente.votes,
-        ...(Array.isArray(expediente.votes.entries) ? {
-          entries: expediente.votes.entries.map((entry) => ({
-            ...entry,
-            ...(entry?.voter ? { voter: removePrivateDiscordIdentity(entry.voter) } : {}),
-          })),
-        } : {}),
-      },
-    } : {}),
-  };
 }
 
 /**
@@ -84,9 +52,14 @@ function buildPlayerKey({ nickname = '', rid = '' } = {}) {
  * Garantiza que el archivo de persistencia local exista antes de leer/escribir.
  */
 function ensureStorageFile(rootDir) {
+  fs.mkdirSync(path.join(rootDir, 'data'), { recursive: true });
   const filePath = path.join(rootDir, 'data', FILE_NAME);
   if (!fs.existsSync(filePath)) {
-    fs.writeFileSync(filePath, '[]', 'utf-8');
+    try {
+      fs.writeFileSync(filePath, '[]', { encoding: 'utf-8', flag: 'wx' });
+    } catch (error) {
+      if (error.code !== 'EEXIST') throw error;
+    }
   }
   return filePath;
 }
@@ -96,13 +69,9 @@ function ensureStorageFile(rootDir) {
  */
 export function readExpedientes(rootDir) {
   const filePath = ensureStorageFile(rootDir);
-  try {
-    const raw = fs.readFileSync(filePath, 'utf-8');
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.map(removePrivateExpedienteIdentities) : [];
-  } catch {
-    return [];
-  }
+  const parsed = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+  if (!Array.isArray(parsed)) throw new Error('invalid_expedientes_storage');
+  return parsed;
 }
 
 /**
@@ -110,7 +79,80 @@ export function readExpedientes(rootDir) {
  */
 function writeExpedientes(rootDir, expedientes = []) {
   const filePath = ensureStorageFile(rootDir);
-  fs.writeFileSync(filePath, JSON.stringify(expedientes, null, 2), 'utf-8');
+  const stagingPath = `${filePath}.${process.pid}.${crypto.randomUUID()}.staging`;
+  let fd;
+  try {
+    fd = fs.openSync(stagingPath, 'wx');
+    fs.writeFileSync(fd, JSON.stringify(expedientes, null, 2), 'utf-8');
+    fs.fsyncSync(fd);
+    fs.closeSync(fd);
+    fd = undefined;
+    const deadline = Date.now() + 1000;
+    for (;;) {
+      try {
+        fs.renameSync(stagingPath, filePath);
+        break;
+      } catch (error) {
+        // Windows scanners/readers can briefly hold the destination open.
+        if (!['EPERM', 'EACCES', 'EBUSY'].includes(error.code) || Date.now() >= deadline) throw error;
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20);
+      }
+    }
+  } finally {
+    if (fd !== undefined) fs.closeSync(fd);
+    if (fs.existsSync(stagingPath)) fs.unlinkSync(stagingPath);
+  }
+}
+
+export function updateExpedientes(rootDir, update) {
+  fs.mkdirSync(path.join(rootDir, 'data'), { recursive: true });
+  const lockPath = path.join(rootDir, 'data', 'expedientes.lock');
+  const deadline = Date.now() + 2000;
+  for (;;) {
+    try {
+      fs.mkdirSync(lockPath);
+      break;
+    } catch (error) {
+      if (error.code !== 'EEXIST' || Date.now() >= deadline) throw error;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20);
+    }
+  }
+  try {
+    const items = readExpedientes(rootDir);
+    const result = update(items);
+    writeExpedientes(rootDir, items);
+    return result;
+  } finally {
+    fs.rmdirSync(lockPath);
+  }
+}
+
+// Legacy endpoints retain their shape, but never expose internal management data.
+export function publicLegacyExpediente(expediente) {
+  if (!expediente) return null;
+  return {
+    expedienteId: expediente.expedienteId, playerKey: expediente.playerKey,
+    player: {
+      nickname: expediente.player?.nickname, rid: expediente.player?.rid,
+      crews: toArray(expediente.player?.crews), aliases: toArray(expediente.player?.aliases),
+    },
+    createdAt: expediente.createdAt, updatedAt: expediente.updatedAt,
+    ...(expediente.status ? { status: expediente.status } : {}),
+    votes: {
+      legit: expediente.votes?.legit || 0, not_legit: expediente.votes?.not_legit || 0,
+      entries: toArray(expediente.votes?.entries).map((entry) => ({
+        voteType: entry.voteType, reason: entry.reason, createdAt: entry.createdAt,
+      })),
+    },
+    reports: toArray(expediente.reports).map((report) => ({
+      reportId: report.reportId, source: report.source, reason: report.reason,
+      typesOfInfraction: report.typesOfInfraction, labels: report.labels,
+      evidence: toArray(report.evidence).map((item) => ({
+        url: item?.url, name: item?.name, contentType: item?.contentType,
+      })),
+      createdAt: report.createdAt,
+    })),
+  };
 }
 
 /**
@@ -206,8 +248,9 @@ function findExpedienteIndex(expedientes = [], { nickname, rid }) {
 
   let index = expedientes.findIndex((item) => item?.playerKey === keyByRid && keyByRid !== 'name:unknown');
   if (index >= 0) return index;
+  if (rid) return -1;
 
-  index = expedientes.findIndex((item) => item?.playerKey === keyByName && keyByName !== 'name:unknown');
+  index = expedientes.findIndex((item) => item?.playerKey === keyByName && !item?.player?.rid && keyByName !== 'name:unknown');
   return index;
 }
 
@@ -215,7 +258,7 @@ function findExpedienteIndex(expedientes = [], { nickname, rid }) {
  * Crea o actualiza expediente de jugador adjuntando un nuevo reporte.
  */
 export function createOrAppendReport({ rootDir, body = {}, reporter = null }) {
-  const expedientes = readExpedientes(rootDir);
+  return updateExpedientes(rootDir, (expedientes) => {
   const playerIdentity = resolvePlayerIdentity({
     player: body?.player || {},
     report: body?.report || body,
@@ -256,19 +299,25 @@ export function createOrAppendReport({ rootDir, body = {}, reporter = null }) {
   expediente.player.aliases = normalizeAliases([...toArray(expediente.player.aliases), ...playerIdentity.aliases]);
 
   if (report.metadata.notes) {
-    expediente.notes = Array.from(new Set([...toArray(expediente.notes), report.metadata.notes])).slice(0, 100);
+    const note = {
+      id: crypto.randomUUID(), text: report.metadata.notes,
+      author: { id: String(reporter?.id || ''), name: String(reporter?.name || 'staff') }, createdAt: now,
+    };
+    expediente.staffNotes = [...toArray(expediente.staffNotes), note];
+    expediente.history = [...toArray(expediente.history), {
+      id: crypto.randomUUID(), type: 'note_added', noteId: note.id, author: note.author, createdAt: now,
+    }];
   }
 
   expediente.reports = [report, ...toArray(expediente.reports)].slice(0, 500);
   expediente.updatedAt = now;
-
-  writeExpedientes(rootDir, expedientes);
 
   return {
     expediente,
     appendedReport: report,
     created,
   };
+  });
 }
 
 /**
@@ -316,7 +365,7 @@ export function searchExpedientes({ rootDir, query = '', limit = 20 }) {
  * Registra un voto de legitimidad dentro de un expediente existente.
  */
 export function addVoteToExpediente({ rootDir, expedienteId, voteType, reason = '', voter = null }) {
-  const expedientes = readExpedientes(rootDir);
+  return updateExpedientes(rootDir, (expedientes) => {
   const index = expedientes.findIndex((item) => item?.expedienteId === expedienteId);
 
   if (index < 0) {
@@ -347,7 +396,6 @@ export function addVoteToExpediente({ rootDir, expedienteId, voteType, reason = 
     : Number(expediente?.votes?.not_legit || 0);
   expediente.updatedAt = new Date().toISOString();
 
-  writeExpedientes(rootDir, expedientes);
-
   return { ok: true, expediente };
+  });
 }

@@ -89,7 +89,7 @@ function extractPanelAvatarsFromInsights(reportInsights = null) {
 }
 
 async function getPlayerReportInsights({ username, rid = '' }) {
-  return fetchWordpressPlayerInsights({ username, rid }).catch(() => null);
+  return fetchWordpressPlayerInsights({ username, rid });
 }
 
 function createHttpStatusError(status) {
@@ -210,6 +210,7 @@ async function fetchWithCorsFallback(url, options = {}) {
   try {
     return await directRequest();
   } catch (directError) {
+    if (options.signal?.aborted) throw directError;
     // Evita doble request innecesario para errores HTTP de la API (404/400/etc).
     if (!isNetworkOrCorsFailure(directError)) {
       throw directError;
@@ -225,6 +226,7 @@ async function fetchWithCorsFallback(url, options = {}) {
       }
       return { response: proxiedResponse, usedProxy: true };
     } catch (proxyError) {
+      if (options.signal?.aborted) throw proxyError;
       const detail = proxyError instanceof Error ? proxyError.message : 'fallo desconocido';
       const root = directError instanceof Error ? directError.message : 'fallo desconocido';
       throw new Error(`${root}. Fallback CORS falló: ${detail}`);
@@ -232,13 +234,13 @@ async function fetchWithCorsFallback(url, options = {}) {
   }
 }
 
-async function getPlayerRid(username) {
+async function getPlayerRid(username, signal) {
   if (!username || typeof username !== 'string') {
     throw new Error('Username invalido');
   }
 
   const { response, usedProxy } = await fetchWithCorsFallback(
-    `https://sc-cache.com/n/${encodeURIComponent(username)}`,
+    `https://sc-cache.com/n/${encodeURIComponent(username)}`, { signal },
   );
   const data = await response.json();
 
@@ -249,13 +251,29 @@ async function getPlayerRid(username) {
   return { rid: String(data.id), usedProxy };
 }
 
-async function getPlayerProfile(rid) {
+export async function lookupCachedPlayer(query, signal) {
+  const value = query.trim();
+  if (isBlockedReportedUsername(value)) throw new Error(BLOCKED_REPORTED_USERNAME_MESSAGE);
+  try {
+    if (/^\d+$/.test(value)) {
+      const { profile } = await getPlayerProfile(value, signal);
+      return { nickname: profile.name, rid: value, source: 'Social Club / sc-cache' };
+    }
+    const { rid } = await getPlayerRid(value, signal);
+    return { nickname: value, rid, source: 'Social Club / sc-cache' };
+  } catch (error) {
+    if (error.status === 404) return null;
+    throw error;
+  }
+}
+
+async function getPlayerProfile(rid, signal) {
   if (!rid) {
     throw new Error('RID invalido');
   }
 
   const { response, usedProxy } = await fetchWithCorsFallback(
-    `https://sc-cache.com/r/${encodeURIComponent(String(rid))}`,
+    `https://sc-cache.com/r/${encodeURIComponent(String(rid))}`, { signal },
   );
   const data = await response.json();
 
@@ -372,25 +390,45 @@ async function fetchBattleyeAccountStatus() {
   }
 }
 
-export async function investigatePlayerBackground(username) {
-  if (!username || typeof username !== 'string' || username.trim() === '') {
-    throw new Error('Username requerido');
+export async function investigatePlayerBackground(username, knownRid = '') {
+  if (knownRid && !/^\d+$/.test(String(knownRid))) throw new Error('RID inválido');
+  if ((!username || typeof username !== 'string' || username.trim() === '') && !/^\d+$/.test(knownRid)) {
+    throw new Error('Nombre o RID requerido');
   }
 
-  const trimmedUsername = username.trim();
+  const trimmedUsername = typeof username === 'string' ? username.trim() : '';
 
   if (isBlockedReportedUsername(trimmedUsername)) {
     throw new Error(BLOCKED_REPORTED_USERNAME_MESSAGE);
   }
 
   try {
-    const { rid, usedProxy: ridProxy } = await getPlayerRid(trimmedUsername);
-    const reportInsights = await getPlayerReportInsights({ username: trimmedUsername, rid });
-    const nameHistory = extractNameHistoryFromInsights(reportInsights);
-    const aliases = extractNamesFromInsights(reportInsights);
+    const { rid, usedProxy: ridProxy } = knownRid
+      ? { rid: knownRid, usedProxy: false }
+      : await getPlayerRid(trimmedUsername);
+    const warnings = [];
+    const [insightsResult, profileResult] = await Promise.allSettled([
+      getPlayerReportInsights({ username: trimmedUsername, rid }),
+      getPlayerProfile(rid),
+    ]);
+    const reportInsights = insightsResult.status === 'fulfilled' ? insightsResult.value : null;
+    const profile = profileResult.status === 'fulfilled' ? profileResult.value.profile : null;
+    if (insightsResult.status === 'rejected') warnings.push(`Archivo de jugadores no disponible: ${insightsResult.reason.message}`);
+    if (profileResult.status === 'rejected') warnings.push(`Historial externo no disponible: ${profileResult.reason.message}`);
+    const historyByName = new Map();
+    for (const entry of [
+      ...extractNameHistoryFromInsights(reportInsights).map(item => ({ ...item, source: 'Archivo WordPress' })),
+      ...(profile?.nameHistory || []).map(item => ({ ...item, source: 'Social Club / sc-cache' })),
+    ]) {
+      const key = entry.name.trim().toLowerCase();
+      const existing = historyByName.get(key);
+      if (!existing || (Number(entry.time) || 0) > (Number(existing.time) || 0)) historyByName.set(key, entry);
+    }
+    const nameHistory = [...historyByName.values()].sort((a, b) => (Number(b.time) || 0) - (Number(a.time) || 0));
+    const aliases = mergeUniqueStrings(extractNamesFromInsights(reportInsights), profile?.aliases, nameHistory.map(item => item.name));
     const crews = mergeUniqueStrings(reportInsights?.crews);
     const avatars = resolvePanelAvatars(reportInsights, rid);
-    const displayName = nameHistory[0]?.name || aliases[0] || trimmedUsername;
+    const displayName = profile?.name || nameHistory[0]?.name || aliases[0] || trimmedUsername || `RID ${rid}`;
     const lastSeenReadable = reportInsights?.lastReportAt
       ? new Date(reportInsights.lastReportAt).toLocaleString('es-ES')
       : 'Sin datos de API local';
@@ -408,6 +446,7 @@ export async function investigatePlayerBackground(username) {
         lastSeenReadable,
       },
       reportInsights,
+      warnings,
       accountStatus: null,
       corsPermissionRequired: false,
       corsPermissionUrl: CORS_PERMISSION_URL,
@@ -415,20 +454,25 @@ export async function investigatePlayerBackground(username) {
       timestamp: new Date().toISOString(),
     };
   } catch (error) {
-    const reportInsights = await getPlayerReportInsights({ username: trimmedUsername }).catch(() => null);
+    let reportInsights = null;
+    try {
+      reportInsights = await getPlayerReportInsights({ username: trimmedUsername, rid: knownRid });
+    } catch (insightsError) {
+      console.error('[Investigation] No se pudieron consultar los antecedentes:', insightsError);
+    }
 
-    if (reportInsights?.reportCount > 0) {
+    if (reportInsights && (reportInsights.rid || reportInsights.username || reportInsights.reportCount > 0)) {
       const aliases = extractNamesFromInsights(reportInsights);
-      const nameHistory = extractNameHistoryFromInsights(reportInsights);
-      const avatars = resolvePanelAvatars(reportInsights, '');
+      const nameHistory = extractNameHistoryFromInsights(reportInsights).map(item => ({ ...item, source: 'Archivo WordPress' }));
+      const avatars = resolvePanelAvatars(reportInsights, knownRid);
 
       return {
         username: trimmedUsername,
-        rid: reportInsights.rid || '',
-        nombre: nameHistory[0]?.name || aliases[0] || trimmedUsername,
+        rid: knownRid || reportInsights.rid || '',
+        nombre: reportInsights.username || nameHistory[0]?.name || aliases[0] || trimmedUsername,
         avatares: avatars,
         profile: {
-          name: nameHistory[0]?.name || aliases[0] || trimmedUsername,
+          name: reportInsights.username || nameHistory[0]?.name || aliases[0] || trimmedUsername,
           aliases: mergeUniqueStrings(aliases),
           crews: mergeUniqueStrings(reportInsights.crews),
           nameHistory,
@@ -437,6 +481,7 @@ export async function investigatePlayerBackground(username) {
             : 'Sin datos de API local',
         },
         reportInsights,
+        warnings: [`No se pudo resolver el perfil externo: ${error.message}. Se muestran los datos disponibles en el archivo de jugadores.`],
         accountStatus: null,
         corsPermissionRequired: false,
         corsPermissionUrl: CORS_PERMISSION_URL,

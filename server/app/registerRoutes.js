@@ -1,6 +1,7 @@
 ﻿import { registerAuthRoutes } from '../modules/auth/http/auth.routes.js';
 import { registerAiRoutes } from '../modules/ai/http/ai.routes.js';
 import { registerExpedientesRoutes } from '../modules/expedientes/http/expedientes.routes.js';
+import { registerCasesRoutes } from '../modules/expedientes/http/cases.routes.js';
 import { registerReportsRoutes } from '../modules/reports/http/reports.routes.js';
 import { registerSystemRoutes } from '../modules/system/http/system.routes.js';
 
@@ -12,6 +13,7 @@ export function registerRoutes(app, deps) {
   registerAuthRoutes(app, deps);
   registerAiRoutes(app, deps);
   registerExpedientesRoutes(app, deps);
+  registerCasesRoutes(app, deps);
   registerReportsRoutes(app, deps);
   registerSystemRoutes(app, deps);
 }

@@ -1,11 +1,15 @@
-﻿import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import ReportCard from '../components/ReportCard';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import InvestigationDesk from '../components/InvestigationDesk';
 import ReportDetailModal from '../components/ReportDetailModal';
 import ReportFormModal from '../components/ReportFormModal';
 import HelpModal from '../components/HelpModal';
 import AIAssistantBubble from '../components/AIAssistantBubble';
+import CyberButtonLabel from '../components/CyberButtonLabel';
+import InterfaceSounds from '../components/InterfaceSounds';
+import PersonSearch from '../components/PersonSearch';
 import { buildApiUrl, getApiBaseUrl } from './services/apiConfig';
 import { assignExpedienteIds } from './services/expedienteIds';
+import { normalizeReportValidation } from './services/casePresentation';
 import {
   fetchWordpressReportsSnapshot,
   submitWordpressCommunityVerificationVote,
@@ -21,13 +25,6 @@ import {
  * - /expediente/:id - Ver expediente por ID incremental
  * - /?admin=1 - Modo administrador
  */
-
-// Formatear URL del expediente por ID incremental.
-const formatExpediente = (expedienteId) => {
-  const id = Number.isFinite(Number(expedienteId)) ? Number(expedienteId) : 0;
-  if (!id) return '/';
-  return `/expediente/${id}`;
-};
 
 // Base URL de la API (solo desde .env)
 const API_BASE_URL = getApiBaseUrl();
@@ -92,7 +89,8 @@ const mapSeveridadFromWordpressLabels = (labels = []) => {
   if (merged.includes('critic')) return 'critica';
   if (merged.includes('alto') || merged.includes('high')) return 'alta';
   if (merged.includes('bajo') || merged.includes('low')) return 'baja';
-  return 'media';
+  if (merged.includes('medi')) return 'media';
+  return '';
 };
 
 const normalizeComentariosFromCommunityVerification = (communityVerification = {}) => {
@@ -105,7 +103,7 @@ const normalizeComentariosFromCommunityVerification = (communityVerification = {
     .map((entry) => ({
       tipo: 'down',
       comentario: String(entry?.reason || '').trim(),
-      autor: String(entry?.reporterName || 'Comunidad').trim() || 'Comunidad',
+      autor: 'Comunidad',
       fecha: new Date().toISOString(),
     }));
 };
@@ -114,7 +112,6 @@ const mapWordpressReportToReporte = (report = {}) => {
   const evidence = Array.isArray(report?.evidence) ? report.evidence : [];
   const usuario = String(report?.nickname || report?.title || '').trim();
 
-  const reportadoPor = String(report?.reporter?.name || '').trim();
   const communityVerification = report?.communityVerification || {};
   const normalizedComments = normalizeComentariosFromCommunityVerification(communityVerification);
 
@@ -122,9 +119,9 @@ const mapWordpressReportToReporte = (report = {}) => {
     id: Number(report?.id) || Date.now(),
     usuario: usuario || 'USUARIO_SIN_NOMBRE',
     motivo: report?.content || 'Reporte registrado en MostWanted.',
-    reportadoPor: reportadoPor || 'ANONIMO',
+    reportadoPor: 'ANONIMO',
     categoria: mapCategoriaFromWordpressType(report?.categories || []),
-    fecha: report?.createdAt || new Date().toISOString(),
+    fecha: report?.createdAt || report?.date || '',
     evidencia: evidence[0]?.url || '',
     evidencias: evidence.map((item, index) => ({
       id: `${report?.id || 'report'}-evidence-${index}`,
@@ -133,22 +130,23 @@ const mapWordpressReportToReporte = (report = {}) => {
       tipo: item?.contentType || 'image/png',
     })).filter((item) => item.preview),
     estado: 'activo',
-    severidad: mapSeveridadFromWordpressLabels(report?.labels || []),
-    validacion: 'pendiente',
+    severidad: report?.severidad || report?.severity || (report?.labels?.length ? mapSeveridadFromWordpressLabels(report.labels) : ''),
+    validacion: normalizeReportValidation(report?.validacion || report?.validation),
     votos: {
       up: Number(communityVerification?.up) || 0,
       down: Number(communityVerification?.down) || 0,
       comentarios: normalizedComments,
     },
     wpRid: report?.rid || '',
+    categories: Array.isArray(report?.categories) ? report.categories : [],
   };
 };
 
 const normalizeReporte = (reporte = {}) => {
   const id = reporte.id ?? Date.now();
   const categoria = mapCategoriaLegacy(reporte.categorias, reporte.categoria);
-  const severidad = reporte.severidad || 'media';
-  const fecha = reporte.fecha || new Date().toISOString().slice(0, 10);
+  const severidad = reporte.severidad ?? 'media';
+  const fecha = reporte.fecha ?? new Date().toISOString().slice(0, 10);
 
   return {
     ...reporte,
@@ -157,30 +155,54 @@ const normalizeReporte = (reporte = {}) => {
     categoria,
     severidad,
     fecha,
-    reportadoPor: reporte.reportadoPor || reporte.contacto || 'ANONIMO',
-    validacion: reporte.validacion || 'pendiente'
+    reportadoPor: 'ANONIMO',
+    validacion: reporte.validacion ?? 'pendiente'
   };
 };
 
 
 function App() {
+  const [path, setPath] = useState(window.location.pathname);
+  const [caseRevision, setCaseRevision] = useState(0);
+  const [deskReset, setDeskReset] = useState(0);
+  const [reportPlayer, setReportPlayer] = useState(null);
+  const [searchPlayer, setSearchPlayer] = useState(null);
+  const [knownPlayers, setKnownPlayers] = useState([]);
+  const rememberPlayer = useCallback(player => {
+    if (!player) return;
+    setKnownPlayers(current => [
+      ...current.filter(item => player.rid ? item.rid !== player.rid : item.nickname !== player.nickname),
+      { ...player, source: 'Analizado en esta sesión' },
+    ]);
+  }, []);
+  const [reportsError, setReportsError] = useState('');
+  const [capabilities, setCapabilities] = useState({ manageCases: false });
+  const detailReturnPath = useRef('/');
+  const formReturnPath = useRef('/');
+  const navigate = useCallback((nextPath, replace = false) => {
+    const previousPath = window.location.pathname;
+    window.history[replace ? 'replaceState' : 'pushState']({}, '', `${nextPath}${window.location.search}`);
+    setPath(nextPath);
+    if (nextPath === '/denunciar' || previousPath === '/denunciar') window.scrollTo(0, 0);
+  }, []);
+  useEffect(() => {
+    if (window.location.pathname === '/' && window.location.hash === '#reportar') navigate('/denunciar', true);
+  }, [navigate]);
+  useEffect(() => {
+    const onPopState = () => {
+      setPath(window.location.pathname);
+      if (window.location.pathname === '/') { setSearchPlayer(null); setDeskReset(value => value + 1); }
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
   // Estado para el modal de ayuda
   const [showHelp, setShowHelp] = useState(false);
   // Estado para los reportes (incluyendo nuevos enviados)
   const [reportes, setReportes] = useState([]);
 
-  // Estado para el filtro activo
-  const [filtroActivo, setFiltroActivo] = useState('todos');
-
-  // Estado para los filtros de validación (chips múltiples)
-  const [filtrosValidacion, setFiltrosValidacion] = useState([]);
-
-  // Estado para la búsqueda
-  const [busqueda, setBusqueda] = useState('');
-
   // Estado para el modal de detalle
   const [reporteSeleccionado, setReporteSeleccionado] = useState(null);
-  const [showLista, setShowLista] = useState(false);
 
   // Estado de carga
   const [isLoading, setIsLoading] = useState(true);
@@ -219,6 +241,7 @@ function App() {
         if (!active) return;
         if (data?.authenticated && data?.user?.id) {
           setUser(data.user);
+          setCapabilities(data.capabilities || { manageCases: false });
           localStorage.setItem('discord_user', JSON.stringify(data.user));
         } else {
           setUser(null);
@@ -254,28 +277,11 @@ function App() {
   }, []);
 
   // Detectar si estamos en /auth-callback
-  const isAuthCallback = window.location.pathname === '/auth-callback';
-  const isHome = window.location.pathname === '/';
-  const isUsuario = /^\/usuario\/.+/.test(window.location.pathname);
-  const isExpediente = /^\/expediente\/\d+$/.test(window.location.pathname);
-  const isReporte = /^\/reporte\/\d+$/.test(window.location.pathname);
+  const isAuthCallback = path === '/auth-callback';
+  const isValidPath = path === '/' || path === '/denunciar' || /^\/(usuario\/.+|expediente\/\d+|reporte\/\d+|jugador\/[^/]+)$/.test(path);
 
-  // Mostrar error si la ruta es inválida (no redirigir)
-  if (!isHome && !isUsuario && !isExpediente && !isReporte && !isAuthCallback) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif' }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>🚫</div>
-        <div style={{ fontSize: 24, marginBottom: 8 }}>Página no encontrada</div>
-        <div style={{ fontSize: 16, color: '#888' }}>
-          La dirección ingresada no existe. <a href="/">Volver al inicio</a>.
-        </div>
-      </div>
-    );
-  }
-
-  // Mostrar loader si estamos en /auth-callback
-  if (isAuthCallback) {
-    useEffect(() => {
+  useEffect(() => {
+    if (isAuthCallback) {
       fetch(buildApiUrl('/auth/me'), {
         credentials: 'include',
       })
@@ -295,14 +301,8 @@ function App() {
           window.location.href = sessionStorage.getItem(RETURN_PATH_STORAGE_KEY) || '/';
           sessionStorage.removeItem(RETURN_PATH_STORAGE_KEY);
         });
-    }, [user]);
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif' }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>☠️</div>
-        <div style={{ fontSize: 20 }}>Iniciando sesión con Discord...</div>
-      </div>
-    );
-  }
+    }
+  }, [isAuthCallback]);
 
   // Manejar navegación por URL (abrir expediente desde URL)
   useEffect(() => {
@@ -325,6 +325,8 @@ function App() {
 
         if (reporte) {
           setReporteSeleccionado(reporte);
+        } else {
+          setReporteSeleccionado(null);
         }
       }
     };
@@ -334,114 +336,29 @@ function App() {
       abrirExpedienteDesdeURL();
     }
 
-    // Escuchar cambios en la navegación (botón atrás/adelante)
-    const handlePopState = () => {
-      const referencia = getExpedienteFromURL();
-      if (referencia?.expedienteId || referencia?.usuario) {
-        const reporte = reportes.find(r => {
-          if (referencia?.expedienteId) {
-            return Number(r.expedienteId) === Number(referencia.expedienteId);
-          }
-
-          return (
-            String(r.usuario || '').toLowerCase() === referencia.usuario.toLowerCase() ||
-            String(r.usuario || '').toLowerCase().replace(/\s+/g, '_') === referencia.usuario.toLowerCase()
-          );
-        });
-        setReporteSeleccionado(reporte || null);
-      } else {
-        setReporteSeleccionado(null);
-      }
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [isLoading, reportes]);
-
-  // useEffect desactivado: ya no se cargan reportes desde el canal de Discord
-
-  useEffect(() => {
-    const channelId = import.meta.env.VITE_DISCORD_ID_CHANNEL || '1455659811973894274';
-    if (!channelId) {
-      setIsLoading(false);
-      return;
-    }
-    /* fetch(`/.netlify/functions/discord-channel-messages?channelId=${channelId}`)
-      .then(res => res.json())
-      .then(data => {
-        console.log('Mensajes del canal Discord:', data);
-        setReportes(data);
-      })
-      .catch(err => {
-        console.error('Error al leer mensajes de Discord:', err);
-      })
-      .finally(() => setIsLoading(false)); */
-    setIsLoading(false)
-  }, []);
+  }, [isLoading, reportes, path]);
 
 
-  // Filtrar reportes basándose en categoría, validación y búsqueda
-  const reportesFiltrados = useMemo(() => {
-    return reportes.filter(reporte => {
-      // Validar que el reporte tenga los campos necesarios
-      if (!reporte || !reporte.usuario) return false;
-
-      // Filtro por categoría
-      const cumpleFiltro = filtroActivo === 'todos' || reporte.categoria === filtroActivo;
-
-      // Filtro por estado de validación (chips múltiples)
-      const estadoValidacion = reporte.validacion || 'pendiente';
-      const cumpleValidacion = filtrosValidacion.length === 0 || filtrosValidacion.includes(estadoValidacion);
-
-      // Filtro por búsqueda (nombre de usuario)
-      const cumpleBusqueda = reporte.usuario.toLowerCase().includes(busqueda.toLowerCase());
-
-      return cumpleFiltro && cumpleValidacion && cumpleBusqueda;
-    });
-  }, [reportes, filtroActivo, filtrosValidacion, busqueda]);
-
-  // Categorías para los botones de filtro
-  const categorias = [
-    { id: 'todos', label: 'TODOS', icon: '📋' },
-    { id: 'modder', label: 'MODDERS', icon: '🔧' },
-    { id: 'griffer', label: 'GRIFFERS', icon: '💀' },
-    { id: 'ardido', label: 'ARDIDOS', icon: '🎯' }
-  ];
-
-  // Estados de validación para filtros (chips toggle)
-  const estadosValidacion = [
-    { id: 'pendiente', label: 'PENDIENTE', icon: '⏳' },
-    { id: 'verificado', label: 'VERIFICADO', icon: '✅' },
-    { id: 'investigando', label: 'INVESTIGANDO', icon: '🔍' },
-    { id: 'rechazado', label: 'RECHAZADO', icon: '❌' }
-  ];
-
-  // Toggle para chips de validación
-  const toggleFiltroValidacion = (id) => {
-    setFiltrosValidacion(prev =>
-      prev.includes(id)
-        ? prev.filter(f => f !== id)
-        : [...prev, id]
-    );
-  };
-
-  // Manejar clic en una tarjeta (actualiza URL con id incremental de expediente)
   const handleCardClick = (reporte) => {
-    setReporteSeleccionado(reporte);
-    const nuevaURL = `${formatExpediente(reporte.expedienteId)}${window.location.search}`;
-    window.history.pushState({ expedienteId: reporte.expedienteId }, '', nuevaURL);
+    detailReturnPath.current = path.startsWith('/reporte/') ? detailReturnPath.current : path;
+    const existing = reportes.find(item => item.id === reporte.id);
+    const selected = { ...existing, ...reporte, userVote: existing?.userVote || getUserVotes()[reporte.id] || null };
+    setReportes(current => current.some(item => item.id === selected.id)
+      ? current.map(item => item.id === selected.id ? selected : item)
+      : [...current, selected]);
+    setReporteSeleccionado(selected);
+    navigate(`/reporte/${reporte.id}`);
   };
 
   // Cerrar modal de detalle (volver a la lista)
   const handleCloseDetail = () => {
     setReporteSeleccionado(null);
-    // Volver a la URL base
-    const baseURL = `/${window.location.search}`;
-    window.history.pushState({}, '', baseURL);
+    navigate(detailReturnPath.current);
   };
 
   // Manejar nuevo reporte enviado
   const handleNewReport = async (nuevoReporte, submissionResult = null) => {
+    setCaseRevision(value => value + 1);
     try {
       const data = await fetchReportsFromAPI();
       const userVotes = getUserVotes();
@@ -457,18 +374,13 @@ function App() {
     }
 
     const usuarioFallback = String(nuevoReporte?.nickname || nuevoReporte?.username || nuevoReporte?.usuario || '').trim();
-    const reportadoPorFallback = String(
-      user?.username
-      || submissionResult?.botDelivery?.reportedby
-      || 'ANONIMO'
-    ).trim();
 
     const nuevoNormalizado = normalizeReporte({
       ...nuevoReporte,
       id: Date.now(),
       usuario: usuarioFallback || 'USUARIO_SIN_NOMBRE',
       fecha: new Date().toISOString().slice(0, 10),
-      reportadoPor: reportadoPorFallback || 'ANONIMO',
+      reportadoPor: 'ANONIMO',
       botSyncStatus: submissionResult?.botDelivery?.ok ? 'delivered' : 'pending',
       botSyncAt: new Date().toISOString(),
       botSyncError: submissionResult?.botDelivery?.ok ? '' : (submissionResult?.botDelivery?.message || submissionResult?.warning || '')
@@ -618,9 +530,11 @@ function App() {
 
       // Persistencia local para fallback offline y continuidad visual.
       localStorage.setItem('mostwanted_reportes', JSON.stringify(mapped));
+      setReportsError('');
       return mapped;
     } catch (error) {
       console.error('Error consultando WordPress reports snapshot:', error);
+      setReportsError('No se pudo actualizar el archivo. Las coincidencias locales pueden estar desactualizadas.');
       const local = localStorage.getItem('mostwanted_reportes');
       if (local) return JSON.parse(local);
       return [];
@@ -713,6 +627,7 @@ function App() {
     });
 
     setReportes(updatedReportes);
+    setCaseRevision(value => value + 1);
     localStorage.setItem('mostwanted_reportes', JSON.stringify(updatedReportes));
 
     if (updatedSelected && reporteSeleccionado?.id === reporteId) {
@@ -739,8 +654,12 @@ function App() {
       credentials: 'include',
     }).catch(() => undefined);
     setUser(null);
+    setCapabilities({ manageCases: false });
     localStorage.removeItem('discord_user');
   };
+
+  if (isAuthCallback) return <main className="desk-empty" role="status">Iniciando sesión con Discord…</main>;
+  if (!isValidPath) return <main className="desk-empty"><h1>Página no encontrada</h1><a href="/">Volver al inicio</a></main>;
 
   // Mostrar loading
   if (isLoading) {
@@ -762,17 +681,16 @@ function App() {
   }
 
   const canUseReports = Boolean(user) || isDemo;
+  const startReport = (player = null) => {
+    formReturnPath.current = path === '/denunciar' ? formReturnPath.current : path;
+    setReportPlayer(player);
+    navigate('/denunciar');
+  };
 
   return (
-    <div className="app-container" style={{ position: 'relative' }}>
+    <div className={`app-container${canUseReports ? '' : ' app-container--access'}`} style={{ position: 'relative' }}>
 
 
-      {/* Botón de ayuda flotante, arriba a la derecha */}
-      {canUseReports && (
-        <button className="help-btn" onClick={() => setShowHelp(true)} aria-label="Ayuda sobre la herramienta" title="¿Qué es esto?" style={{ position: 'fixed', top: 24, right: 32, zIndex: 3001 }}>
-          ?
-        </button>
-      )}
       {/* ============ ADMIN BANNER ============ */}
       {isAdmin && (
         <div className="admin-mode-banner">
@@ -790,135 +708,86 @@ function App() {
       )}
 
       {/* ============ HEADER ============ */}
-      <header className="header" style={{ position: 'relative' }}>
-        <h1 className="header__title" data-text="MOST WANTED">MOST WANTED</h1>
-        <p className="header__subtitle">Modders, Griffers y Ardidos</p>
-        <div className="header__logo">
-          <span className="header__logo-icon" aria-hidden="true">☠️</span>
-          <span>KAITH'S REBELS</span>
-          <img
-            src="/Logo.png"
-            alt="Logo de Kaith's Rebels"
-            style={{ width: 26, height: 26, objectFit: 'contain', filter: 'drop-shadow(0 0 4px rgba(255, 51, 51, 0.35))' }}
-          />
+      <header className="site-header">
+        <div className="site-brand">
+          <img src="/Logo.png" alt="Kaith's Rebels" width="44" height="44" />
+          <div>
+            <span className="site-brand__eyebrow">KAITH'S REBELS / DIVISIÓN H.E.X.</span>
+            <h1>MOST WANTED<span className="site-brand__glitch cyber-glitch-2" aria-hidden="true">MOST WANTED</span></h1>
+            <span className="site-brand__department">DESPACHO DE INVESTIGACIÓN COMUNITARIA</span>
+          </div>
         </div>
+        {canUseReports && <PersonSearch reports={reportes} knownPlayers={knownPlayers} onSelect={player => {
+          setSearchPlayer(player);
+          setDeskReset(value => value + 1);
+          navigate('/');
+        }} />}
         {/* Información de usuario y botón de login/logout */}
-        <div className="header__user-info" style={{ position: 'absolute', top: 16, right: 16, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
+        <div className="site-header__actions">
+          <InterfaceSounds />
+          {canUseReports && <button type="button" className="cyber-button-small mw-cyber-button" onClick={() => path === '/denunciar' ? navigate(formReturnPath.current) : startReport()}>
+            <CyberButtonLabel>{path === '/denunciar' ? 'Volver al despacho' : 'Registrar reporte'}</CyberButtonLabel>
+          </button>}
           {user ? (
             <>
-              <button onClick={handleLogout} style={{ background: '#5865F2', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 4, fontWeight: 'bold', marginBottom: 4 }}>
-                Cerrar sesión
+              <span className="site-header__username notranslate" translate="no">{user.username}</span>
+              <button className="cyber-button-small mw-cyber-button mw-cyber-button--secondary" onClick={handleLogout}>
+                <CyberButtonLabel>Cerrar sesión</CyberButtonLabel>
               </button>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
-                <img src={`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`} alt="avatar" style={{ width: 32, height: 32, borderRadius: '50%' }} />
-                <span style={{ fontWeight: 'bold', color: '#5865F2' }}>{user.username}#{user.discriminator}</span>
-              </div>
             </>
           ) : isDemo ? (
-            <button onClick={handleLogin} style={{ background: '#5865F2', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 4, fontWeight: 'bold' }}>
-              Iniciar sesión con Discord
+            <button className="cyber-button-small mw-cyber-button mw-cyber-button--secondary" onClick={handleLogin}>
+              <CyberButtonLabel>Iniciar sesión con Discord</CyberButtonLabel>
             </button>
           ) : null}
+          {canUseReports && (
+            <button className="cyber-button-small mw-cyber-button mw-cyber-button--secondary" onClick={() => setShowHelp(true)} aria-label="Ayuda sobre la herramienta">
+              <CyberButtonLabel>Ayuda</CyberButtonLabel>
+            </button>
+          )}
         </div>
       </header>
+      {canUseReports && <nav className="desk-navigation" aria-label="Áreas del despacho">
+        <a href={isDemo ? '/?demo=true' : '/'} aria-current={path !== '/denunciar' ? 'page' : undefined} onClick={event => { if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); setSearchPlayer(null); setDeskReset(value => value + 1); navigate('/'); } }}>
+          <span aria-hidden="true">01</span> Archivo de investigación
+        </a>
+        <a href={isDemo ? '/denunciar?demo=true' : '/denunciar'} aria-current={path === '/denunciar' ? 'page' : undefined} onClick={event => { if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); if (path !== '/denunciar') startReport(); } }}>
+          <span aria-hidden="true">02</span> Mesa de denuncias
+        </a>
+        <span className="desk-navigation__notice">Registro comunitario · No es una autoridad policial</span>
+      </nav>}
       {/* Modal de ayuda */}
       <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />
 
       {canUseReports ? (
       <>
-      {/* ============ FORMULARIO DE REPORTE ============ */}
-      <main id="reportar" style={{ padding: 'var(--spacing-lg) 0' }}>
-        <ReportFormModal onSubmit={handleNewReport} currentUser={user} isDemo={isDemo} />
-      </main>
-
-      <section style={{ display: 'flex', justifyContent: 'center', marginBottom: 'var(--spacing-lg)' }}>
-        <button
-          type="button"
-          className="report-btn"
-          onClick={() => setShowLista(prev => !prev)}
-          aria-expanded={showLista}
-          aria-controls="reportes-lista"
-        >
-          {showLista ? 'Ocultar lista de reportes' : `Mostrar lista (${reportesFiltrados.length})`}
-        </button>
-      </section>
-
-      {showLista && (
-        <>
-          <section className="controls">
-            <div className="controls__filters">
-              {categorias.map(categoria => (
-                <button
-                  key={categoria.id}
-                  type="button"
-                  className={`filter-btn ${filtroActivo === categoria.id ? 'filter-btn--active' : ''}`}
-                  data-category={categoria.id}
-                  onClick={() => setFiltroActivo(categoria.id)}
-                >
-                  {categoria.icon} {categoria.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="controls__row">
-              <div className="controls__chips">
-                {estadosValidacion.map(estado => (
-                  <button
-                    key={estado.id}
-                    type="button"
-                    className={`chip ${filtrosValidacion.includes(estado.id) ? 'chip--active' : ''}`}
-                    data-validation={estado.id}
-                    onClick={() => toggleFiltroValidacion(estado.id)}
-                  >
-                    {estado.icon} {estado.label}
-                  </button>
-                ))}
-              </div>
-              <span className="form-group__hint">
-                Mostrando {reportesFiltrados.length} de {reportes.length}
-              </span>
-            </div>
-
-            <div className="controls__search">
-              <input
-                type="text"
-                className="search-input"
-                value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
-                placeholder="Buscar por usuario..."
-              />
-            </div>
-          </section>
-
-          <section id="reportes-lista" className="reports-grid">
-            {reportesFiltrados.length > 0 ? (
-              reportesFiltrados.map(reporte => (
-                <ReportCard
-                  key={`${filtroActivo}-${filtrosValidacion.join('-')}-${busqueda}-${reporte.id}`}
-                  reporte={reporte}
-                  onClick={handleCardClick}
-                  onVote={handleVote}
-                />
-              ))
-            ) : (
-              <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: 'var(--color-cream-dark)', padding: '1rem 0' }}>
-                No hay reportes que coincidan con los filtros actuales.
-              </div>
-            )}
-          </section>
-        </>
-      )}
+      {path === '/denunciar' ? <main id="reportar" className="report-workspace">
+        <div className="workspace-intro">
+          <div>
+            <p className="workspace-eyebrow">02 / MESA DE DENUNCIAS</p>
+            <h2 className="cyber-h">Registrar un reporte</h2>
+            <p>Identifica al jugador, documenta lo ocurrido y envía la información a H.E.X.</p>
+          </div>
+          <span className="workspace-intro__code" aria-hidden="true">HEX / REPORT_01</span>
+        </div>
+        <ReportFormModal onSubmit={handleNewReport} currentUser={user} isDemo={isDemo} initialPlayer={reportPlayer} onReturnToCase={() => navigate(formReturnPath.current)} />
+      </main> : <InvestigationDesk key={deskReset} initialPlayer={searchPlayer} onPlayerResolved={rememberPlayer} reportsError={reportsError} path={path} onNavigate={navigate} onOpenReport={handleCardClick} onStartReport={startReport} mapReport={mapWordpressReportToReporte} canManageCases={isAuthChecked && Boolean(user) && capabilities.manageCases} revision={caseRevision} />}
       </>
       ) : (
-        <section style={{ display: 'flex', justifyContent: 'center', padding: 'var(--spacing-xl) 0' }}>
+        <main className="desk-access-stage">
+          <section className="desk-access" aria-labelledby="desk-access-title">
+          <p className="workspace-eyebrow">H.E.X. / CONTROL DE ACCESO</p>
+          <h2 id="desk-access-title" className="cyber-h">Acceso al despacho</h2>
+          <p>Inicia sesión para consultar expedientes y documentar reportes de la comunidad.</p>
           <button
             type="button"
             onClick={handleLogin}
-            style={{ background: '#5865F2', color: 'white', border: 'none', padding: '12px 24px', borderRadius: 4, fontWeight: 'bold', fontSize: '1rem' }}
+            className="cyber-button mw-cyber-button"
           >
-            Iniciar sesión con Discord
+            <CyberButtonLabel>Iniciar sesión con Discord</CyberButtonLabel>
           </button>
-        </section>
+          </section>
+        </main>
       )}
 
       {reporteSeleccionado && (
@@ -933,8 +802,8 @@ function App() {
         />
       )}
 
-      <footer style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '20px 0 28px', marginTop: 'var(--spacing-xxl)', borderTop: '1px solid var(--color-gray-medium)', opacity: 0.45, pointerEvents: 'none', userSelect: 'none' }} className="site-footer">
-        <span className="site-footer__text">Desarrollado por Kaith's Rebels</span>
+      <footer className="site-footer">
+        <span className="site-footer__text">H.E.X. / Archivo de investigación comunitaria</span>
         <span className="site-footer__version" style={{ marginLeft: '8px' }}>v{__APP_VERSION__}</span>
         <img src="/Logo.png" width="20" style={{ marginLeft: '8px' }} alt="Kaith's Rebels" className="site-footer__logo" />
       </footer>

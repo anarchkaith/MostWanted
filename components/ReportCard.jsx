@@ -54,7 +54,7 @@ const ReportCard = ({ reporte, onClick, onVote }) => {
 
   return (
     <article
-      className={`report-card ${validationStatus === 'verificado' ? 'report-card--verified' : ''} ${validationStatus === 'rechazado' ? 'report-card--rejected' : ''} ${validationStatus === 'investigando' ? 'report-card--investigating' : ''}`}
+      className={`report-card cyber-tile mw-cyber-tile ${validationStatus === 'verificado' ? 'report-card--verified' : ''} ${validationStatus === 'rechazado' ? 'report-card--rejected' : ''} ${validationStatus === 'investigando' ? 'report-card--investigating' : ''}`}
       onClick={() => onClick(reporte)}
       role="button"
       tabIndex={0}

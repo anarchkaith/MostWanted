@@ -12,6 +12,7 @@ export async function submitWordpressReport({
   wordpressReportsConfig,
   discordWebhookUrl = '',
   logger = console,
+  refreshPlayerCase,
 }) {
   const validation = validateIncomingReportSubmission(body);
 
@@ -47,12 +48,22 @@ export async function submitWordpressReport({
   const discordDelivery = await sendDiscordDelivery({ discordWebhookUrl, player, logger });
 
   if (wordpressResult.delivery.ok) {
+    let warning = null;
+    if (refreshPlayerCase) {
+      try {
+        await refreshPlayerCase({ nickname: submission.report.nickname, rid: submission.report.rid || '', reportId: wordpressResult.delivery.reportId });
+      } catch (error) {
+        logger.error('[reports] Reporte guardado, pero no se pudo actualizar la clasificación IA:', error);
+        warning = 'El reporte se guardó, pero la clasificación IA quedó pendiente de actualización.';
+      }
+    }
     return {
       status: 201,
       payload: {
         ok: true,
         player,
         discordDelivery,
+        ...(warning ? { warning } : {}),
       },
     };
   }

@@ -32,11 +32,11 @@
    /* Rojo para efectos de brillo */
 
    /* Textos */
-   --color-cream: #e8e8b8;
+   --color-cream: #f5f5f5;
    /* Texto principal */
-   --color-cream-dark: #d0d098;
+   --color-cream-dark: #cccccc;
    /* Texto secundario/labels */
-   --color-white-dirty: #e0e0d0;
+   --color-white-dirty: #eeeeee;
    /* Texto claro alternativo */
    --color-text-muted: #9a9a9a;
    /* Texto atenuado/hints */
@@ -98,9 +98,9 @@
   /* Familias de fuentes */
   --font-stencil: 'Closeness', 'Impact', sans-serif;
   /* Títulos militares */
-  --font-typewriter: 'Blender pro', 'Courier New', monospace;
+  --font-typewriter: 'Blender pro', 'BlenderProBook', 'Courier New', monospace;
   /* Texto de máquina de escribir */
-  --font-mono: 'IBM 3270', 'Courier New', monospace;
+  --font-mono: 'IBM 3270', 'Share Tech Mono', 'Courier New', monospace;
   /* Código/datos técnicos */
 
    /* Tamaños de fuente */

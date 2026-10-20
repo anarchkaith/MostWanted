@@ -111,7 +111,7 @@ const VoteSystem = ({
     return (
       <div className="vote-system vote-system--compact">
         <button
-          className={`vote-btn vote-btn--up ${userVote === 'up' ? 'vote-btn--active' : ''} ${isLoading ? 'vote-btn--loading' : ''}`}
+          className={`cyber-button-small mw-cyber-button mw-cyber-button--secondary vote-btn vote-btn--up ${userVote === 'up' ? 'vote-btn--active' : ''} ${isLoading ? 'vote-btn--loading' : ''}`}
           onClick={(e) => {
             e.stopPropagation();
             handleLegitVote();
@@ -124,7 +124,7 @@ const VoteSystem = ({
         </button>
 
         <button
-          className={`vote-btn vote-btn--down ${userVote === 'down' ? 'vote-btn--active' : ''} ${isLoading ? 'vote-btn--loading' : ''}`}
+          className={`cyber-button-small mw-cyber-button mw-cyber-button--secondary vote-btn vote-btn--down ${userVote === 'down' ? 'vote-btn--active' : ''} ${isLoading ? 'vote-btn--loading' : ''}`}
           onClick={(e) => {
             e.stopPropagation();
             handleFalseVoteClick();
@@ -139,6 +139,7 @@ const VoteSystem = ({
         {error && <div className="vote-system__error">⚠️ {error}</div>}
 
         <style>{`
+          @layer legacy {
           .vote-system--compact {
             display: flex;
             gap: 0.5rem;
@@ -178,6 +179,7 @@ const VoteSystem = ({
             border-color: #ef4444;
             color: #ef4444;
           }
+          }
         `}</style>
       </div>
     );
@@ -198,9 +200,10 @@ const VoteSystem = ({
 
       <div className="vote-system__buttons">
         <button
-          className={`vote-btn vote-btn--full vote-btn--up ${userVote === 'up' ? 'vote-btn--active' : ''} ${isLoading ? 'vote-btn--loading' : ''}`}
+          className={`cyber-button-small mw-cyber-button mw-cyber-button--secondary vote-btn vote-btn--full vote-btn--up ${userVote === 'up' ? 'vote-btn--active' : ''} ${isLoading ? 'vote-btn--loading' : ''}`}
           onClick={handleLegitVote}
           aria-label="Votar como legitimo"
+          aria-pressed={userVote === 'up'}
           disabled={isLoading}
         >
           <span className="vote-btn__icon">{isLoading ? '⏳' : '👍'}</span>
@@ -209,9 +212,10 @@ const VoteSystem = ({
         </button>
 
         <button
-          className={`vote-btn vote-btn--full vote-btn--down ${userVote === 'down' ? 'vote-btn--active' : ''} ${isLoading ? 'vote-btn--loading' : ''}`}
+          className={`cyber-button-small mw-cyber-button mw-cyber-button--secondary vote-btn vote-btn--full vote-btn--down ${userVote === 'down' ? 'vote-btn--active' : ''} ${isLoading ? 'vote-btn--loading' : ''}`}
           onClick={handleFalseVoteClick}
           aria-label="Votar como falso"
+          aria-pressed={userVote === 'down'}
           disabled={isLoading}
         >
           <span className="vote-btn__icon">{isLoading ? '⏳' : '👎'}</span>
@@ -223,25 +227,32 @@ const VoteSystem = ({
       {showFalseReasonForm && (
         <div className="vote-system__comment-form">
           <div className="vote-system__comment-header">⚠️ Explica por que consideras que este reporte es falso</div>
+          <div className="cyber-input-full mw-cyber-input">
           <input
             className="vote-system__comment-input"
+            aria-label="Nombre de quien confirma el reporte falso"
             value={falseReporterName}
             onChange={(e) => setFalseReporterName(e.target.value)}
             placeholder="Tu nombre (obligatorio)"
             maxLength={80}
             style={{ marginBottom: '0.6rem' }}
           />
+          </div>
+          <div className="cyber-input-full mw-cyber-input">
           <textarea
             className="vote-system__comment-input"
+            aria-label="Motivo por el que el reporte es falso"
             value={falseReason}
             onChange={(e) => setFalseReason(e.target.value)}
             placeholder="Detalla el motivo (minimo 8 caracteres)..."
             maxLength={500}
             rows={4}
           />
+          </div>
           <div className="vote-system__comment-actions">
             <button
-              className="vote-system__comment-btn vote-system__comment-btn--cancel"
+              data-ui-sound="reject"
+              className="cyber-button-small mw-cyber-button mw-cyber-button--secondary"
               onClick={() => {
                 setShowFalseReasonForm(false);
                 setFalseReason('');
@@ -253,7 +264,7 @@ const VoteSystem = ({
               Cancelar
             </button>
             <button
-              className="vote-system__comment-btn vote-system__comment-btn--confirm"
+              className="cyber-button-small mw-cyber-button"
               onClick={confirmFalseVote}
               disabled={isLoading}
             >
@@ -310,6 +321,7 @@ const VoteSystem = ({
       )}
 
       <style>{`
+        @layer legacy {
         .vote-system {
           background: var(--color-gray-dark, #1a1a1a);
           border: 2px solid var(--color-gray-light, #3a3a3a);
@@ -626,6 +638,7 @@ const VoteSystem = ({
           .vote-system__comment-actions {
             flex-direction: column;
           }
+        }
         }
       `}</style>
     </div>

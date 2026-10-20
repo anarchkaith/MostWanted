@@ -56,6 +56,7 @@ export function registerAuthRoutes(app, deps) {
     authFrontendSuccessUrl,
     authFrontendFailureUrl,
     authAllowedDiscordUserIds,
+    verifyCaseStaff,
   } = deps;
 
   app.get('/api/auth/discord', (req, res) => {
@@ -151,6 +152,13 @@ export function registerAuthRoutes(app, deps) {
         return redirectAuthFailure(res, authFrontendFailureUrl, 'not_allowed');
       }
 
+      await new Promise((resolve, reject) => req.session.regenerate((error) => error ? reject(error) : resolve()));
+      req.session.discordToken = {
+        accessToken,
+        refreshToken: String(tokenPayload.refresh_token || ''),
+        scope: String(tokenPayload.scope || discordAuth.oauthScopes),
+        expiresAt: Date.now() + Math.max(0, Number(tokenPayload.expires_in) || 0) * 1000,
+      };
       req.session.authUser = {
         id: discordUserId,
         username: String(me?.username || ''),
@@ -163,20 +171,29 @@ export function registerAuthRoutes(app, deps) {
         loggedAt: new Date().toISOString(),
       };
 
-      return req.session.save(() => redirectAuthSuccess(res, authFrontendSuccessUrl));
+      return req.session.save((error) => error
+        ? redirectAuthFailure(res, authFrontendFailureUrl, 'session_storage_failed')
+        : redirectAuthSuccess(res, authFrontendSuccessUrl));
     } catch (error) {
       console.error('[auth] Discord callback error', error);
       return redirectAuthFailure(res, authFrontendFailureUrl, 'exception');
     }
   });
 
-  app.get('/api/auth/me', (req, res) => {
+  app.get('/api/auth/me', async (req, res) => {
+    res.set('Cache-Control', 'private, no-store');
     const user = getSessionUser(req);
     if (!user) {
-      return res.status(401).json({ authenticated: false, user: null });
+      return res.status(401).json({ authenticated: false, user: null, capabilities: { manageCases: false } });
     }
 
-    return res.status(200).json({ authenticated: true, user });
+    try {
+      const capabilities = await verifyCaseStaff(req);
+      return res.status(200).json({ authenticated: true, user, capabilities });
+    } catch (error) {
+      return res.status(200).json({ authenticated: true, user, capabilities: { manageCases: false },
+        capabilityError: { code: error.code || 'discord_unavailable', status: error.status || 503 } });
+    }
   });
 
   app.post('/api/auth/logout', (req, res) => {

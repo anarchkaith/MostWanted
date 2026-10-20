@@ -80,7 +80,6 @@ function buildMarkdownReportContent(payload = {}) {
     evidenceLines,
     '',
     '## Metadata',
-    `- **Reported by:** ${payload?.reportedby || payload?.reporter?.name || 'N/A'}`,
     `- **Source:** ${payload?.source || 'mostwanted-web'}`,
     `- **Timestamp:** ${payload?.time ? new Date(Number(payload.time)).toISOString() : new Date().toISOString()}`,
   ].join('\n');
@@ -166,6 +165,7 @@ export async function sendReportToWordpress({ config, submission, logger = conso
             mw_rid: payload?.rid || null,
             mw_player_id: payload?.playerId || null,
             mw_labels: Array.isArray(payload?.labels) ? payload.labels : [],
+            _mw_reporter: payload?.reporter || {},
           },
           logger,
         });

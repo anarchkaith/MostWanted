@@ -4,6 +4,7 @@ import ReactDOM from 'react-dom';
 import VoteSystem from './VoteSystem';
 import ImageUpload from './ImageUpload';
 import { buildApiUrl } from '../src/services/apiConfig';
+import CyberButtonLabel from './CyberButtonLabel';
 
 /**
  * ReportDetailModal - Modal para ver detalles completos de un reporte
@@ -74,28 +75,25 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
 
   if (!reporte) return null;
 
-  const getExpedienteUrl = (expedienteId) => {
-    const id = Number(expedienteId);
+  const getReportUrl = (reportId) => {
+    const id = Number(reportId);
     if (!Number.isFinite(id) || id <= 0) return window.location.origin;
-    return `${window.location.origin}/expediente/${id}`;
+    return `${window.location.origin}/reporte/${id}`;
   };
 
-  // Número de expediente (mantener para display visual)
-  const numeroExpediente = (reporte.expedienteId ?? reporte.id ?? 0).toString().padStart(4, '0');
-
-  // Generar URL compartible usando el id incremental de expediente
-  const urlExpediente = getExpedienteUrl(reporte.expedienteId ?? reporte.id);
+  const numeroReporte = String(reporte.id);
+  const urlReporte = getReportUrl(reporte.id);
 
   // Copiar URL al portapapeles
   const copiarURL = async () => {
     try {
-      await navigator.clipboard.writeText(urlExpediente);
+      await navigator.clipboard.writeText(urlReporte);
       setUrlCopiada(true);
       setTimeout(() => setUrlCopiada(false), 2000);
     } catch (err) {
       // Fallback para navegadores sin soporte
       const input = document.createElement('input');
-      input.value = urlExpediente;
+      input.value = urlReporte;
       document.body.appendChild(input);
       input.select();
       document.execCommand('copy');
@@ -281,7 +279,7 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
     }
   };
 
-  const currentValidation = validationLabels[reporte.validacion] || validationLabels.pendiente;
+  const currentValidation = validationLabels[reporte.validacion] || { label: 'SIN VALIDACIÓN REGISTRADA', color: 'var(--color-text-muted)' };
 
   // Modal de confirmación de eliminación
   const deleteConfirmModal = showDeleteConfirm ? ReactDOM.createPortal(
@@ -298,8 +296,6 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
       zIndex: 5000
     }}>
       <div className="delete-confirm-modal" style={{
-        background: 'var(--color-gray-dark, #1a1a1a)',
-        border: '2px solid #ff3333',
         padding: '2rem',
         maxWidth: '400px',
         width: '90vw',
@@ -342,22 +338,17 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
         }}>
           Esta acción NO se puede deshacer.
         </p>
-        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+        <div className="delete-confirm-actions">
           <button
-            className="admin-btn"
+            className="cyber-button-small mw-cyber-button mw-cyber-button--secondary"
             onClick={() => setShowDeleteConfirm(false)}
+            data-ui-sound="reject"
             disabled={isDeleting}
-            style={{
-              background: 'rgba(100, 100, 100, 0.3)',
-              borderColor: '#666',
-              color: '#ccc',
-              padding: '0.75rem 1.5rem'
-            }}
           >
-            Cancelar
+            <CyberButtonLabel>Cancelar</CyberButtonLabel>
           </button>
           <button
-            className="admin-btn admin-btn--delete"
+            className="cyber-button-small mw-cyber-button"
             onClick={async () => {
               setIsDeleting(true);
               if (onDelete) {
@@ -367,14 +358,8 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
               setShowDeleteConfirm(false);
             }}
             disabled={isDeleting}
-            style={{
-              background: '#8b0000',
-              borderColor: '#ff0000',
-              color: '#fff',
-              padding: '0.75rem 1.5rem'
-            }}
           >
-            {isDeleting ? '⏳ Eliminando...' : '🗑️ Sí, Eliminar'}
+            <CyberButtonLabel>{isDeleting ? '⏳ Eliminando...' : '🗑️ Sí, Eliminar'}</CyberButtonLabel>
           </button>
         </div>
       </div>
@@ -388,6 +373,7 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
       <div
         className="modal-overlay"
         onClick={handleOverlayClick}
+        data-ui-sound="reject"
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
@@ -397,7 +383,7 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
           <header className="modal__header">
             <div className="modal__header-main">
               <h2 className="modal__title" id="modal-title">
-                <span aria-hidden="true">📋</span> EXPEDIENTE #{numeroExpediente}
+                ARCHIVO / REPORTE #{numeroReporte}
                 {isEditing && <span style={{ color: '#ffaa00', marginLeft: '0.5rem' }}>(Editando)</span>}
               </h2>
               <div style={{
@@ -414,10 +400,9 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 {isAdmin && !isEditing && (
                   <button
-                    className="modal__share-btn"
+                    className="cyber-button-small mw-cyber-button mw-cyber-button--secondary"
                     onClick={handleStartEdit}
                     title="Editar información del reporte"
-                    style={{ background: 'rgba(59, 130, 246, 0.2)', borderColor: '#3b82f6' }}
                   >
                     ✏️ Editar
                   </button>
@@ -436,7 +421,7 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
           {/* URL compartible */}
           <div className="modal__url-bar">
             <span className="modal__url-label">📎 Enlace directo:</span>
-            <code className="modal__url-code">{urlExpediente}</code>
+            <code className="modal__url-code">{urlReporte}</code>
             <button
               className="modal__url-copy"
               onClick={copiarURL}
@@ -454,15 +439,16 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
                 <span>✏️ Modo edición activo</span>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <button
-                    className="admin-btn admin-btn--reject"
+                    className="cyber-button-small mw-cyber-button mw-cyber-button--secondary"
                     onClick={handleCancelEdit}
+                    data-ui-sound="reject"
                     disabled={isSaving}
                     style={{ minWidth: '100px' }}
                   >
                     ✕ Cancelar
                   </button>
                   <button
-                    className="admin-btn admin-btn--verify"
+                    className="cyber-button-small mw-cyber-button"
                     onClick={handleSaveEdit}
                     disabled={isSaving}
                     style={{ minWidth: '100px' }}
@@ -483,14 +469,17 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
             <div className="report-detail__field">
               <div className="report-detail__label">Usuario Reportado</div>
               {isEditing ? (
+                <div className="cyber-input-full mw-cyber-input">
                 <input
                   type="text"
                   className="report-detail__input"
+                  aria-label="Usuario reportado"
                   value={editData.usuario}
                   onChange={(e) => setEditData({ ...editData, usuario: e.target.value })}
                   placeholder="Nombre del usuario"
                   translate="no"
                 />
+                </div>
               ) : (
                 <div className="report-detail__value report-detail__value--user notranslate" translate="no">
                   {reporte.usuario}
@@ -503,8 +492,10 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
               <div style={{ flex: 1, minWidth: '150px' }}>
                 <div className="report-detail__label">Categoría</div>
                 {isEditing ? (
+                  <div className="cyber-select-full mw-cyber-select">
                   <select
                     className="report-detail__select"
+                    aria-label="Categoría"
                     value={editData.categoria}
                     onChange={(e) => setEditData({ ...editData, categoria: e.target.value })}
                   >
@@ -512,6 +503,7 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
                     <option value="griffer">GRIFFER</option>
                     <option value="ardido">ARDIDO</option>
                   </select>
+                  </div>
                 ) : (
                   <div className="report-detail__value">
                     <span className={`report-card__tag report-card__tag--${reporte.categoria || 'modder'}`}>
@@ -523,8 +515,10 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
               <div style={{ flex: 1, minWidth: '150px' }}>
                 <div className="report-detail__label">Severidad</div>
                 {isEditing ? (
+                  <div className="cyber-select-full mw-cyber-select">
                   <select
                     className="report-detail__select"
+                    aria-label="Severidad"
                     value={editData.severidad}
                     onChange={(e) => setEditData({ ...editData, severidad: e.target.value })}
                   >
@@ -533,6 +527,7 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
                     <option value="alta">ALTA</option>
                     <option value="critica">CRÍTICA</option>
                   </select>
+                  </div>
                 ) : (
                   <div className="report-detail__value">
                     <span className="report-card__severity">
@@ -551,13 +546,16 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
             <div className="report-detail__field">
               <div className="report-detail__label">Motivo del Reporte</div>
               {isEditing ? (
+                <div className="cyber-input-full mw-cyber-input">
                 <textarea
                   className="report-detail__textarea"
+                  aria-label="Motivo del reporte"
                   value={editData.motivo}
                   onChange={(e) => setEditData({ ...editData, motivo: e.target.value })}
                   rows={4}
                   placeholder="Describe el motivo del reporte..."
                 />
+                </div>
               ) : (
                 <div className="report-detail__value">
                   {reporte.motivo}
@@ -738,7 +736,7 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
             {isAdmin && (
               <div className="report-detail__admin-section">
                 <button
-                  className="admin-toggle-btn"
+                  className="cyber-button-small mw-cyber-button mw-cyber-button--secondary"
                   onClick={() => setShowAdminPanel(!showAdminPanel)}
                 >
                   🔐 {showAdminPanel ? 'Ocultar Panel Admin' : 'Panel de Administrador'}
@@ -751,30 +749,33 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
                     </div>
 
                     <div className="admin-panel__note">
-                      <label>Nota del Admin (opcional):</label>
+                      <label htmlFor="report-admin-note">Nota del Admin (opcional):</label>
+                      <div className="cyber-input-full mw-cyber-input">
                       <textarea
+                        id="report-admin-note"
                         value={adminNota}
                         onChange={(e) => setAdminNota(e.target.value)}
                         placeholder="Agregar notas sobre la investigación..."
                         maxLength={300}
                       />
+                      </div>
                     </div>
 
                     <div className="admin-panel__actions">
                       <button
-                        className="admin-btn admin-btn--verify"
+                        className="cyber-button-small mw-cyber-button mw-cyber-button--secondary"
                         onClick={() => handleValidation('verificado')}
                       >
                         ✅ Verificar
                       </button>
                       <button
-                        className="admin-btn admin-btn--investigate"
+                        className="cyber-button-small mw-cyber-button mw-cyber-button--secondary"
                         onClick={() => handleValidation('investigando')}
                       >
                         🔍 Investigar
                       </button>
                       <button
-                        className="admin-btn admin-btn--reject"
+                        className="cyber-button-small mw-cyber-button mw-cyber-button--secondary"
                         onClick={() => handleValidation('rechazado')}
                       >
                         ❌ Rechazar
@@ -796,13 +797,10 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
                         ⚠️ ZONA DE PELIGRO
                       </div>
                       <button
-                        className="admin-btn admin-btn--delete"
+                        className="cyber-button-small mw-cyber-button"
                         onClick={() => setShowDeleteConfirm(true)}
                         style={{
                           width: '100%',
-                          background: 'rgba(139, 0, 0, 0.3)',
-                          borderColor: '#8b0000',
-                          color: '#ff6666'
                         }}
                       >
                         🗑️ Eliminar Reporte Permanentemente
@@ -820,6 +818,7 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
       {imagenAmpliada && (
         <div
           className="image-viewer-overlay"
+          data-ui-sound="reject"
           onClick={() => setImagenAmpliada(null)}
           style={{
             position: 'fixed',
@@ -856,6 +855,7 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
               zIndex: 3001
             }}
             aria-label="Cerrar imagen"
+            data-ui-sound="reject"
           >
             ✕
           </button>

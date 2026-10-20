@@ -2,12 +2,16 @@
 import CORSPermission from './CORSPermission';
 import { investigatePlayerBackground } from './backgroundInvestigation';
 import { isBlockedReportedUsername } from './blockedUsernames';
+import ImageViewer from './ImageViewer';
+import CyberButtonLabel from './CyberButtonLabel';
 
 /**
  * PlayerBackgroundPanel - Ficha de investigación de usuario.
  */
 export default function PlayerBackgroundPanel({
   username = '',
+  rid = '',
+  variant = 'default',
   onInvestigationChange = null,
   investigateToken = 0,
   onInvestigatingChange = null,
@@ -17,6 +21,9 @@ export default function PlayerBackgroundPanel({
   const [error, setError] = useState(null);
   const [showCorsPermissionPopup, setShowCorsPermissionPopup] = useState(false);
   const [avatarRenderState, setAvatarRenderState] = useState({});
+  const [expandedAvatar, setExpandedAvatar] = useState(null);
+  const [historyOpen, setHistoryOpen] = useState(() => window.matchMedia('(min-width: 1101px)').matches);
+  const closeAvatar = React.useCallback(() => setExpandedAvatar(null), []);
   const onInvestigationChangeRef = useRef(onInvestigationChange);
   const onInvestigatingChangeRef = useRef(onInvestigatingChange);
 
@@ -64,7 +71,7 @@ export default function PlayerBackgroundPanel({
   const crewsWithSource = useMemo(() => {
     return crewsFromReports.map((crew) => ({
       name: crew,
-      source: 'reportes',
+      source: 'Archivo WordPress',
     }));
   }, [crewsFromReports]);
 
@@ -79,12 +86,12 @@ export default function PlayerBackgroundPanel({
         .filter(Boolean)
       : [];
 
-    return Array.from(new Set(aliasesFromReports.map((item) => String(item || '').trim()).filter(Boolean)));
+    return Array.from(new Set([...aliasesFromReports, ...(investigation?.profile?.aliases || [])].map((item) => String(item || '').trim()).filter(Boolean)));
   }, [investigation]);
 
   const nameHistory = useMemo(() => {
-    const reportHistory = Array.isArray(investigation?.reportInsights?.names)
-      ? investigation.reportInsights.names
+    const reportHistory = Array.isArray(investigation?.profile?.nameHistory)
+      ? investigation.profile.nameHistory
         .map((entry) => {
           if (!entry || typeof entry !== 'object') return null;
           if (!entry.name) return null;
@@ -93,6 +100,7 @@ export default function PlayerBackgroundPanel({
             time: Number.isFinite(Number(entry.time)) ? Number(entry.time) : 0,
             timeReadable: entry.timeReadable || null,
             timeIso: entry.timeIso || null,
+            source: entry.source || 'Archivo WordPress',
           };
         })
         .filter(Boolean)
@@ -113,11 +121,9 @@ export default function PlayerBackgroundPanel({
   }, [investigation]);
 
   const panelStats = useMemo(() => ([
-    { label: 'Alias detectados', value: String(nameHistory.length || aliases.length || 0) },
-    { label: 'Crews', value: String(crewsWithSource.length || 0) },
-    { label: 'Reportes previos', value: String(reportInsights?.reportCount || 0) },
+    { label: 'Reportes previos', value: reportInsights ? String(reportInsights.reportCount ?? 'Desconocido') : 'Desconocido' },
     { label: 'Ultimo registro', value: reportInsights?.lastReportAtReadable || investigation?.profile?.lastSeenReadable || 'Desconocido' },
-  ]), [aliases.length, crewsWithSource.length, investigation, nameHistory.length, reportInsights]);
+  ]), [investigation, reportInsights]);
 
   const avatarSlotsToRender = useMemo(() => {
     const avatars = investigation?.avatares;
@@ -214,7 +220,7 @@ export default function PlayerBackgroundPanel({
 
     const targetUsername = typeof username === 'string' ? username.trim() : '';
 
-    if (!targetUsername || targetUsername.length < 2) {
+    if ((!targetUsername || targetUsername.length < 2) && !rid) {
       setInvestigation(null);
       setError(null);
       setShowCorsPermissionPopup(false);
@@ -234,6 +240,7 @@ export default function PlayerBackgroundPanel({
       return;
     }
 
+    let active = true;
     const performInvestigation = async () => {
       setIsLoading(true);
       setError(null);
@@ -242,7 +249,8 @@ export default function PlayerBackgroundPanel({
       }
 
       try {
-        const result = await investigatePlayerBackground(targetUsername);
+        const result = await investigatePlayerBackground(targetUsername, rid);
+        if (!active) return;
         setInvestigation(result);
 
         // Notificar al padre sobre la investigación exitosa
@@ -250,6 +258,7 @@ export default function PlayerBackgroundPanel({
           onInvestigationChangeRef.current(result);
         }
       } catch (err) {
+        if (!active) return;
         setError(err.message);
         setInvestigation(null);
 
@@ -258,14 +267,15 @@ export default function PlayerBackgroundPanel({
           onInvestigationChangeRef.current(null);
         }
       } finally {
-        setIsLoading(false);
-        if (onInvestigatingChangeRef.current) {
+        if (active) setIsLoading(false);
+        if (active && onInvestigatingChangeRef.current) {
           onInvestigatingChangeRef.current(false);
         }
       }
     };
 
     performInvestigation();
+    return () => { active = false; };
   }, [investigateToken]);
 
   useEffect(() => () => {
@@ -274,7 +284,7 @@ export default function PlayerBackgroundPanel({
     }
   }, []);
 
-  if (!username || username.trim().length === 0) {
+  if ((!username || username.trim().length === 0) && !rid) {
     return null;
   }
 
@@ -291,8 +301,10 @@ export default function PlayerBackgroundPanel({
         open={showCorsPermissionPopup}
         onClose={() => setShowCorsPermissionPopup(false)}
       />
-      <div className="player-background-panel">
+      {expandedAvatar && <ImageViewer image={expandedAvatar} onClose={closeAvatar} />}
+      <div className={`player-background-panel${variant === 'dossier' ? ' player-background-panel--dossier' : ''}`}>
         <style>{`
+        @layer legacy {
         .player-background-panel {
           background: linear-gradient(135deg, rgba(8, 8, 8, 0.95), rgba(12, 12, 12, 0.9));
           border: 1px solid rgba(0, 255, 255, 0.25);
@@ -927,6 +939,7 @@ export default function PlayerBackgroundPanel({
           }
         }
 
+        }
       `}</style>
 
         <div className="pbp-header">
@@ -948,16 +961,17 @@ export default function PlayerBackgroundPanel({
               <span className="pbp-status__detail">{error}</span>
             </div>
           )}
+          {investigation?.warnings?.map(warning => <p className="pbp-status-detail" role="status" key={warning}>{warning}</p>)}
 
           {investigation && (
             <div className="pbp-current">
               <div className="pbp-evidence-panel">
                 <div className="pbp-dossier-kicker">
-                  <span className="pbp-dossier-kicker__label">Coincidencia</span>
-                  <span className="pbp-dossier-kicker__value">Positiva</span>
+                  <span className="pbp-dossier-kicker__label">Resolución del perfil</span>
+                  <span className="pbp-dossier-kicker__value">Archivo de jugadores</span>
                 </div>
                 <div className="pbp-evidence-card">
-                  <div className="pbp-current__label">Evidencia visual</div>
+                  <div className="pbp-current__label">REGISTRO FOTOGRÁFICO</div>
                   <div className="pbp-current__avatars">
                     {avatarSlotsToRender.map((slot) => {
                       const avatar = investigation.avatares?.find((item) => item.index === slot);
@@ -965,12 +979,9 @@ export default function PlayerBackgroundPanel({
                       const avatarSrc = renderState?.src || avatar?.avatarDataUrl || avatar?.avatarUrl || '';
                       const avatarFailed = renderState?.failed || avatar?.available === false;
                       return (
-                        <div key={slot} className="pbp-current__avatar" title={`Avatar ${slot}`}>
+                        <button type="button" key={slot} className="pbp-current__avatar" aria-label={`Ampliar avatar ${slot + 1}`} disabled={!avatarSrc || avatarFailed} onClick={() => setExpandedAvatar({ src: avatarSrc, label: `Avatar ${slot + 1} de ${investigation.nombre}` })}>
                           {avatarSrc && !avatarFailed ? (
-                            <div className="pbp-current__avatar-stage" aria-hidden="true">
-                              <img className="pbp-current__avatar-layer pbp-current__avatar-layer--1" src={avatarSrc} alt="" />
-                              <img className="pbp-current__avatar-layer pbp-current__avatar-layer--2" src={avatarSrc} alt="" />
-                              <img className="pbp-current__avatar-layer pbp-current__avatar-layer--3" src={avatarSrc} alt="" />
+                            <div className="pbp-current__avatar-stage">
                               <img className="pbp-current__avatar-layer pbp-current__avatar-layer--4" src={avatarSrc} alt={`Avatar ${slot}`} onError={() => handleAvatarError(slot, avatar)} />
                             </div>
                           ) : (
@@ -979,7 +990,7 @@ export default function PlayerBackgroundPanel({
                               <span className="pbp-current__avatar-slot">sin foto</span>
                             </>
                           )}
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
@@ -989,12 +1000,13 @@ export default function PlayerBackgroundPanel({
               <div className="pbp-identity-panel">
                 <div className="pbp-identity-header">
                   <div className="pbp-identity-header__copy">
-                    <div className="pbp-identity-header__eyebrow">Sujeto identificado</div>
+                    <div className="pbp-identity-header__eyebrow">IDENTIDAD CONSULTADA</div>
                     <div className="pbp-current__name notranslate" translate="no">{investigation.nombre}</div>
+                    <div className="pbp-identity-rid"><span>RID (ROCKSTAR ID)</span><strong>{investigation.rid || rid || 'Sin confirmar'}</strong></div>
                     <div className="pbp-current__label">
-                      {investigation?.rid
-                        ? 'Registro de Social Club vinculado al nombre reportado'
-                        : 'Antecedentes locales encontrados en reportes previos'}
+                      {investigation.rid || rid
+                        ? 'Identidad consultada por RID. Las coincidencias de reportes se indican por separado.'
+                        : 'Identidad basada en nombres del archivo; RID sin confirmar.'}
                     </div>
                   </div>
                   {socialClubProfileUrl && (
@@ -1002,10 +1014,10 @@ export default function PlayerBackgroundPanel({
                       href={socialClubProfileUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="pbp-cyber-link"
+                      className="cyber-button-small mw-cyber-button mw-cyber-button--secondary"
                       title={`Abrir perfil de ${username} en Social Club`}
                     >
-                      <span className="pbp-cyber-link-label">Ver en Social Club</span>
+                      <CyberButtonLabel>Ver en Social Club</CyberButtonLabel>
                     </a>
                   )}
                 </div>
@@ -1023,22 +1035,22 @@ export default function PlayerBackgroundPanel({
                   )}
                 </div>
 
-                <div className="pbp-current__summary">
+                {variant !== 'dossier' && <div className="pbp-current__summary">
                   {panelStats.map((item) => (
                     <div key={item.label} className="pbp-stat-card">
                       <div className="pbp-stat-card__label">{item.label}</div>
                       <div className="pbp-stat-card__value">{item.value}</div>
                     </div>
                   ))}
-                </div>
+                </div>}
               </div>
 
-              <div className="pbp-intel-panel">
-                <div className="pbp-panel-title">Antecedentes nominales</div>
+              <details className="pbp-intel-panel" open={variant !== 'dossier' || historyOpen} onToggle={event => setHistoryOpen(event.currentTarget.open)}>
+                <summary className="pbp-panel-title">Nombres y afiliaciones detectadas</summary>
                 <div className="pbp-section">
                   <div className="pbp-current__label">Otros nombres</div>
                   {nameHistory.length > 0 ? (
-                    <ol className="pbp-history-list">
+                    <ol className="pbp-history-list" aria-label="Historial de nombres con fechas y fuentes">
                       {nameHistory.map((entry, index) => (
                         <li key={`${entry.name}-${entry.time}-${index}`} className="pbp-history-item">
                           <a
@@ -1051,7 +1063,7 @@ export default function PlayerBackgroundPanel({
                           >
                             <strong>{entry.name}</strong>
                           </a>
-                          <span className="pbp-history-time">{entry.timeReadable || 'Fecha desconocida'}</span>
+                          <span className="pbp-history-time">{entry.timeReadable || 'Fecha desconocida'} · {entry.source}</span>
                         </li>
                       ))}
                     </ol>
@@ -1092,7 +1104,7 @@ export default function PlayerBackgroundPanel({
                   )}
                 </div>
 
-              </div>
+              </details>
             </div>
 
           )}

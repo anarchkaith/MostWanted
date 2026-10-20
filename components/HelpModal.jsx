@@ -13,7 +13,7 @@ export default function HelpModal({ open, onClose }) {
         </div>
         <div className="modal__body">
           <p><b>Most Wanted</b> es una herramienta comunitaria de <b>Kaith's Rebels</b> para reportar, rastrear y compartir información sobre modders, griffers y ardidos en juegos online.</p>
-          <ul style={{ margin: '1rem 0 0 1.2rem', fontSize: '0.95em' }}>
+          <ul className="cyber-ul mw-cyber-list" style={{ margin: '1rem 0 0', fontSize: '0.95em' }}>
             <li>🔍 Busca usuarios reportados por la comunidad.</li>
             <li>📋 Consulta detalles, evidencias y estado de validación.</li>
             <li>🚨 Reporta nuevos casos y ayuda a mantener la justicia en el gaming.</li>

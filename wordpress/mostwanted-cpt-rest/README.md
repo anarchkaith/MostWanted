@@ -24,6 +24,7 @@ Base: `/wp-json/mostwanted/v1`
 
 - `GET /health`
 - `POST /reports` (requiere token)
+- `GET /reports` (paginado, sin datos del reportante)
 - `GET /players`
 - `GET /players/lookup?rid=...` o `playerId=...` o `nickname=...`
 - `GET /player-insights?username=...&rid=...`: perfil para el panel de antecedentes (`names[{name,time}]`, `avatars`, `crews`, `activeCrew`, `reportCount`, `lastReportAt`). Responde `player: null` si no existe.
@@ -36,7 +37,11 @@ Base: `/wp-json/mostwanted/v1`
 - `with_reports=1|0` (default `1`)
 - `reports_limit=1..100`
 
-La API ahora devuelve historial enriquecido de reportes por jugador, incluyendo `reporter`, `evidence`, `analysis` y `rawPayload`.
+La API devuelve historial enriquecido de reportes por jugador, incluyendo `evidence` y `analysis`. La autoría (`reporter`, `reportedby` y equivalentes), los datos privados de votantes y el payload bruto no se publican. La información original del reportante se conserva en los metadatos privados de WordPress; también se protege la autoría de reportes históricos al serializarlos.
+
+Al actualizar el plugin, purga las respuestas REST cacheadas en WordPress/CDN. La aplicación consulta estas rutas directamente desde el navegador: actualizar solo el backend Node no protege una versión antigua del plugin.
+
+Validación local sin una instalación de WordPress: `php wordpress/mostwanted-cpt-rest/privacy.test.php` desde la raíz del repositorio.
 
 Los titulos de `mw_player` y `mw_report` se normalizan como `NICKNAME [RID <valor>]` cuando hay RID.
 

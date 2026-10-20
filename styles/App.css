@@ -6,6 +6,8 @@
 /* Importar paleta de colores y tipografía centralizada */
 @import './variables.css';
 
+@layer legacy {
+
 /* === ANIMACIONES DE ENTRADA === */
 @keyframes fadeInUp {
   from {
@@ -4509,4 +4511,5 @@ body::after {
   88% {
     opacity: 0.96;
   }
+}
 }

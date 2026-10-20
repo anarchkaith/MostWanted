@@ -40,3 +40,8 @@ Thumbs.db
 MostWanted.zip
 kaithgitlab
 kaithgitlab.pub
+
+# Private runtime case store (staff notes, audit and WordPress snapshots)
+/data/expedientes.json
+/data/expedientes.lock/
+/data/expedientes.json.*.staging

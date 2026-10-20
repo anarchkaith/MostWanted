@@ -1,4 +1,6 @@
-﻿const DEFAULT_CORS_PERMISSION_URL = 'https://cors-anywhere.herokuapp.com/https://mostwanted.kaithsrebels.com/';
+﻿import { createPortal } from 'react-dom';
+
+const DEFAULT_CORS_PERMISSION_URL = 'https://cors-anywhere.herokuapp.com/https://mostwanted.kaithsrebels.com/';
 
 export default function CORSPermission({
   href = DEFAULT_CORS_PERMISSION_URL,
@@ -9,8 +11,8 @@ export default function CORSPermission({
   if (variant === 'modal') {
     if (!open) return null;
 
-    return (
-      <div className="modal-overlay" style={{ zIndex: 3100 }} onClick={onClose || undefined}>
+    return createPortal(
+      <div className="modal-overlay" data-ui-sound={onClose ? 'reject' : undefined} style={{ zIndex: 3100 }} onClick={onClose || undefined}>
         <div
           className="modal"
           style={{ maxWidth: 480 }}
@@ -52,7 +54,8 @@ export default function CORSPermission({
             </a>
           </div>
         </div>
-      </div>
+      </div>,
+      document.body,
     );
   }
 
