@@ -50,6 +50,7 @@ try {
   assert.equal(readExpedientes(rootDir).length, 0);
   const first = await readCase({ rootDir, source, nickname: 'Player', rid: '123' });
   const id = first.payload.case.id;
+  assert.equal(first.payload.case.status, 'open', 'new cases start open');
   const byName = await readCase({ rootDir, source, nickname: 'Player' });
   assert.equal(byName.payload.case.id, id, 'name with single RID resolves existing identity');
   const homonyms = await readCase({ rootDir, source: async () => [
@@ -120,11 +121,25 @@ try {
   role = false;
   assert.equal((await fetch(`${base}/staff`, { headers })).status, 403);
   assert.equal((await fetch(`${base}/notes`, { method: 'POST', headers, body: '{"text":"denied"}' })).status, 403);
+  assert.equal((await fetch(`${base}/status`, { method: 'PATCH', headers,
+    body: '{"status":"open","reason":"denied"}' })).status, 403);
   const legacyUrl = `http://127.0.0.1:${server.address().port}/api/expedientes/report`;
   assert.equal((await fetch(legacyUrl, { method: 'POST', headers,
     body: JSON.stringify({ player: { nickname: 'Player', rid: '123' }, notes: 'denied legacy note' }) })).status, 403);
   role = true;
   assert.equal((await fetch(`${base}/status`, { method: 'PATCH', headers, body: '{"status":"closed","reason":""}' })).status, 400);
+  assert.equal((await fetch(`${base}/status`, { method: 'PATCH', headers,
+    body: '{"status":"unknown","reason":"invalid"}' })).status, 400);
+  const changedStatus = await fetch(`${base}/status`, { method: 'PATCH', headers,
+    body: '{"status":"investigating","reason":"STAFF_REASON_PRIVATE"}' });
+  assert.equal(changedStatus.status, 200);
+  assert.equal((await changedStatus.json()).case.status, 'investigating');
+  assert.equal((await (await fetch(base)).json()).case.status, 'investigating', 'manual status survives subsequent public reads');
+  const statusEvent = staffCase({ rootDir, id }).history.at(-1);
+  assert.equal(statusEvent.from, 'closed');
+  assert.equal(statusEvent.to, 'investigating');
+  assert.equal(statusEvent.author.id, 'STAFF_PRIVATE');
+  assert.equal(statusEvent.reason, 'STAFF_REASON_PRIVATE');
   assert.equal((await fetch(`${base}/notes`, { method: 'POST', headers, body: '{"text":""}' })).status, 400);
   const results = await Promise.all(Array.from({ length: 30 }, (_, i) => fetch(
     `${base}/${i % 2 ? 'notes' : 'status'}`, { method: i % 2 ? 'POST' : 'PATCH', headers,
@@ -133,7 +148,7 @@ try {
   assert.ok(results.every((result) => result.ok));
   const stored = readExpedientes(rootDir)[0];
   assert.equal(stored.staffNotes.length, 16);
-  assert.equal(stored.history.filter((entry) => entry.type === 'status_changed').length, 16);
+  assert.equal(stored.history.filter((entry) => entry.type === 'status_changed').length, 17);
   assert.ok(stored.staffNotes.every((note) => note.author.id === 'STAFF_PRIVATE'));
   assert.equal(JSON.stringify(await (await fetch(base)).json()).includes('PRIVATE'), false);
   assert.equal((await readCase({ rootDir, source, id })).payload.case.id, id);

@@ -4,7 +4,7 @@ import CaseStaffPanel from './CaseStaffPanel';
 import CyberButtonLabel from './CyberButtonLabel';
 import CyberSelect from './CyberSelect';
 import { requestCase } from '../src/services/casesService';
-import { CASE_STATUSES, VALIDATION_LABELS, filterCaseReports, reportCategories, summarizeVotes, formatCaseDate } from '../src/services/casePresentation';
+import { CASE_STATUSES, SEVERITY_LABELS, VALIDATION_LABELS, normalizeReportSeverity, filterCaseReports, reportCategories, summarizeVotes, formatCaseDate } from '../src/services/casePresentation';
 import { mergePlayerProfile } from '../src/services/playerProfile';
 import { playerPath, readPlayerRoute } from '../src/services/playerRoute';
 import { resolvePlayerRid } from '../shared/playerIdentity';
@@ -67,6 +67,7 @@ export default function InvestigationDesk({ initialPlayer, onPlayerResolved, rep
   const updateFilter = (key, value) => { setFilters(current => ({ ...current, [key]: value })); setPage(1); };
   const visiblePage = Math.min(page, Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)));
   const shownReports = filtered.slice((visiblePage - 1) * PAGE_SIZE, visiblePage * PAGE_SIZE);
+  const hasSeverity = linkedReports.some(report => normalizeReportSeverity(report.severidad));
   const supplemental = player && payload && <>
     <section className="case-section case-classification">
       <h3>Clasificación</h3>
@@ -145,7 +146,7 @@ export default function InvestigationDesk({ initialPlayer, onPlayerResolved, rep
             <table className="cyber-table cyber-style-2 case-table">
               <caption className="sr-only">Reportes del jugador. Usa Ver reporte para consultar las evidencias y votar.</caption>
               <thead><tr>
-                <th scope="col">Fecha / reporte</th><th scope="col">Infracción</th><th scope="col">Severidad</th><th scope="col">Validación</th>
+                <th scope="col">Fecha / reporte</th><th scope="col">Infracción</th>{hasSeverity && <th scope="col">Severidad</th>}<th scope="col">Validación</th>
                 <th scope="col">Detalle</th>
               </tr></thead>
               <tbody>{shownReports.map(report => (
@@ -154,7 +155,7 @@ export default function InvestigationDesk({ initialPlayer, onPlayerResolved, rep
                     {payload?.nameOnlyReportIds?.some(id => String(id) === String(report.id)) && <small>Asociación solo por nombre</small>}
                   </td>
                   <td data-label="Infracción">{reportCategories(report).join(', ') || 'Sin datos'}</td>
-                  <td data-label="Severidad">{report.severidad || 'Desconocida'}</td>
+                  {hasSeverity && <td data-label="Severidad">{SEVERITY_LABELS[normalizeReportSeverity(report.severidad)] || '—'}</td>}
                   <td data-label="Validación"><span className="case-badge">{VALIDATION_LABELS[report.validacion] || report.validacion || 'Sin datos'}</span></td>
                   <td><button type="button" className="cyber-button-small mw-cyber-button mw-cyber-button--secondary" onClick={() => onOpenReport(report)} aria-label={`Ver detalles del reporte ${report.id}`}><CyberButtonLabel>Ver reporte</CyberButtonLabel></button></td>
                 </tr>

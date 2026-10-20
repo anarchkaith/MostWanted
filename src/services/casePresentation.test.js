@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { playerCandidates, filterCaseReports, summarizeVotes, formatCaseDate, normalizeReportValidation } from './casePresentation.js';
+import { playerCandidates, filterCaseReports, summarizeVotes, formatCaseDate, normalizeReportValidation, normalizeReportSeverity } from './casePresentation.js';
 import { mergePlayerMatches } from './playerSearch.js';
 import { resolvePlayerRid } from '../../shared/playerIdentity.js';
 
@@ -39,6 +39,13 @@ assert.equal(summarizeVotes([]).percent, null);
 assert.equal(formatCaseDate(null), 'Fecha desconocida');
 assert.equal(normalizeReportValidation('rejected'), 'rechazado');
 assert.equal(normalizeReportValidation(null), '');
+for (const severity of ['baja', 'media', 'alta', 'critica']) {
+  assert.equal(normalizeReportSeverity(severity), severity);
+  assert.equal(normalizeReportSeverity(` ${severity.toUpperCase()} `), severity);
+}
+for (const severity of [null, undefined, '', 'N/A', 'Desconocida', 'sin_severidad', 'amenaza alta', 'constructor', {}]) {
+  assert.equal(normalizeReportSeverity(severity), '');
+}
 const localBoundary = new Date(2026, 0, 2, 0, 15).toISOString();
 assert.equal(filterCaseReports([{ id: 4, fecha: localBoundary }], { from: '2026-01-02', to: '2026-01-02' }).length, 1);
 assert.equal(filterCaseReports([{ id: 5, fecha: '2026-01-02' }], { from: '2026-01-02', to: '2026-01-02' }).length, 1);

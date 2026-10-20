@@ -1,4 +1,5 @@
 ﻿import VoteSystem from './VoteSystem';
+import { normalizeReportSeverity, SEVERITY_LABELS } from '../src/services/casePresentation';
 
 /**
  * ReportCard - Componente para mostrar una ficha individual de reporte
@@ -11,14 +12,6 @@ const ReportCard = ({ reporte, onClick, onVote }) => {
     modder: 'MODDER',
     griffer: 'GRIFFER',
     ardido: 'ARDIDO'
-  };
-
-  // Mapeo de severidad a etiquetas
-  const severityLabels = {
-    critica: 'CRÍTICA',
-    alta: 'ALTA',
-    media: 'MEDIA',
-    baja: 'BAJA'
   };
 
   // Mapeo de validación
@@ -48,7 +41,7 @@ const ReportCard = ({ reporte, onClick, onVote }) => {
   };
 
   const categoria = reporte.categoria || 'ardido';
-  const severidad = reporte.severidad || 'media';
+  const severidad = normalizeReportSeverity(reporte.severidad);
   const validationStatus = reporte.validacion || 'pendiente';
   const hasEvidencias = (reporte.evidencias && reporte.evidencias.length > 0) || Boolean(reporte.evidencia);
 
@@ -92,13 +85,13 @@ const ReportCard = ({ reporte, onClick, onVote }) => {
           📅 {formatDate(reporte.fecha)}
           {hasEvidencias && <span title="Tiene evidencias"> 📎</span>}
         </span>
-        <span className="report-card__severity">
+        {severidad && <span className="report-card__severity">
           <span
             className={`severity-indicator severity-indicator--${severidad}`}
             aria-hidden="true"
           />
-          {severityLabels[severidad] || severidad.toUpperCase()}
-        </span>
+          {SEVERITY_LABELS[severidad]}
+        </span>}
       </footer>
 
       {/* Votos comunitarios (modo compacto) */}

@@ -2,6 +2,12 @@ import { resolvePlayerRid } from '../../shared/playerIdentity.js';
 
 export const CASE_STATUSES = { open: 'Abierto', investigating: 'En investigación', closed: 'Cerrado' };
 export const VALIDATION_LABELS = { pendiente: 'Pendiente', investigando: 'En investigación', verificado: 'Verificado', rechazado: 'Rechazado' };
+export const SEVERITY_LABELS = { baja: 'Baja', media: 'Media', alta: 'Alta', critica: 'Crítica' };
+
+export function normalizeReportSeverity(value) {
+  const key = typeof value === 'string' ? value.trim().toLowerCase() : '';
+  return Object.hasOwn(SEVERITY_LABELS, key) ? key : '';
+}
 
 export function normalizeReportValidation(value) {
   return ({ pending: 'pendiente', investigating: 'investigando', verified: 'verificado', rejected: 'rechazado' })[value] || value || '';

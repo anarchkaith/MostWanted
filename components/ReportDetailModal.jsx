@@ -6,6 +6,7 @@ import ImageUpload from './ImageUpload';
 import { buildApiUrl } from '../src/services/apiConfig';
 import CyberButtonLabel from './CyberButtonLabel';
 import CyberSelect from './CyberSelect';
+import { normalizeReportSeverity, SEVERITY_LABELS, VALIDATION_LABELS } from '../src/services/casePresentation';
 
 /**
  * ReportDetailModal - Modal para ver detalles completos de un reporte
@@ -28,7 +29,7 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
   const [editData, setEditData] = useState({
     usuario: reporte?.usuario || '',
     categoria: reporte?.categoria || 'modder',
-    severidad: reporte?.severidad || 'media',
+    severidad: normalizeReportSeverity(reporte?.severidad),
     motivo: reporte?.motivo || '',
     reportadoPor: reporte?.reportadoPor || ''
   });
@@ -111,13 +112,7 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
     ardido: 'ARDIDO'
   };
 
-  // Mapeo de severidad
-  const severityLabels = {
-    baja: 'BAJA',
-    media: 'MEDIA',
-    alta: 'ALTA',
-    critica: 'CRÍTICA'
-  };
+  const severity = normalizeReportSeverity(reporte.severidad);
 
   // Mapeo de estados de validación
   const validationLabels = {
@@ -154,7 +149,7 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
     setEditData({
       usuario: reporte.usuario,
       categoria: reporte.categoria,
-      severidad: reporte.severidad,
+      severidad: normalizeReportSeverity(reporte.severidad),
       motivo: reporte.motivo,
       reportadoPor: reporte.reportadoPor
     });
@@ -506,27 +501,27 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
                   </div>
                 )}
               </div>
-              <div style={{ flex: 1, minWidth: '150px' }}>
+              {(severity || isEditing) && <div style={{ flex: 1, minWidth: '150px' }}>
                 <div className="report-detail__label">Severidad</div>
                 {isEditing ? (
                   <CyberSelect
                     aria-label="Severidad"
                     value={editData.severidad}
                     onChange={value => setEditData({ ...editData, severidad: value })}
-                    options={Object.entries(severityLabels).map(([value, label]) => ({ value, label }))}
+                    options={[{ value: '', label: 'Sin asignar' }, ...Object.entries(SEVERITY_LABELS).map(([value, label]) => ({ value, label }))]}
                   />
                 ) : (
                   <div className="report-detail__value">
                     <span className="report-card__severity">
                       <span
-                        className={`severity-indicator severity-indicator--${reporte.severidad || 'media'}`}
+                        className={`severity-indicator severity-indicator--${severity}`}
                         aria-hidden="true"
                       />
-                      {severityLabels[reporte.severidad] || (reporte.severidad || 'N/A').toUpperCase()}
+                      {SEVERITY_LABELS[severity]}
                     </span>
                   </div>
                 )}
-              </div>
+              </div>}
             </div>
 
             {/* Motivo completo */}
@@ -634,61 +629,9 @@ const ReportDetailModal = ({ reporte, onClose, onValidate, onVote, onEdit, onDel
               )}
             </div>
 
-            {/* Estado del Caso - basado en validación */}
             <div className="report-detail__field">
-              <div className="report-detail__label">Estado del Caso</div>
-              {(() => {
-                // Determinar estado basado en validación
-                const validacion = reporte.validacion || 'pendiente';
-                const votosFavor = reporte.votos?.up || 0;
-                const votosContra = reporte.votos?.down || 0;
-                const votosNetos = votosFavor - votosContra;
-                const umbral = 5;
-
-                // Prioridad: Admin > Comunidad > Default
-                if (validacion === 'rechazado') {
-                  return (
-                    <div className="report-detail__value" style={{ borderLeftColor: '#888888' }}>
-                      ❌ RECHAZADO - CASO CERRADO
-                    </div>
-                  );
-                }
-                if (validacion === 'verificado') {
-                  return (
-                    <div className="report-detail__value" style={{ borderLeftColor: '#22c55e' }}>
-                      ✅ VERIFICADO - CONFIRMADO POR ADMIN
-                    </div>
-                  );
-                }
-                if (validacion === 'investigando') {
-                  return (
-                    <div className="report-detail__value" style={{ borderLeftColor: '#3b82f6' }}>
-                      🔍 EN INVESTIGACIÓN
-                    </div>
-                  );
-                }
-                // Validación por comunidad
-                if (votosNetos <= -umbral) {
-                  return (
-                    <div className="report-detail__value" style={{ borderLeftColor: '#888888' }}>
-                      👎 RECHAZADO POR LA COMUNIDAD
-                    </div>
-                  );
-                }
-                if (votosNetos >= umbral) {
-                  return (
-                    <div className="report-detail__value" style={{ borderLeftColor: '#88cc00' }}>
-                      👍 VERIFICADO POR LA COMUNIDAD
-                    </div>
-                  );
-                }
-                // Estado por defecto
-                return (
-                  <div className="report-detail__value" style={{ borderLeftColor: '#ff3333' }}>
-                    🔴 ACTIVO - EN VIGILANCIA
-                  </div>
-                );
-              })()}
+              <div className="report-detail__label">Validación del reporte</div>
+              <div className="report-detail__value">{VALIDATION_LABELS[reporte.validacion] || 'Sin validación registrada'}</div>
               {/* Fecha de validación si existe */}
               {reporte.fechaValidacion && (
                 <div style={{ fontSize: '0.75rem', opacity: 0.7, marginTop: '0.25rem', paddingLeft: '0.75rem' }}>

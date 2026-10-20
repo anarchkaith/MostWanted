@@ -9,7 +9,7 @@ import InterfaceSounds from '../components/InterfaceSounds';
 import PersonSearch from '../components/PersonSearch';
 import { buildApiUrl, getApiBaseUrl } from './services/apiConfig';
 import { assignExpedienteIds } from './services/expedienteIds';
-import { normalizeReportValidation } from './services/casePresentation';
+import { normalizeReportSeverity, normalizeReportValidation } from './services/casePresentation';
 import { resolvePlayerRid } from '../shared/playerIdentity';
 import { playerPath } from './services/playerRoute';
 import { version as appVersion } from '../package.json';
@@ -63,24 +63,6 @@ const mapCategoriaFromWordpressType = (categories = []) => {
   return 'ardido';
 };
 
-const mapSeveridadFromWordpressLabels = (labels = []) => {
-  const merged = Array.isArray(labels)
-    ? labels
-      .map((entry) => {
-        if (typeof entry === 'string') return entry;
-        if (entry && typeof entry === 'object') return `${entry.label || ''} ${entry.detail || ''}`;
-        return '';
-      })
-      .join(' ')
-      .toLowerCase()
-    : '';
-  if (merged.includes('critic')) return 'critica';
-  if (merged.includes('alto') || merged.includes('high')) return 'alta';
-  if (merged.includes('bajo') || merged.includes('low')) return 'baja';
-  if (merged.includes('medi')) return 'media';
-  return '';
-};
-
 const normalizeComentariosFromCommunityVerification = (communityVerification = {}) => {
   const confirmations = Array.isArray(communityVerification?.confirmations)
     ? communityVerification.confirmations
@@ -118,7 +100,7 @@ const mapWordpressReportToReporte = (report = {}) => {
       tipo: item?.contentType || 'image/png',
     })).filter((item) => item.preview),
     estado: 'activo',
-    severidad: report?.severidad || report?.severity || (report?.labels?.length ? mapSeveridadFromWordpressLabels(report.labels) : ''),
+    severidad: normalizeReportSeverity(report?.severidad || report?.severity),
     validacion: normalizeReportValidation(report?.validacion || report?.validation),
     votos: {
       up: Number(communityVerification?.up) || 0,
@@ -137,7 +119,7 @@ const mapWordpressReportToReporte = (report = {}) => {
 const normalizeReporte = (reporte = {}) => {
   const id = reporte.id ?? Date.now();
   const categoria = mapCategoriaLegacy(reporte.categorias, reporte.categoria);
-  const severidad = reporte.severidad ?? 'media';
+  const severidad = normalizeReportSeverity(reporte.severidad);
   const fecha = reporte.fecha ?? new Date().toISOString().slice(0, 10);
 
   return {

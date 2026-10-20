@@ -132,7 +132,6 @@ body {
     calc(100% - var(--hex-border)) calc(100% - var(--hex-corner)),
     calc(100% - var(--hex-border)) var(--hex-border), var(--hex-border) var(--hex-border));
   background: var(--hex-frame-color);
-  transition: background-color 160ms ease;
   pointer-events: none;
 }
 :is(.desk-access, .case-file, .case-reports, .rfm-panel, .controls, .report-card, .tipo-card, .modal, .rfm-confirmation, .delete-confirm-modal, .ai-bubble__panel)::after {
@@ -151,11 +150,6 @@ body {
 .delete-confirm-modal { max-height: none; overflow: visible; overflow-wrap: anywhere; flex-shrink: 0; }
 .rfm-confirmation { max-height: none; overflow: visible; margin: auto; }
 .rfm-confirmation-overlay { align-items: start; }
-@media (hover: hover) {
-  :is(.desk-access, .case-file, .case-reports, .rfm-panel, .controls, .report-card, .tipo-card, .modal, .rfm-confirmation, .delete-confirm-modal, .ai-bubble__panel):hover {
-    --hex-frame-color: var(--color-red-alert);
-  }
-}
 .delete-confirm-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 16px; width: 100%; }
 .delete-confirm-actions > button { flex: 1 1 140px; --button-padding-h: 1rem; }
 .case-file__header, .case-reports__header, .modal__header, .ai-bubble__header {
