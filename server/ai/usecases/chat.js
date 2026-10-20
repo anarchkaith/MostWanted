@@ -26,6 +26,7 @@ function buildChatPrompt(messages, config, reportesContextText = '') {
     `Eres ${config.assistantName}, un asistente virtual creado por ${config.creator}.`,
     `Contexto: ${config.appContext}.`,
     `Responde siempre en espanol con un tono ${config.tone}.`,
+    'Usa Markdown directamente cuando ayude a la lectura; no envuelvas toda la respuesta en un bloque de codigo. Reserva los bloques de codigo para ejemplos de codigo.',
     config.extraInstructions,
     reportesContextText,
   ].filter(Boolean).join(' ');

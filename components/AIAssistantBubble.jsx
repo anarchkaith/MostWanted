@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import { buildReportesChatContext, readReportesFromLocalStorage } from './chatTools';
+import { unwrapMarkdownFence } from './markdownUtils';
 import { getIaChatEndpoint, getIaIntentEndpoint } from '../src/services/apiConfig';
 import { inferReportIntent } from '../shared/reportIntent';
 
@@ -105,19 +106,19 @@ const buildChatRequest = (messages = [], reportesContextData = {}) => {
 
 const getAssistantReply = (payload = {}) => {
   if (typeof payload.response === 'string' && payload.response.trim()) {
-    return payload.response.trim();
+    return unwrapMarkdownFence(payload.response.trim());
   }
 
   if (typeof payload.text === 'string' && payload.text.trim()) {
-    return payload.text.trim();
+    return unwrapMarkdownFence(payload.text.trim());
   }
 
   if (typeof payload.output === 'string' && payload.output.trim()) {
-    return payload.output.trim();
+    return unwrapMarkdownFence(payload.output.trim());
   }
 
   if (payload.message && typeof payload.message.content === 'string' && payload.message.content.trim()) {
-    return payload.message.content.trim();
+    return unwrapMarkdownFence(payload.message.content.trim());
   }
 
   return 'No pude generar una respuesta en este momento.';

@@ -664,14 +664,6 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false }) => {
                   />
                 )}
 
-                {!canShowFullForm && (
-                  <div className="rfm-panel" style={{ borderLeftColor: 'rgba(0,255,255,0.45)' }}>
-                    <div className="rfm-note" style={{ marginTop: 0, borderTop: 'none', paddingTop: 0 }}>
-                      Primero investiga al jugador para desbloquear el formulario completo. Si no se encuentra RID, podrás continuar igual con RID opcional.
-                    </div>
-                  </div>
-                )}
-
                 {canShowFullForm && (
                   <>
                     <div className="rfm-panel">
