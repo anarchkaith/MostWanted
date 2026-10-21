@@ -1,5 +1,5 @@
 import { TIPOS_ETIQUETAS } from '../shared/constants/tiposEtiquetas.js';
-import { buildCrewLink } from './crewLink.js';
+import { buildCrewLink } from '../../shared/crewLink.js';
 
 const MAX_DISCORD_EMBEDS_PER_MESSAGE = 10;
 const MOSTWANTED_WEB_URL = 'https://mostwanted.kaithsrebels.com';
@@ -95,10 +95,7 @@ function isVideoContentType(contentType) {
 }
 
 function normalizeCrewEntry(crew) {
-  const raw = typeof crew === 'string'
-    ? crew.trim()
-    : toDisplayText(crew?.nombre) || toDisplayText(crew?.name) || toDisplayText(crew?.raw) || toDisplayText(crew?.url);
-  const link = buildCrewLink(raw);
+  const link = buildCrewLink(crew);
   if (!link) return null;
   return { name: link.name.replace(/[[\]]/g, '').trim(), url: link.url };
 }

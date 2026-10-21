@@ -6,7 +6,7 @@ function slugify(value = '') {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/[^a-z0-9_-]+/g, '_')
     .replace(/^_+|_+$/g, '');
 }
 
@@ -20,10 +20,16 @@ function decodeSegment(value = '') {
 
 /**
  * Acepta el nombre de una crew o un link de Social Club (incluso en formato markdown)
- * y devuelve el nombre limpio junto con su URL de jerarquia. Devuelve null si no hay nombre valido.
+ * y devuelve el nombre limpio junto con su URL. Devuelve null si no hay nombre valido.
  */
 export function buildCrewLink(input = '') {
-  const raw = String(input || '').trim();
+  if (typeof input !== 'string' && (!input || typeof input !== 'object' || Array.isArray(input))) return null;
+  const displayName = typeof input === 'object' && input
+    ? String(input.name || input.nombre || input.raw || '').trim()
+    : '';
+  const raw = String(typeof input === 'object' && input
+    ? input.url || displayName
+    : input || '').trim();
   if (!raw) return null;
 
   const match = raw.match(SOCIALCLUB_CREW_PATTERN);
@@ -32,7 +38,7 @@ export function buildCrewLink(input = '') {
   if (!slug) return null;
 
   return {
-    name,
-    url: `https://socialclub.rockstargames.com/crew/${slug}/hierarchy`,
+    name: displayName || name,
+    url: `https://socialclub.rockstargames.com/crew/${slug}`,
   };
 }

@@ -149,7 +149,7 @@ runTest('validateIncomingReportSubmission acepta labels por IDs y los expone com
   assert.equal(payload.crews[1].name, 'Crew Secundaria #1');
   assert.deepEqual(payload.crews[2], {
     name: 'Kaiths Rebels',
-    url: 'https://socialclub.rockstargames.com/crew/kaiths_rebels/hierarchy',
+    url: 'https://socialclub.rockstargames.com/crew/kaiths_rebels',
   });
   assert.deepEqual(payload.labelIds, [7, 12, aimbotId]);
   assert.deepEqual(payload.labels, ['Aimbot']);
@@ -195,6 +195,18 @@ runTest('buildDiscordReportPayload omite el campo Estado del embed', () => {
   });
 
   assert.equal(payload.embeds[0].fields.some(({ name }) => name.includes('Estado')), false);
+});
+
+runTest('crews conserva la URL de Social Club en WordPress y Discord', () => {
+  const crew = { name: 'EPI GTA5', url: 'https://socialclub.rockstargames.com/crew/epi-gta5' };
+  const submission = validateIncomingReportSubmission({
+    report: { nickname: 'Player', reason: 'Motivo documentado', investigation_status: 'not_found', crews: [crew] },
+  });
+  assert.equal(submission.ok, true);
+  assert.deepEqual(buildWordpressReportPayload(submission.value).crews, [crew]);
+  const payload = buildDiscordReportPayload(submission.value);
+  assert.equal(payload.embeds[0].fields.find(field => field.name.includes('Crews')).value,
+    `[${crew.name}](${crew.url})`);
 });
 
 runTest('buildDiscordReportPayload incluye los botones de link, incluidos Reportar a un jugador y Ver lista de reportes', () => {

@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import InvestigationDesk from '../components/InvestigationDesk';
+import InvestigationDesk from '../components/screens/InvestigationDesk';
 import ReportDetailModal from '../components/ReportDetailModal';
 import ReportFormModal from '../components/ReportFormModal';
 import HelpModal from '../components/HelpModal';
 import AIAssistantBubble from '../components/AIAssistantBubble';
-import CyberButtonLabel from '../components/CyberButtonLabel';
+import CyberButtonLabel from '../components/ui/CyberButtonLabel';
 import InterfaceSounds from '../components/InterfaceSounds';
 import PersonSearch from '../components/PersonSearch';
 import { buildApiUrl, getApiBaseUrl } from './services/apiConfig';

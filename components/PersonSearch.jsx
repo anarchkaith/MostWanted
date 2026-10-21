@@ -3,7 +3,7 @@ import { fetchWordpressPlayerInsights } from '../src/services/reportSubmissionSe
 import { playerCandidates } from '../src/services/casePresentation';
 import { mergePlayerMatches } from '../src/services/playerSearch';
 import { lookupCachedPlayer } from './backgroundInvestigation';
-import CyberButtonLabel from './CyberButtonLabel';
+import CyberButtonLabel from './ui/CyberButtonLabel';
 
 const SEARCH_SOURCES = ['Reportes registrados', 'Perfiles de jugadores'];
 

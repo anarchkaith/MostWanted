@@ -7,7 +7,7 @@ import TipoInfraccionSelector from './TipoInfraccionSelector';
 import { useMutation } from '@tanstack/react-query';
 import { TIPOS_ETIQUETAS } from './tiposEtiquetas';
 import ReportPlayerIdentity from './ReportPlayerIdentity';
-import CyberButtonLabel from './CyberButtonLabel';
+import CyberButtonLabel from './ui/CyberButtonLabel';
 import { reportPlayerDraft } from '../src/services/reportPlayerDraft';
 import {
   submitWordpressReport,

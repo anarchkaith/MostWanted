@@ -1,4 +1,5 @@
 import { getPlayerAvatarUrl } from './playerAvatars.js';
+import { buildCrewLink } from '../../shared/crewLink.js';
 
 const text = value => String(value ?? '').trim();
 const list = value => Array.isArray(value) ? value : [];
@@ -33,7 +34,12 @@ export function mergePlayerProfile({ username = '', rid = '', profile = null, re
     collection.set(key, entry);
   };
   const addName = (value, time, source, reportId) => addObservation(names, value, time, source, reportId);
-  const addCrew = (value, time, source, reportId) => addObservation(crews, value, time, source, reportId);
+  const addCrew = (value, time, source, reportId) => {
+    const crew = buildCrewLink(value);
+    if (!crew) return;
+    addObservation(crews, crew, time, source, reportId);
+    if (value?.url) crews.get(crew.name.toLowerCase()).url = crew.url;
+  };
   const addAvatar = (value, time, source) => {
     const url = text(typeof value === 'string' ? value : value?.url || value?.avatarUrl);
     if (!/^https?:\/\//i.test(url) || currentUrls.has(url)) return;

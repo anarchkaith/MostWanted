@@ -3,15 +3,15 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import { unwrapMarkdownFence } from '../markdownUtils';
-import PlayerBackgroundPanel from './PlayerBackgroundPanel';
-import CaseStaffPanel from './CaseStaffPanel';
-import CyberButtonLabel from './CyberButtonLabel';
-import CyberSelect from './CyberSelect';
-import { requestCase } from '../src/services/casesService';
-import { CASE_STATUSES, SEVERITY_LABELS, VALIDATION_LABELS, normalizeReportSeverity, filterCaseReports, reportCategories, summarizeVotes, formatCaseDate } from '../src/services/casePresentation';
-import { mergePlayerProfile } from '../src/services/playerProfile';
-import { playerPath, readPlayerRoute } from '../src/services/playerRoute';
-import { resolvePlayerRid } from '../shared/playerIdentity';
+import PlayerBackgroundPanel from '../PlayerBackgroundPanel';
+import CaseStaffPanel from '../CaseStaffPanel';
+import CyberButtonLabel from '../ui/CyberButtonLabel';
+import CyberSelect from '../ui/CyberSelect';
+import { requestCase } from '../../src/services/casesService';
+import { CASE_STATUSES, SEVERITY_LABELS, VALIDATION_LABELS, normalizeReportSeverity, filterCaseReports, reportCategories, summarizeVotes, formatCaseDate } from '../../src/services/casePresentation';
+import { mergePlayerProfile } from '../../src/services/playerProfile';
+import { playerPath, readPlayerRoute } from '../../src/services/playerRoute';
+import { resolvePlayerRid } from '../../shared/playerIdentity';
 
 const EMPTY_FILTERS = { category: '', validation: '', from: '', to: '', query: '' };
 const PAGE_SIZE = 10;
@@ -74,7 +74,7 @@ export default function InvestigationDesk({ initialPlayer, onPlayerResolved, rep
   const hasSeverity = linkedReports.some(report => normalizeReportSeverity(report.severidad));
   const supplemental = player && payload && <>
     <section className="case-section case-classification">
-      <h3>Clasificación</h3>
+      <h3><span className="case-section__index" aria-hidden="true">04</span>Análisis HEX</h3>
       {dossier?.classification?.text ? <>
         <div className="case-classification__text">
           <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
@@ -87,8 +87,17 @@ export default function InvestigationDesk({ initialPlayer, onPlayerResolved, rep
       {dossier?.classification?.error && <p className="rfm-submit-error" role="alert">{dossier.classification.error}</p>}
       {dossier?.classification?.pending && <p className="case-muted" role="status">Generando resumen…</p>}
     </section>
+    <section className="case-section case-verification">
+      <h3><span className="case-section__index" aria-hidden="true">05</span>Verificación comunitaria</h3>
+      <dl className="case-votes">
+        <div><dt>Reportes legítimos</dt><dd>{votes.percent === null ? '—' : `${votes.percent}%`}</dd></div>
+        <div><dt>Reportes falsos</dt><dd>{votes.percent === null ? '—' : `${100 - votes.percent}%`}</dd></div>
+        <div><dt>Votos emitidos</dt><dd>{votes.total}</dd></div>
+      </dl>
+      {votes.percent !== null && <meter min="0" max="100" value={votes.percent} aria-label="Porcentaje de votos legítimos" />}
+      {votes.total === 0 && <p className="case-muted">Sin votos en los reportes de este jugador.</p>}
+    </section>
     {canManageCases && dossier && !loading && !error && <CaseStaffPanel key={dossier.id} caseId={dossier.id} currentStatus={dossier.status} onChanged={() => setVersion(value => value + 1)} />}
-    <section className="case-section"><h3>Votos de los reportes</h3><div className="case-summary"><div><span>Legítimos</span><strong>{votes.percent === null ? '—' : `${votes.percent}%`}</strong></div><div><span>Falsos</span><strong>{votes.percent === null ? '—' : `${100 - votes.percent}%`}</strong></div><div><span>Votos</span><strong>{votes.total}</strong></div></div>{votes.percent !== null && <meter min="0" max="100" value={votes.percent} aria-label="Porcentaje de votos legítimos" />}</section>
   </>;
 
   return (
@@ -104,7 +113,7 @@ export default function InvestigationDesk({ initialPlayer, onPlayerResolved, rep
       <div className="desk-columns" aria-busy={loading}>
         <section className="case-file" aria-label="Expediente del jugador">
           <header className="case-file__header">
-            <div><h2>Ficha del jugador</h2></div>
+            <div><p className="case-file__eyebrow">H.E.X. / Archivo de jugadores</p><h2>Ficha del jugador</h2></div>
             {dossier && <>
               <dl className="case-file__metadata"><div><dt>Primera denuncia</dt><dd>{formatCaseDate(linkedReports.map(report => report.fecha).filter(Boolean).sort()[0])}</dd></div><div><dt>Última actualización</dt><dd>{formatCaseDate(dossier.updatedAt, true)}</dd></div></dl>
             </>}
@@ -114,8 +123,10 @@ export default function InvestigationDesk({ initialPlayer, onPlayerResolved, rep
             <div className="case-file__overview">
               <PlayerBackgroundPanel key={`${player.nickname}:${player.rid}:${revision}`} username={player.nickname || ''} rid={player.rid || ''} reports={linkedReports} investigateToken={1} variant="dossier" onInvestigationChange={onInvestigationChange} />
               <section className="case-section case-management">
-                <h3>Estado del caso</h3>
-                <div className="case-summary"><div><strong>{dossier ? CASE_STATUSES[dossier.status] || dossier.status : payload ? 'Sin caso registrado' : 'Estado no disponible'}</strong></div></div>
+                <div className="case-management__status">
+                  <h3>Estado del caso</h3>
+                  <p className="case-status" data-status={dossier?.status || 'unknown'}>{dossier ? CASE_STATUSES[dossier.status] || dossier.status : payload ? 'Sin caso registrado' : 'Estado no disponible'}</p>
+                </div>
                 <button type="button" className="cyber-button-small mw-cyber-button" onClick={() => {
                   const target = foundPlayer || player;
                   const investigation = target.investigation;

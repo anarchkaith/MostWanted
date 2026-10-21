@@ -4,8 +4,8 @@ import ReactDOM from 'react-dom';
 import VoteSystem from './VoteSystem';
 import ImageUpload from './ImageUpload';
 import { buildApiUrl } from '../src/services/apiConfig';
-import CyberButtonLabel from './CyberButtonLabel';
-import CyberSelect from './CyberSelect';
+import CyberButtonLabel from './ui/CyberButtonLabel';
+import CyberSelect from './ui/CyberSelect';
 import { normalizeReportSeverity, SEVERITY_LABELS, VALIDATION_LABELS } from '../src/services/casePresentation';
 
 /**

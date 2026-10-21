@@ -7,7 +7,7 @@ import { buildReportesChatContext, readReportesFromLocalStorage } from './chatTo
 import { unwrapMarkdownFence } from './markdownUtils';
 import { getIaChatEndpoint, getIaIntentEndpoint } from '../src/services/apiConfig';
 import { inferReportIntent } from '../shared/reportIntent';
-import CyberButtonLabel from './CyberButtonLabel';
+import CyberButtonLabel from './ui/CyberButtonLabel';
 
 const HEX_LOGO_RED = '/HEX_LOGO_RED.png';
 const IA_ENDPOINT = getIaChatEndpoint();

@@ -4,6 +4,31 @@ import { mergePlayerProfile } from './playerProfile.js';
 import { completeReportPlayerDraft, reportPlayerDraft } from './reportPlayerDraft.js';
 import { playerPath, readPlayerRoute } from './playerRoute.js';
 import { getPlayerAvatarUrl, isRockstarPlayerAvatar } from './playerAvatars.js';
+import { buildCrewLink } from '../../shared/crewLink.js';
+
+test('crew links preserve hyphens and normalize names, URLs and legacy hierarchy links', () => {
+  const url = 'https://socialclub.rockstargames.com/crew/epi-gta5';
+  for (const input of ['epi-gta5', url, `${url}/hierarchy`, `[EPI](${url})`]) {
+    assert.equal(buildCrewLink(input).url, url);
+  }
+  assert.deepEqual(buildCrewLink({ name: 'EPI GTA5', url }), { name: 'EPI GTA5', url });
+  assert.equal(buildCrewLink('Kaiths Rebels').url, 'https://socialclub.rockstargames.com/crew/kaiths_rebels');
+  assert.equal(buildCrewLink(''), null);
+  assert.equal(buildCrewLink(123), null);
+});
+
+test('crew history links use registered URLs ahead of generated name slugs', () => {
+  const url = 'https://socialclub.rockstargames.com/crew/epi-gta5';
+  const result = mergePlayerProfile({
+    reportInsights: { crews: ['EPI GTA5'] },
+    reports: [{ id: 1, crews: [{ name: 'EPI GTA5', url: `${url}/hierarchy` }] }],
+    profile: { crews: ['EPI GTA5', 'another-crew'] },
+  });
+  assert.equal(result.crewHistory.length, 2);
+  assert.equal(result.crewHistory.find(crew => crew.name === 'EPI GTA5').url, url);
+  assert.equal(result.crewHistory.find(crew => crew.name === 'another-crew').url,
+    'https://socialclub.rockstargames.com/crew/another-crew');
+});
 
 test('recognizes Rockstar portrait images without altering evidence or unrelated archived images', () => {
   assert.equal(isRockstarPlayerAvatar(getPlayerAvatarUrl('298932732', 0)), true);

@@ -1,5 +1,5 @@
 import { TIPOS_ETIQUETAS } from '../shared/constants/tiposEtiquetas.js';
-import { buildCrewLink } from './crewLink.js';
+import { buildCrewLink } from '../../shared/crewLink.js';
 
 function toTrimmedString(value) {
   return typeof value === 'string' ? value.trim() : '';
@@ -235,14 +235,7 @@ export function validateIncomingReportSubmission(body = {}) {
     ? report.crews
     : toTrimmedString(report?.crews).split(',');
   const crewsCollection = Array.from(crewsSource
-    .map((crew) => {
-      if (typeof crew === 'string') return toTrimmedString(crew);
-      if (crew && typeof crew === 'object') {
-        return toTrimmedString(crew?.name || crew?.nombre || crew?.raw || crew?.url);
-      }
-      return '';
-    })
-    .map((raw) => buildCrewLink(raw))
+    .map((crew) => buildCrewLink(crew))
     .filter(Boolean)
     .reduce((unique, crew) => {
       const key = crew.name.toLowerCase();

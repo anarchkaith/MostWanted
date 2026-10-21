@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ErrorMessage, Field, useFormikContext } from 'formik';
-import CyberButtonLabel from './CyberButtonLabel';
+import CyberButtonLabel from './ui/CyberButtonLabel';
 import usePlayerInvestigation from './usePlayerInvestigation';
 import { isBlockedReportedUsername } from './blockedUsernames';
 import { completeReportPlayerDraft } from '../src/services/reportPlayerDraft';
