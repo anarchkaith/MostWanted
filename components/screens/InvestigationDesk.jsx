@@ -1,4 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
+import { unwrapMarkdownFence } from '../markdownUtils';
 import PlayerBackgroundPanel from './PlayerBackgroundPanel';
 import CaseStaffPanel from './CaseStaffPanel';
 import CyberButtonLabel from './CyberButtonLabel';
@@ -72,7 +76,11 @@ export default function InvestigationDesk({ initialPlayer, onPlayerResolved, rep
     <section className="case-section case-classification">
       <h3>Clasificación</h3>
       {dossier?.classification?.text ? <>
-        <p className="case-classification__text">{dossier.classification.text}</p>
+        <div className="case-classification__text">
+          <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
+            {unwrapMarkdownFence(dossier.classification.text)}
+          </ReactMarkdown>
+        </div>
         <p className="case-muted">Resumen generado por HEX · {dossier.classification.reportCount} reporte(s) · {formatCaseDate(dossier.classification.updatedAt, true)}</p>
       </> : <p className="case-muted">{linkedReports.length ? 'El resumen de HEX aún no está disponible.' : 'Sin reportes para generar un resumen.'}</p>}
       {dossier?.classification?.stale && <p className="case-muted" role="status">Resumen pendiente de actualizar.</p>}

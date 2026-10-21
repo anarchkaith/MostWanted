@@ -676,7 +676,10 @@ table.cyber-table:is(.case-table, .mw-cyber-table)::after { caption-side: bottom
 .case-summary > div { flex: 1 1 95px; border: 1px solid var(--surface-border); padding: 12px; min-width: 0; }
 .case-summary span { display: block; font-size: 0.8125rem; color: var(--color-text-muted); }
 .case-summary strong { display: block; margin-top: 6px; font: 1.125rem/1.4 var(--font-stencil); overflow-wrap: anywhere; }
-.case-classification__text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; }
+.case-classification__text { overflow-wrap: anywhere; line-height: 1.6; }
+.case-classification__text > :first-child { margin-top: 0; }
+.case-classification__text > :last-child { margin-bottom: 0; }
+.case-classification__text pre { overflow-x: auto; }
 .case-tags { display: flex; gap: 8px; flex-wrap: wrap; }
 .case-badge { display: inline-block; padding: 4px 8px; font: 0.8125rem/1.5 var(--font-mono); border: 1px solid var(--surface-border); overflow-wrap: anywhere; }
 .case-section meter { display: block; width: 100%; margin-top: 16px; appearance: none; height: 8px; background: var(--color-black); border: 1px solid var(--surface-border); border-radius: 0; }

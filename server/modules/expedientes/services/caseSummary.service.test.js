@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -24,12 +25,19 @@ const query = { rootDir, source: async () => reports, nickname: 'Player', rid: '
 const logger = { error() {} };
 const originalFetch = globalThis.fetch;
 try {
+  const [optionalFields] = summaryInput([{ id: 1, severity: null, validation: null }]);
+  assert.equal(Object.hasOwn(optionalFields, 'severity'), false);
+  assert.equal(Object.hasOwn(optionalFields, 'validation'), false);
+  const [assignedFields] = summaryInput([{ id: 1, severity: 'alta', validation: 'rejected' }]);
+  assert.equal(assignedFields.severity, 'alta');
+  assert.equal(assignedFields.validation, 'rejected');
+
   const first = await readCase(query);
   const id = first.payload.case.id;
   assert.equal(calls, 1);
   assert.equal(first.payload.case.classification.stale, false);
   assert.equal(first.payload.case.classification.reportCount, 1);
-  assert.match(first.payload.case.classification.text, /Resumen IA/);
+  assert.match(first.payload.case.classification.text, /Resumen HEX/);
   assert.equal(JSON.stringify(first).includes('PRIVATE'), false);
   assert.equal(readExpedientes(rootDir)[0].aiSummary.text, first.payload.case.classification.text);
   await readCase(query);
@@ -107,6 +115,20 @@ try {
   const withoutReports = await readCase({ ...query, source: async () => [] });
   assert.equal(withoutReports.payload.case.classification, null, 'removed reports never leave a visible obsolete classification');
   assert.equal(calls, 7);
+  const legacyReports = [publicReport(reports[0])];
+  const legacyFingerprint = crypto.createHash('sha256').update(JSON.stringify(legacyReports.map(report => ({
+    id: String(report.id), nickname: report.nickname, rid: report.rid, categories: report.categories,
+    reason: report.reason || report.content, severity: report.severity, validation: report.validation,
+    createdAt: report.createdAt, evidenceCount: report.evidence?.length || 0,
+  })))).digest('hex');
+  updateExpedientes(rootDir, (items) => {
+    items[0].aiSummary.fingerprint = legacyFingerprint;
+  });
+  const migrated = await readCase({ ...query, source: async () => legacyReports });
+  assert.equal(calls, 8, 'legacy summaries regenerate with the new prompt even without report edits');
+  assert.equal(migrated.payload.case.classification.stale, false);
+  await readCase({ ...query, source: async () => legacyReports });
+  assert.equal(calls, 8, 'regenerated summaries remain cached');
   assert.deepEqual(publicReport(publicReport(reports[0])), publicReport(reports[0]), 'public serialization is idempotent');
   await assert.rejects(createCaseSummaryGenerator({ config: {} })({ reports }), /not_configured/);
 
@@ -115,6 +137,11 @@ try {
     assert.equal(payload.stream, false);
     assert.equal(payload.prompt.includes('PRIVATE'), false);
     assert.ok(payload.prompt.includes('Denuncia no verificada'));
+    assert.match(payload.prompt, /en Markdown/);
+    assert.match(payload.prompt, /ni reproduzcas nombres técnicos/);
+    assert.match(payload.prompt, /solo si constan explícitamente/);
+    const promptReports = JSON.parse(payload.prompt.split('\n').at(-1));
+    assert.ok(promptReports.every(report => !Object.hasOwn(report, 'severity') && !Object.hasOwn(report, 'validation')));
     return new Response(JSON.stringify({ response: 'Resumen generado por el proveedor simulado.' }));
   };
   const generate = createCaseSummaryGenerator({ config: {
