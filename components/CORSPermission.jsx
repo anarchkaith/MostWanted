@@ -1,4 +1,5 @@
 ﻿import { createPortal } from 'react-dom';
+import Modal from './ui/Modal';
 
 const DEFAULT_CORS_PERMISSION_URL = 'https://cors-anywhere.herokuapp.com/https://mostwanted.kaithsrebels.com/';
 
@@ -12,49 +13,40 @@ export default function CORSPermission({
     if (!open) return null;
 
     return createPortal(
-      <div className="modal-overlay" data-ui-sound={onClose ? 'reject' : undefined} style={{ zIndex: 3100 }} onClick={onClose || undefined}>
-        <div
-          className="modal"
-          style={{ maxWidth: 480 }}
-          onClick={(event) => event.stopPropagation()}
+      <Modal
+        title="Permiso CORS requerido"
+        titleAs="span"
+        closeLabel="Cerrar aviso de CORS"
+        onClose={onClose || undefined}
+        zIndex={3100}
+        maxWidth={480}
+        bodyStyle={{ color: 'var(--color-cream, #f4eada)' }}
+        overlayProps={{ 'data-ui-sound': onClose ? 'reject' : undefined, onClick: onClose || undefined }}
+        dialogProps={{ onClick: (event) => event.stopPropagation() }}
+      >
+        <p style={{ marginTop: 0 }}>
+          No se pudieron cargar los avatares porque el proxy de CORS no esta habilitado.
+        </p>
+        <p>
+          Abre CORS Anywhere y activa el acceso para continuar viendo los avatares del jugador.
+        </p>
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="modal__share-btn"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginTop: '0.35rem',
+            textDecoration: 'none',
+            '--accent': '#9efeff',
+          }}
         >
-          <div className="modal__header">
-            <span className="modal__title">Permiso CORS requerido</span>
-            <button
-              className="modal__close"
-              onClick={onClose || undefined}
-              aria-label="Cerrar aviso de CORS"
-              type="button"
-            >
-              ✕
-            </button>
-          </div>
-          <div className="modal__body" style={{ color: 'var(--color-cream, #f4eada)' }}>
-            <p style={{ marginTop: 0 }}>
-              No se pudieron cargar los avatares porque el proxy de CORS no esta habilitado.
-            </p>
-            <p>
-              Abre CORS Anywhere y activa el acceso para continuar viendo los avatares del jugador.
-            </p>
-            <a
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="modal__share-btn"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginTop: '0.35rem',
-                textDecoration: 'none',
-                '--accent': '#9efeff',
-              }}
-            >
-              Habilitar CORS
-            </a>
-          </div>
-        </div>
-      </div>,
+          Habilitar CORS
+        </a>
+      </Modal>,
       document.body,
     );
   }

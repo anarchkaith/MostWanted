@@ -105,25 +105,27 @@ export default function InvestigationDesk({ initialPlayer, onPlayerResolved, rep
           {player && <>
             <div className="case-file__overview">
               <PlayerBackgroundPanel key={`${player.nickname}:${player.rid}:${revision}`} username={player.nickname || ''} rid={player.rid || ''} reports={linkedReports} investigateToken={1} variant="dossier" onInvestigationChange={onInvestigationChange} />
-            <section className="case-section case-management">
-              <h3>Estado del caso</h3>
-              <div className="case-summary"><div><strong>{dossier ? CASE_STATUSES[dossier.status] || dossier.status : payload ? 'Sin caso registrado' : 'Estado no disponible'}</strong></div></div>
-              <button type="button" className="cyber-button-small mw-cyber-button" onClick={() => {
-                const target = foundPlayer || player;
-                const investigation = target.investigation;
-                onStartReport({
-                  ...target, investigationCompleted,
-                  ...(investigation ? { investigation: {
-                    ...investigation,
-                    profile: mergePlayerProfile({
-                      username: target.nickname, rid: target.rid,
-                      profile: investigation.currentProfile, reportInsights: investigation.reportInsights,
-                      reports: target.rid ? linkedReports.filter(report => resolvePlayerRid(report) === resolvePlayerRid(target)) : [],
-                    }),
-                  } } : {}),
-                });
-              }}><CyberButtonLabel>Registrar reporte</CyberButtonLabel></button>
-            </section>
+              <section className="case-section case-management">
+                <h3>Estado del caso</h3>
+                <div className="case-summary"><div><strong>{dossier ? CASE_STATUSES[dossier.status] || dossier.status : payload ? 'Sin caso registrado' : 'Estado no disponible'}</strong></div></div>
+                <button type="button" className="cyber-button-small mw-cyber-button" onClick={() => {
+                  const target = foundPlayer || player;
+                  const investigation = target.investigation;
+                  onStartReport({
+                    ...target, investigationCompleted,
+                    ...(investigation ? {
+                      investigation: {
+                        ...investigation,
+                        profile: mergePlayerProfile({
+                          username: target.nickname, rid: target.rid,
+                          profile: investigation.currentProfile, reportInsights: investigation.reportInsights,
+                          reports: target.rid ? linkedReports.filter(report => resolvePlayerRid(report) === resolvePlayerRid(target)) : [],
+                        }),
+                      }
+                    } : {}),
+                  });
+                }}><CyberButtonLabel>Registrar reporte</CyberButtonLabel></button>
+              </section>
             </div>
             {supplemental && <div className="case-supplemental">{supplemental}</div>}
           </>}

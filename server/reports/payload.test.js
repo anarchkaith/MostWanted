@@ -179,6 +179,24 @@ runTest('buildDiscordReportPayload usa el avatar del autor como icono y omite el
   assert.equal(Object.prototype.hasOwnProperty.call(anonymous.embeds[0].author, 'icon_url'), false);
 });
 
+runTest('buildDiscordReportPayload omite el campo Estado del embed', () => {
+  const payload = buildDiscordReportPayload({
+    report: {
+      id: 5,
+      nickname: 'Jugador123',
+      rid: '123',
+      reason: 'Motivo',
+      investigation_status: 'resolved',
+      typesOfInfraction: [],
+      labels: [],
+      time: Date.now(),
+    },
+    reporter: { name: 'Kaith' },
+  });
+
+  assert.equal(payload.embeds[0].fields.some(({ name }) => name.includes('Estado')), false);
+});
+
 runTest('buildDiscordReportPayload incluye los botones de link, incluidos Reportar a un jugador y Ver lista de reportes', () => {
   const payload = buildDiscordReportPayload({
     report: { id: 5, nickname: 'Jugador123', rid: '123', reason: 'Motivo', typesOfInfraction: [], labels: [], time: Date.now() },

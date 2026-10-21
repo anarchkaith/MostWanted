@@ -66,16 +66,6 @@ function normalizeTimestamp(value) {
   return numeric > 1e12 ? numeric : numeric * 1000;
 }
 
-function getInvestigationStatusLabel(report = {}) {
-  const status = String(report?.investigation_status || '').trim().toLowerCase();
-
-  if (status === 'resolved') return 'Encontrado';
-  if (status === 'not_found') return 'No encontrado';
-  if (status === 'pending') return 'Pendiente';
-  if (status === 'not_attempted') return 'No iniciado';
-  return 'En investigación';
-}
-
 function getColorByInfraction(infractions = []) {
   const severityMap = {
     modder: 0xff0000,
@@ -233,7 +223,6 @@ export function buildDiscordReportPayload({ report = {}, reporter = {}, evidence
     fields.push({ name: '🎭 Aliases', value: truncateText(aliases.join(', '), 1024), inline: true });
   }
   fields.push(
-    { name: '🕵️ Estado', value: truncateText(getInvestigationStatusLabel(report), 1024), inline: true },
     { name: '👥 Crews', value: buildCrewFieldValue(crews), inline: false },
     { name: '🏷 Etiquetas', value: truncateText(`-# ${labels.join(', ') || '#Sin etiquetas de amenaza'}`, 1024), inline: false },
     { name: '🚥 Tipos de infraccion', value: truncateText(infractions.join(', ') || 'NO ESPECIFICADO', 1024), inline: false },
