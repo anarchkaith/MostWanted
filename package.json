@@ -13,8 +13,8 @@
     "start": "node server/index.js",
     "test:ai": "node server/ai/client.test.js && node shared/reportIntent.test.js && node server/ai/usecases/intent.test.js && node server/ai/reportTools.test.js && node server/ai/usecases/chat.test.js && node components/reportesChatContext.test.js && node components/markdownUtils.test.js",
     "test:expedientes": "node src/services/expedienteIds.test.js && node server/modules/expedientes/http/expedientes.routes.test.js",
-    "test:reports": "node server/reports/payload.test.js && node --test server/modules/reports/services/reportsHealth.service.test.js",
-    "test:interface": "node --test src/services/interfaceAudio.test.js src/services/playerProfile.test.js",
+    "test:reports": "node server/reports/payload.test.js && node --test server/modules/reports/services/reportsHealth.service.test.js server/modules/reports/services/ownedReports.service.test.js",
+    "test:interface": "node --test src/services/interfaceAudio.test.js src/services/playerProfile.test.js src/services/appNavigation.test.js src/services/reportViewModel.test.js src/services/reportArchive.test.js",
     "test:cases": "node src/services/casePresentation.test.js && node server/modules/expedientes/http/cases.routes.test.js && node server/modules/expedientes/services/caseSummary.service.test.js",
     "webhook:playground": "node server/modules/webhooks/playground/discordEmbedPlayground.js"
   },

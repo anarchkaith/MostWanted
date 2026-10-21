@@ -2,7 +2,7 @@
 /**
  * Plugin Name: MostWanted CPT + REST
  * Description: CPT de jugadores/reportes y API REST para ingesta y consulta desde MostWanted.
- * Version: 0.6.3
+ * Version: 0.6.4
  * Author: KaithHacks
  */
 
@@ -754,6 +754,10 @@ function mw_store_report($player_post_id, $payload) {
     update_post_meta($report_post_id, '_mw_types', is_array($types) ? $types : []);
     update_post_meta($report_post_id, '_mw_labels', is_array($labels_table) ? $labels_table : []);
     update_post_meta($report_post_id, '_mw_reporter', $reporter);
+    $owner_discord_id = mw_str($payload['ownerDiscordId'] ?? '');
+    if (preg_match('/^\d+$/', $owner_discord_id)) {
+        update_post_meta($report_post_id, '_mw_owner_discord_id', $owner_discord_id);
+    }
     update_post_meta($report_post_id, '_mw_evidence', $evidence);
     update_post_meta($report_post_id, '_mw_analysis', $analysis);
     update_post_meta($report_post_id, '_mw_report_payload', $payload);
@@ -1379,6 +1383,28 @@ function mw_rest_player_lookup($request) {
     ], 200);
 }
 
+function mw_rest_owned_reports($request) {
+    $owner = mw_str($request->get_param('ownerDiscordId'));
+    if (!preg_match('/^\d+$/', $owner)) {
+        return new WP_REST_Response(['ok' => false, 'error' => 'ownerDiscordId invalido.'], 400);
+    }
+    $page = max(1, intval($request->get_param('page') ?: 1));
+    $per_page = max(1, min(100, intval($request->get_param('per_page') ?: 20)));
+    $posts = get_posts([
+        'post_type' => 'mw_report', 'post_status' => 'publish',
+        'numberposts' => $per_page + 1, 'offset' => ($page - 1) * $per_page,
+        'orderby' => ['date' => 'DESC', 'ID' => 'DESC'], 'fields' => 'ids',
+        'meta_key' => '_mw_owner_discord_id', 'meta_value' => $owner,
+    ]);
+    $response = new WP_REST_Response([
+        'ok' => true, 'page' => $page, 'perPage' => $per_page,
+        'hasMore' => count($posts) > $per_page,
+        'items' => array_map('mw_map_report_item', array_slice($posts, 0, $per_page)),
+    ], 200);
+    $response->header('Cache-Control', 'private, no-store');
+    return $response;
+}
+
 function mw_rest_reports_list($request) {
     $page = max(1, intval($request->get_param('page') ?: 1));
     $per_page = max(1, min(100, intval($request->get_param('per_page') ?: 25)));
@@ -1505,6 +1531,11 @@ function mw_rest_player_insights($request) {
 }
 
 function mw_register_rest_routes() {
+    register_rest_route(MW_NAMESPACE, '/reports/owned', [
+        'methods' => 'GET',
+        'callback' => 'mw_rest_owned_reports',
+        'permission_callback' => 'mw_can_ingest_reports',
+    ]);
     register_rest_route(MW_NAMESPACE, '/health', [
         'methods' => WP_REST_Server::READABLE,
         'callback' => 'mw_rest_health',

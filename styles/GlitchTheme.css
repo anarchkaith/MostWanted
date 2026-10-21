@@ -113,7 +113,6 @@ body {
   border-bottom: 1px solid #ffffff1c;
 }
 .case-management, .case-filters { background: #10101080; }
-.case-supplemental { background: transparent; }
 .rfm-panel--objetivo { border-left: 0; }
 .mw-cyber-frame { display: none; }
 .case-section h3 { border-left-width: 2px; border-left-color: var(--hex-frame-color); }

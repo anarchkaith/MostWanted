@@ -2,14 +2,27 @@
 import CORSPermission from './CORSPermission';
 import usePlayerInvestigation from './usePlayerInvestigation';
 import ImageViewer from './ImageViewer';
-import CyberButtonLabel from './ui/CyberButtonLabel';
 import { mergePlayerProfile } from '../src/services/playerProfile';
 import PlayerObservations from './PlayerObservations';
 import PlayerAvatarImage from './PlayerAvatarImage';
 import { isRockstarPlayerAvatar } from '../src/services/playerAvatars';
+import Skeleton from './ui/Skeleton';
 
 const getSocialClubMemberUrl = name => String(name || '').trim()
   ? `https://socialclub.rockstargames.com/members/${encodeURIComponent(String(name).trim())}/` : '';
+
+function SocialClubProfileLink({ name }) {
+  const url = getSocialClubMemberUrl(name);
+  if (!url) return null;
+  return (
+    <a className="pbp-social-button" href={url} target="_blank" rel="noopener noreferrer" aria-label={`Ver ${name} en Social Club`} title={`Ver ${name} en Social Club`}>
+      <span>Ver perfil</span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+        <path d="M14 3h7v7M21 3 10 14M10 3H3v18h18v-7" />
+      </svg>
+    </a>
+  );
+}
 
 /**
  * PlayerBackgroundPanel - Ficha de investigación de usuario.
@@ -23,6 +36,9 @@ export default function PlayerBackgroundPanel({
   initialInvestigation = null,
   reports = null,
   onInvestigatingChange = null,
+  caseManagement = null,
+  classification = null,
+  verification = null,
 }) {
   const request = useMemo(() => investigateToken > 0 ? { username, rid, token: investigateToken } : null, [username, rid, investigateToken]);
   const { investigation, isLoading, error } = usePlayerInvestigation({
@@ -32,9 +48,8 @@ export default function PlayerBackgroundPanel({
   const [avatarRenderState, setAvatarRenderState] = useState({});
   const [expandedAvatar, setExpandedAvatar] = useState(null);
   const [historicalAvatarErrors, setHistoricalAvatarErrors] = useState({});
+  const [historicalAvatarLoaded, setHistoricalAvatarLoaded] = useState({});
   const closeAvatar = React.useCallback(() => setExpandedAvatar(null), []);
-
-  const socialClubProfileUrl = getSocialClubMemberUrl(investigation?.currentProfile?.name || username);
 
   const reportInsights = useMemo(() => {
     const raw = investigation?.reportInsights;
@@ -84,13 +99,20 @@ export default function PlayerBackgroundPanel({
   }, [investigation?.avatares, avatarRenderState]);
 
   const accountStatus = investigation?.accountStatus || null;
+  const playerName = investigation?.nombre || username || `RID ${rid}`;
+  const socialClubName = playerName === `RID ${investigation?.rid || rid}` ? username : playerName;
   const avatarHistory = investigation && (
     <div className="pbp-section pbp-photo-archive">
       <div className="pbp-current__label" title="Las imágenes enlazadas pueden cambiar; no son copias históricas.">Avatares anteriores</div>
       {displayedProfile?.historicalAvatars.length ? <div className="pbp-avatar-history">
         {displayedProfile.historicalAvatars.map(avatar => <figure key={avatar.avatarUrl}>
           <button type="button" className="pbp-history-avatar" onClick={() => setExpandedAvatar({ src: avatar.avatarUrl, label: `Avatar archivado de ${investigation.nombre}`, normalizeAlpha: isRockstarPlayerAvatar(avatar.avatarUrl) })} aria-label={`Ampliar avatar archivado${avatar.source ? `: ${avatar.source}` : ''}`}>
-            {historicalAvatarErrors[avatar.avatarUrl] ? <span>Imagen no disponible</span> : <PlayerAvatarImage src={avatar.avatarUrl} alt="Avatar registrado" loading="lazy" normalizeAlpha={isRockstarPlayerAvatar(avatar.avatarUrl)} onError={() => setHistoricalAvatarErrors(current => ({ ...current, [avatar.avatarUrl]: true }))} />}
+            {historicalAvatarErrors[avatar.avatarUrl] ? <span>Imagen no disponible</span> : <>
+              {!historicalAvatarLoaded[avatar.avatarUrl] && <Skeleton label="Cargando avatar anterior…" rows={1} className="mw-skeleton--avatar" />}
+              <PlayerAvatarImage src={avatar.avatarUrl} alt="Avatar registrado" loading="lazy" normalizeAlpha={isRockstarPlayerAvatar(avatar.avatarUrl)}
+                onLoad={() => setHistoricalAvatarLoaded(current => ({ ...current, [avatar.avatarUrl]: true }))}
+                onError={() => setHistoricalAvatarErrors(current => ({ ...current, [avatar.avatarUrl]: true }))} />
+            </>}
           </button>
           <figcaption>{[avatar.source, avatar.time > 0 ? new Date(avatar.time * 1000).toLocaleString('es-ES') : 'Fecha desconocida'].filter(Boolean).join(' · ')}</figcaption>
         </figure>)}
@@ -104,6 +126,7 @@ export default function PlayerBackgroundPanel({
       if (avatar?.index == null) continue;
       nextAvatarState[avatar.index] = {
         src: avatar.avatarDataUrl || avatar.avatarUrl || '',
+        loaded: false,
         triedProxy: false,
         failed: avatar?.available === false,
       };
@@ -155,13 +178,74 @@ export default function PlayerBackgroundPanel({
     });
   };
 
+  const currentAvatars = investigation && (
+    <div className="pbp-current-photos">
+      <div className="pbp-current__label">{investigation.rid ? 'Avatares actuales' : 'Avatares archivados'}</div>
+      <div className="pbp-current__avatars">
+        {avatarSlotsToRender.map(slot => {
+          const avatar = investigation.avatares?.find(item => item.index === slot);
+          const renderState = avatarRenderState[slot];
+          const avatarSrc = renderState?.src || avatar?.avatarDataUrl || avatar?.avatarUrl || '';
+          const avatarFailed = renderState?.failed || avatar?.available === false;
+          return (
+            <button type="button" key={slot} className="pbp-current__avatar" aria-label={`Ampliar avatar ${slot + 1}`} disabled={!avatarSrc || avatarFailed} onClick={() => setExpandedAvatar({ src: avatarSrc, label: `Avatar ${slot + 1} de ${investigation.nombre}`, normalizeAlpha: isRockstarPlayerAvatar(avatar?.avatarUrl) })}>
+              {avatarSrc && !avatarFailed ? (
+                <div className="pbp-current__avatar-stage">
+                  {!renderState?.loaded && <Skeleton label={`Cargando avatar ${slot + 1}…`} rows={1} className="mw-skeleton--avatar" />}
+                  <PlayerAvatarImage className="pbp-current__avatar-image" src={avatarSrc} alt={`Avatar ${slot + 1}`} normalizeAlpha={isRockstarPlayerAvatar(avatar?.avatarUrl)}
+                    onLoad={() => setAvatarRenderState(current => ({ ...current, [slot]: { ...current[slot], loaded: true } }))}
+                    onError={() => handleAvatarError(slot, avatar)} />
+                </div>
+              ) : <span className="pbp-current__avatar-slot">Sin foto</span>}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  const namesPanel = investigation ? (
+    <div className="pbp-section pbp-names-panel">
+      {variant === 'dossier' ? <h3 className="pbp-panel-title">Nombres y alias</h3> : <div className="pbp-current__label">Nombres</div>}
+      {nameHistory.length > 0 ? (
+        <ol className="pbp-history-list" aria-label="Historial de nombres con fechas y fuentes">
+          {nameHistory.map((entry, index) => (
+            <li key={`${entry.name}-${entry.time}-${index}`} className="pbp-history-item">
+              <div className="pbp-name-row">
+                <strong className="notranslate" translate="no">{entry.name}</strong>
+                <SocialClubProfileLink name={entry.name} />
+              </div>
+              <PlayerObservations entry={entry} />
+            </li>
+          ))}
+        </ol>
+      ) : <div className="pbp-empty">Sin alias detectados.</div>}
+    </div>
+  ) : !error && <div className="pbp-names-panel"><Skeleton label="Cargando nombres y alias…" rows={5} /></div>;
+
+  const crewsPanel = investigation ? (
+    <div className="pbp-section pbp-crews-panel">
+      {variant === 'dossier' ? <h3 className="pbp-panel-title">Crews y afiliaciones</h3> : <div className="pbp-current__label">Crews</div>}
+      {crewsWithSource.length > 0 ? (
+        <div className="pbp-current__crews">
+          {crewsWithSource.map((crew) => (
+            <span key={`${crew.name}-${crew.source}`} className="pbp-chip">
+              <a href={crew.url} target="_blank" rel="noopener noreferrer"><strong>{crew.name}</strong></a>
+              <PlayerObservations entry={crew} />
+            </span>
+          ))}
+        </div>
+      ) : <div className="pbp-empty">Sin crews registradas.</div>}
+    </div>
+  ) : !error && <div className="pbp-crews-panel"><Skeleton label="Cargando crews…" /></div>;
+  const hasArchivedAvatars = Boolean(investigation && displayedProfile?.historicalAvatars.length);
 
   if ((!username || username.trim().length === 0) && !rid) {
     return null;
   }
 
   // Mantener el panel visible cuando hay carga o error para informar estado de APIs.
-  if (!investigation?.nombre && !isLoading && !error) {
+  if (variant !== 'dossier' && !investigation?.nombre && !isLoading && !error) {
     return null;
   }
 
@@ -791,9 +875,7 @@ export default function PlayerBackgroundPanel({
 
         <div className="pbp-content">
           {isLoading && (
-            <div className="pbp-status pbp-status--loading" role="status" aria-live="polite">
-              <strong className="pbp-status__title">Cargando perfil…</strong>
-            </div>
+            <Skeleton label="Cargando información del jugador…" rows={2} />
           )}
 
           {error && (
@@ -804,28 +886,23 @@ export default function PlayerBackgroundPanel({
           )}
           {investigation?.warnings?.map(warning => <p className="pbp-status-detail" role="status" key={warning}>{warning}</p>)}
 
-          {investigation && (
+          {(investigation || variant === 'dossier') && (
             <div className="pbp-current">
+              <div className="pbp-overview" role={variant === 'dossier' ? 'group' : undefined} aria-label={variant === 'dossier' ? 'Identidad y acciones del jugador' : undefined}>
               <div className="pbp-identity-panel">
                 <div className="pbp-identity-header">
                   <div className="pbp-identity-header__copy">
-                    {variant === 'dossier' && <h3 className="pbp-panel-title"><span className="case-section__index" aria-hidden="true">01</span>Identificación</h3>}
-                    {!investigation.currentProfile && <div className="pbp-identity-header__eyebrow">{investigation.reportInsights ? 'Perfil archivado' : 'Identidad sin confirmar'}</div>}
-                    <div className="pbp-current__name notranslate" translate="no">{investigation.nombre}</div>
-                    <dl className="pbp-identity-rid"><dt>RID (Rockstar ID)</dt><dd>{investigation.rid || rid || 'Sin confirmar'}</dd></dl>
+                    {variant === 'dossier' && <h3 className="pbp-panel-title">Identificación</h3>}
+                    {!investigation?.currentProfile && <div className="pbp-identity-header__eyebrow">{investigation?.reportInsights ? 'Perfil archivado' : 'Identidad sin confirmar'}</div>}
+                    <div className="pbp-name-row pbp-name-row--primary">
+                      <div className="pbp-current__name notranslate" translate="no">{playerName}</div>
+                      <SocialClubProfileLink name={socialClubName} />
+                    </div>
+                    <dl className="pbp-identity-rid"><dt>RID (Rockstar ID)</dt><dd>{investigation?.rid || rid || 'Sin confirmar'}</dd></dl>
                   </div>
-                  {socialClubProfileUrl && (
-                    <a
-                      href={socialClubProfileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="cyber-button-small mw-cyber-button mw-cyber-button--secondary"
-                      title={`Abrir perfil de ${username} en Social Club`}
-                    >
-                      <CyberButtonLabel>Ver en Social Club</CyberButtonLabel>
-                    </a>
-                  )}
                 </div>
+
+                {isLoading || (!investigation && !error) ? <Skeleton label="Cargando identificación y avatares…" rows={4} /> : currentAvatars}
 
                 <div className="pbp-current__info">
                   {accountStatus && (
@@ -849,85 +926,26 @@ export default function PlayerBackgroundPanel({
                     </div>
                   ))}
                 </div>}
+                {variant === 'dossier' && caseManagement}
+              </div>
               </div>
 
-              <div className="pbp-evidence-panel">
-                <div className="pbp-evidence-card">
-                  {variant === 'dossier' && <h3 className="pbp-photo-title">Registro fotográfico</h3>}
-                  <div className="pbp-current__label">{investigation.rid ? 'Avatares actuales' : 'Avatares archivados'}</div>
-                  <div className="pbp-current__avatars">
-                    {avatarSlotsToRender.map((slot) => {
-                      const avatar = investigation.avatares?.find((item) => item.index === slot);
-                      const renderState = avatarRenderState[slot];
-                      const avatarSrc = renderState?.src || avatar?.avatarDataUrl || avatar?.avatarUrl || '';
-                      const avatarFailed = renderState?.failed || avatar?.available === false;
-                      return (
-                        <button type="button" key={slot} className="pbp-current__avatar" aria-label={`Ampliar avatar ${slot + 1}`} disabled={!avatarSrc || avatarFailed} onClick={() => setExpandedAvatar({ src: avatarSrc, label: `Avatar ${slot + 1} de ${investigation.nombre}`, normalizeAlpha: isRockstarPlayerAvatar(avatar?.avatarUrl) })}>
-                          {avatarSrc && !avatarFailed ? (
-                            <div className="pbp-current__avatar-stage">
-                              <PlayerAvatarImage className="pbp-current__avatar-image" src={avatarSrc} alt={`Avatar ${slot + 1}`} normalizeAlpha={isRockstarPlayerAvatar(avatar?.avatarUrl)} onError={() => handleAvatarError(slot, avatar)} />
-                            </div>
-                          ) : (
-                            <>
-                              <span>❌</span>
-                              <span className="pbp-current__avatar-slot">sin foto</span>
-                            </>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                {variant === 'dossier' && avatarHistory}
-              </div>
-
-              <section className="pbp-intel-panel" aria-label="Historial del jugador">
-                {variant !== 'dossier' && <h3 className="pbp-panel-title">Historial</h3>}
-                <div className="pbp-section">
-                  {variant === 'dossier' ? <h3 className="pbp-panel-title"><span className="case-section__index" aria-hidden="true">02</span>Nombres y alias</h3> : <div className="pbp-current__label">Nombres</div>}
-                  {nameHistory.length > 0 ? (
-                    <ol className="pbp-history-list" aria-label="Historial de nombres con fechas y fuentes">
-                      {nameHistory.map((entry, index) => (
-                        <li key={`${entry.name}-${entry.time}-${index}`} className="pbp-history-item">
-                          <a
-                            href={getSocialClubMemberUrl(entry.name)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="pbp-history-link notranslate"
-                            translate="no"
-                            title={`Buscar ${entry.name} en Social Club`}
-                          >
-                            <strong>{entry.name}</strong>
-                          </a>
-                          <PlayerObservations entry={entry} />
-                        </li>
-                      ))}
-                    </ol>
-                  ) : (
-                    <div className="pbp-empty">Sin alias detectados.</div>
-                  )}
-                </div>
-
-                <div className="pbp-section">
-                  {variant === 'dossier' ? <h3 className="pbp-panel-title"><span className="case-section__index" aria-hidden="true">03</span>Crews y afiliaciones</h3> : <div className="pbp-current__label">Crews</div>}
-                  {crewsWithSource.length > 0 ? (
-                    <div className="pbp-current__crews">
-                      {crewsWithSource.map((crew) => (
-                        <span key={`${crew.name}-${crew.source}`} className="pbp-chip">
-                          <a href={crew.url} target="_blank" rel="noopener noreferrer">
-                            <strong>{crew.name}</strong>
-                          </a>
-                          <PlayerObservations entry={crew} />
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="pbp-empty">Sin crews registradas.</div>
-                  )}
-                </div>
-
-                {variant !== 'dossier' && avatarHistory}
-              </section>
+              {variant === 'dossier' ? <>
+                {(classification || verification) && <div className="pbp-assessment" role="group" aria-label="Análisis y valoración del caso">
+                  {classification}
+                  {verification}
+                </div>}
+                {(namesPanel || crewsPanel || hasArchivedAvatars) && <div className="pbp-history" role="group" aria-label="Antecedentes del jugador">
+                  {namesPanel}
+                  {crewsPanel}
+                  {hasArchivedAvatars && <div className="pbp-evidence-panel">{avatarHistory}</div>}
+                </div>}
+              </> : investigation ? <section className="pbp-intel-panel" aria-label="Historial del jugador">
+                <h3 className="pbp-panel-title">Historial</h3>
+                {namesPanel}
+                {crewsPanel}
+                {avatarHistory}
+              </section> : <>{namesPanel}{crewsPanel}</>}
             </div>
 
           )}

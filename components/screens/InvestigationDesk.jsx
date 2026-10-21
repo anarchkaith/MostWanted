@@ -7,6 +7,7 @@ import PlayerBackgroundPanel from '../PlayerBackgroundPanel';
 import CaseStaffPanel from '../CaseStaffPanel';
 import CyberButtonLabel from '../ui/CyberButtonLabel';
 import CyberSelect from '../ui/CyberSelect';
+import Skeleton from '../ui/Skeleton';
 import { requestCase } from '../../src/services/casesService';
 import { CASE_STATUSES, SEVERITY_LABELS, VALIDATION_LABELS, normalizeReportSeverity, filterCaseReports, reportCategories, summarizeVotes, formatCaseDate } from '../../src/services/casePresentation';
 import { mergePlayerProfile } from '../../src/services/playerProfile';
@@ -24,7 +25,7 @@ export default function InvestigationDesk({ initialPlayer, onPlayerResolved, rep
   const [foundPlayer, setFoundPlayer] = useState(null);
   const [investigationCompleted, setInvestigationCompleted] = useState(false);
   const [payload, setPayload] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [page, setPage] = useState(1);
@@ -48,7 +49,10 @@ export default function InvestigationDesk({ initialPlayer, onPlayerResolved, rep
   const categories = useMemo(() => [...new Set(linkedReports.flatMap(reportCategories))], [linkedReports]);
   const votes = useMemo(() => summarizeVotes(linkedReports), [linkedReports]);
   useEffect(() => {
-    if (!caseId && !lookupPlayer) return undefined;
+    if (!caseId && !lookupPlayer) {
+      setLoading(false);
+      return undefined;
+    }
     const controller = new AbortController();
     const params = new URLSearchParams({ username: lookupPlayer?.nickname || '', rid: lookupPlayer?.rid || '' });
     setLoading(true);
@@ -72,40 +76,64 @@ export default function InvestigationDesk({ initialPlayer, onPlayerResolved, rep
   const visiblePage = Math.min(page, Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)));
   const shownReports = filtered.slice((visiblePage - 1) * PAGE_SIZE, visiblePage * PAGE_SIZE);
   const hasSeverity = linkedReports.some(report => normalizeReportSeverity(report.severidad));
-  const supplemental = player && payload && <>
+  const classificationText = unwrapMarkdownFence(dossier?.classification?.text || '').trim();
+  const classification = player && (loading || classificationText || dossier?.classification?.pending || dossier?.classification?.error) && (
     <section className="case-section case-classification">
-      <h3><span className="case-section__index" aria-hidden="true">04</span>Análisis HEX</h3>
-      {dossier?.classification?.text ? <>
+      <h3>Análisis HEX</h3>
+      {loading && !classificationText ? <Skeleton label="Cargando análisis HEX…" rows={6} /> : classificationText ? <>
         <div className="case-classification__text">
           <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
-            {unwrapMarkdownFence(dossier.classification.text)}
+            {classificationText}
           </ReactMarkdown>
         </div>
         <p className="case-muted">Resumen generado por HEX · {dossier.classification.reportCount} reporte(s) · {formatCaseDate(dossier.classification.updatedAt, true)}</p>
-      </> : <p className="case-muted">{linkedReports.length ? 'El resumen de HEX aún no está disponible.' : 'Sin reportes para generar un resumen.'}</p>}
+      </> : null}
       {dossier?.classification?.stale && <p className="case-muted" role="status">Resumen pendiente de actualizar.</p>}
       {dossier?.classification?.error && <p className="rfm-submit-error" role="alert">{dossier.classification.error}</p>}
-      {dossier?.classification?.pending && <p className="case-muted" role="status">Generando resumen…</p>}
+      {!loading && dossier?.classification?.pending && <Skeleton label="Generando análisis HEX…" rows={3} />}
     </section>
+  );
+  const verification = player && (loading || votes.total > 0) && (
     <section className="case-section case-verification">
-      <h3><span className="case-section__index" aria-hidden="true">05</span>Verificación comunitaria</h3>
-      <dl className="case-votes">
+      <h3>Verificación comunitaria</h3>
+      {loading ? <Skeleton label="Cargando votos de los reportes…" /> : <><dl className="case-votes">
         <div><dt>Reportes legítimos</dt><dd>{votes.percent === null ? '—' : `${votes.percent}%`}</dd></div>
         <div><dt>Reportes falsos</dt><dd>{votes.percent === null ? '—' : `${100 - votes.percent}%`}</dd></div>
         <div><dt>Votos emitidos</dt><dd>{votes.total}</dd></div>
       </dl>
       {votes.percent !== null && <meter min="0" max="100" value={votes.percent} aria-label="Porcentaje de votos legítimos" />}
-      {votes.total === 0 && <p className="case-muted">Sin votos en los reportes de este jugador.</p>}
+      </>}
     </section>
-    {canManageCases && dossier && !loading && !error && <CaseStaffPanel key={dossier.id} caseId={dossier.id} currentStatus={dossier.status} onChanged={() => setVersion(value => value + 1)} />}
-  </>;
+  );
+  const caseManagement = player && (
+    <div className="pbp-identity-actions">
+      {loading ? <Skeleton label="Cargando estado del caso…" rows={2} /> : dossier && <div className="case-management__status">
+        <h3>Estado del caso</h3>
+        <p className="case-status" data-status={dossier.status}>{CASE_STATUSES[dossier.status] || dossier.status}</p>
+      </div>}
+      <button type="button" className="cyber-button-small mw-cyber-button" onClick={() => {
+        const target = foundPlayer || player;
+        const investigation = target.investigation;
+        onStartReport({
+          ...target, investigationCompleted,
+          ...(investigation ? {
+            investigation: {
+              ...investigation,
+              profile: mergePlayerProfile({
+                username: target.nickname, rid: target.rid,
+                profile: investigation.currentProfile, reportInsights: investigation.reportInsights,
+                reports: target.rid ? linkedReports.filter(report => resolvePlayerRid(report) === resolvePlayerRid(target)) : [],
+              }),
+            }
+          } : {}),
+        });
+      }}><CyberButtonLabel>Registrar reporte</CyberButtonLabel></button>
+    </div>
+  );
 
   return (
     <main className="investigation-desk" id="reportes-lista">
       {!player && !caseId && <header className="desk-intro"><h2>Busca un jugador</h2><p>Usa su nombre o RID para consultar su ficha o registrar un reporte.</p></header>}
-      {(loading || payload?.source?.fetchedAt) && <div className="desk-status" role="status">
-        <span>{loading ? 'Consultando…' : `Consultado: ${formatCaseDate(payload.source.fetchedAt, true)}`}</span>
-      </div>}
       {reportsError && <p className="rfm-submit-error" role="alert">{reportsError}</p>}
       {route.error && <p className="rfm-submit-error" role="alert">{route.error}</p>}
       {error && <div className="rfm-submit-error" role="alert"><p>{error}</p>{payload && <p>Los datos anteriores pueden estar desactualizados.</p>}<button type="button" className="cyber-button-small mw-cyber-button mw-cyber-button--secondary" onClick={() => setVersion(value => value + 1)}>Reintentar consulta</button></div>}
@@ -119,38 +147,26 @@ export default function InvestigationDesk({ initialPlayer, onPlayerResolved, rep
             </>}
           </header>
           {!player && !caseId && <p className="desk-empty">Sin jugador seleccionado.</p>}
+          {!player && caseId && loading && <Skeleton label="Cargando ficha del jugador…" rows={8} />}
           {player && <>
-            <div className="case-file__overview">
-              <PlayerBackgroundPanel key={`${player.nickname}:${player.rid}:${revision}`} username={player.nickname || ''} rid={player.rid || ''} reports={linkedReports} investigateToken={1} variant="dossier" onInvestigationChange={onInvestigationChange} />
-              <section className="case-section case-management">
-                <div className="case-management__status">
-                  <h3>Estado del caso</h3>
-                  <p className="case-status" data-status={dossier?.status || 'unknown'}>{dossier ? CASE_STATUSES[dossier.status] || dossier.status : payload ? 'Sin caso registrado' : 'Estado no disponible'}</p>
-                </div>
-                <button type="button" className="cyber-button-small mw-cyber-button" onClick={() => {
-                  const target = foundPlayer || player;
-                  const investigation = target.investigation;
-                  onStartReport({
-                    ...target, investigationCompleted,
-                    ...(investigation ? {
-                      investigation: {
-                        ...investigation,
-                        profile: mergePlayerProfile({
-                          username: target.nickname, rid: target.rid,
-                          profile: investigation.currentProfile, reportInsights: investigation.reportInsights,
-                          reports: target.rid ? linkedReports.filter(report => resolvePlayerRid(report) === resolvePlayerRid(target)) : [],
-                        }),
-                      }
-                    } : {}),
-                  });
-                }}><CyberButtonLabel>Registrar reporte</CyberButtonLabel></button>
-              </section>
-            </div>
-            {supplemental && <div className="case-supplemental">{supplemental}</div>}
+            <PlayerBackgroundPanel
+              key={`${player.nickname}:${player.rid}:${revision}`}
+              username={player.nickname || ''}
+              rid={player.rid || ''}
+              reports={linkedReports}
+              investigateToken={1}
+              variant="dossier"
+              onInvestigationChange={onInvestigationChange}
+              caseManagement={caseManagement}
+              classification={classification}
+              verification={verification}
+            />
+            {canManageCases && dossier && !loading && !error && <CaseStaffPanel key={dossier.id} caseId={dossier.id} currentStatus={dossier.status} onChanged={() => setVersion(value => value + 1)} />}
           </>}
         </section>
         <section className="case-reports" aria-labelledby="linked-reports-title">
           <header className="case-reports__header"><h2 id="linked-reports-title">Reportes <span>({payload ? linkedReports.length : '—'})</span></h2>{payload && filtered.length !== linkedReports.length && <p className="case-report-count" role="status" aria-live="polite">{filtered.length} resultados</p>}</header>
+          {loading && (player || caseId) && <Skeleton label="Cargando reportes del jugador…" rows={4} />}
           {payload?.nameOnlyReportIds?.length > 0 && <p className="case-association-note" role="status">{payload.nameOnlyReportIds.length} reporte(s) solo por nombre; identidad sin confirmar.</p>}
           {linkedReports.length > 0 && <div className="case-filters" role="group" aria-label="Filtrar reportes">
             <label htmlFor="filter-category">Infracción<CyberSelect id="filter-category" value={filters.category} onChange={value => updateFilter('category', value)} options={[{ value: '', label: 'Todas las infracciones' }, ...categories.map(category => ({ value: category, label: category }))]} /></label>
@@ -160,7 +176,6 @@ export default function InvestigationDesk({ initialPlayer, onPlayerResolved, rep
             <label className="case-filters__search">Buscar en reportes<div className="cyber-input-full mw-cyber-input"><input type="search" value={filters.query} onChange={event => updateFilter('query', event.target.value)} placeholder="Nombre, motivo o número" /></div></label>
             <button type="button" className="cyber-button-small mw-cyber-button mw-cyber-button--secondary" onClick={() => { setFilters(EMPTY_FILTERS); setPage(1); }}><CyberButtonLabel>Limpiar filtros</CyberButtonLabel></button>
           </div>}
-          {loading && <p className="desk-empty" role="status">Cargando reportes vinculados…</p>}
           {!loading && !linkedReports.length && <p className="desk-empty">{error && !payload ? 'No se pudieron cargar los reportes.' : player && payload ? 'Sin reportes registrados.' : 'Sin jugador seleccionado.'}</p>}
           {!loading && linkedReports.length > 0 && !filtered.length && <p className="desk-empty">No hay reportes que coincidan con estos filtros.</p>}
           {shownReports.length > 0 && (

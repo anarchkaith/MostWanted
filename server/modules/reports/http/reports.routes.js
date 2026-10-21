@@ -1,7 +1,8 @@
 ﻿import { checkReportsHealth } from '../services/reportsHealth.service.js';
 import { submitWordpressReport } from '../services/submitReport.service.js';
 import { getPlayerInsights } from '../../background-investigation/services/playerInsights.service.js';
-import { getSessionUser } from '../../../shared/auth/sessionAuth.js';
+import { getSessionUser, requireSessionAuth } from '../../../shared/auth/sessionAuth.js';
+import { getOwnedReports } from '../services/ownedReports.service.js';
 
 /**
  * Registra endpoints de salud, alta de reporte y antecedentes por jugador.
@@ -18,6 +19,16 @@ export function registerReportsRoutes(app, deps) {
     buildPlayerInsightsWithScCache,
     refreshPlayerCase,
   } = deps;
+
+  app.get('/api/reports/mine', rateLimits.general, (req, res, next) => {
+    res.set('Cache-Control', 'private, no-store');
+    return requireSessionAuth(req, res, next);
+  }, async (req, res) => {
+    const result = await getOwnedReports({
+      config: wordpressReportsConfig, userId: getSessionUser(req).id, page: req.query.page ?? 1,
+    });
+    return res.status(result.status).json(result.payload);
+  });
 
   app.get('/api/reports/health', rateLimits.webhook, async (req, res) => {
     const result = await checkReportsHealth({

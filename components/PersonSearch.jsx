@@ -4,6 +4,7 @@ import { playerCandidates } from '../src/services/casePresentation';
 import { mergePlayerMatches } from '../src/services/playerSearch';
 import { lookupCachedPlayer } from './backgroundInvestigation';
 import CyberButtonLabel from './ui/CyberButtonLabel';
+import Skeleton from './ui/Skeleton';
 
 const SEARCH_SOURCES = ['Reportes registrados', 'Perfiles de jugadores'];
 
@@ -118,7 +119,7 @@ export default function PersonSearch({ reports, knownPlayers, onSelect, revision
             <span>{player.rid ? `RID ${player.rid}` : 'Solo nombre'}{player.count > 0 ? ` · ${player.count} reporte(s)` : ''}</span>
           </button>)}
         </div>
-        {loading && <p role="status">Buscando…</p>}
+        {loading && <Skeleton label="Buscando jugadores por nombre o RID…" rows={2} />}
         {!loading && !matches.length && <p role="status">Sin coincidencias. Pulsa Buscar para consultar o reportar.</p>}
         {matches.length > 1 && <p>Selecciona al jugador.</p>}
         {matches.length > 12 && <p>Mostrando 12 de {matches.length} coincidencias. Precisa el nombre o utiliza el RID.</p>}

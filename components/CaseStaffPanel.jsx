@@ -8,6 +8,7 @@ import CyberSelect from './ui/CyberSelect';
 import Section from './ui/Section';
 import TextArea from './ui/TextArea';
 import TextInput from './ui/TextInput';
+import Skeleton from './ui/Skeleton';
 
 export default function CaseStaffPanel({ caseId, currentStatus, onChanged }) {
   const [data, setData] = useState(null);
@@ -50,7 +51,7 @@ export default function CaseStaffPanel({ caseId, currentStatus, onChanged }) {
   return (
     <Section className="case-staff" title={<>Gestión interna <Badge>Solo staff</Badge></>}>
       {error && <Alert>{error}</Alert>}
-      {!data && !error && <p role="status">Verificando permisos…</p>}
+      {!data && !error && <Skeleton label="Cargando gestión interna…" />}
       {!data && error && <Button variant="secondary" glitch={false} onClick={() => setVersion(value => value + 1)}>Reintentar</Button>}
       {data && <>
         {data.closedCaseNewReports?.count > 0 && <p className="case-association-note" role="status">Hay {data.closedCaseNewReports.count} reporte(s) posterior(es) al cierre del {formatCaseDate(data.closedCaseNewReports.closedAt, true)}. El caso sigue cerrado hasta que el staff decida reabrirlo. <a href="#linked-reports-title">Revisar reportes</a></p>}

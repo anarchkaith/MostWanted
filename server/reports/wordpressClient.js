@@ -117,6 +117,17 @@ export async function getWordpressHealth({ config, logger = console }) {
   });
 }
 
+export async function getWordpressOwnedReports({ config, ownerDiscordId, page, perPage, logger = console }) {
+  const params = new URLSearchParams({ ownerDiscordId, page: String(page), per_page: String(perPage) });
+  return requestWordpressApi({
+    config, logger, method: 'GET',
+    path: `/wp-json/mostwanted/v1/reports/owned?${params}`,
+    operation: 'Private reports lookup',
+    useAuth: true,
+    onLog: () => logger.info('[wordpress] Reading private reports'),
+  });
+}
+
 /**
  * Crea una entrada en cualquier Custom Post Type usando WP REST v2.
  */

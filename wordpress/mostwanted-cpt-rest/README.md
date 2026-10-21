@@ -4,7 +4,9 @@ Plugin WordPress para registrar CPT de jugadores/reportes y exponer endpoints RE
 
 ## 1) Instalacion rapida
 
-Versión 0.6.3: conserva nombres, crews y URLs de avatares al recibir nuevos reportes. Los datos vacíos no borran avatares conocidos y los nombres ausentes del reporte nuevo mantienen su fecha previa. La consulta por nombres históricos usa los alias registrados y nunca combina RIDs conocidos diferentes. `player-insights` añade `avatarHistory` y `crewHistory`, con fechas de registro cuando se conocen; no convierte los datos reportados en identidad externa verificada. El historial conserva URLs, no copias de imágenes alojadas por terceros.
+Versión 0.6.4: añade la vinculación privada de reportes con su propietario de Discord y la consulta protegida de reportes propios. Requiere desplegar también el backend y frontend actualizados. Los reportes anteriores sin vinculación privada no se atribuyen por nombres.
+
+Conserva nombres, crews y URLs de avatares al recibir nuevos reportes. Los datos vacíos no borran avatares conocidos y los nombres ausentes del reporte nuevo mantienen su fecha previa. La consulta por nombres históricos usa los alias registrados y nunca combina RIDs conocidos diferentes. `player-insights` añade `avatarHistory` y `crewHistory`, con fechas de registro cuando se conocen; no convierte los datos reportados en identidad externa verificada. El historial conserva URLs, no copias de imágenes alojadas por terceros.
 
 Mantiene la recuperación del RID desde el formato exacto `playerId: "RID-<números>"` cuando el campo numérico falta, tanto al guardar como al publicar reportes históricos. Un RID explícito tiene prioridad. Conserva la protección de los datos del reportante.
 
@@ -31,6 +33,7 @@ Base: `/wp-json/mostwanted/v1`
 - `GET /health`
 - `POST /reports` (requiere token)
 - `GET /reports` (paginado, sin datos del reportante)
+- `GET /reports/owned?ownerDiscordId=...&page=1&per_page=20` (requiere el secreto del backend): consulta exacta por `_mw_owner_discord_id`, devuelve `{ok, items, page, perPage, hasMore}` sin metadatos privados y con `Cache-Control: private, no-store`. No llamar desde el navegador ni exponer el secreto. La autoría se recibe únicamente del backend confiable al ingerir reportes autenticados; no se reconstruye a partir de nombres históricos.
 - `GET /players`
 - `GET /players/lookup?rid=...` o `playerId=...` o `nickname=...`
 - `GET /player-insights?username=...&rid=...`: perfil para el panel de antecedentes (`names[{name,time}]`, `avatars`, `crews`, `activeCrew`, `reportCount`, `lastReportAt`). Responde `player: null` si no existe.

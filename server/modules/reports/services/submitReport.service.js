@@ -26,6 +26,7 @@ export async function submitWordpressReport({
   const submission = {
     ...validation.value,
     reporter: attachSessionAvatarToReporter(validation.value.reporter, sessionUser),
+    ownerDiscordId: /^\d+$/.test(String(sessionUser?.id || '')) ? String(sessionUser.id) : '',
   };
 
   if (!wordpressReportsConfig.enabled) {

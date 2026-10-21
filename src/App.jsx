@@ -1,142 +1,35 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import InvestigationDesk from '../components/screens/InvestigationDesk';
 import ReportDetailModal from '../components/ReportDetailModal';
-import ReportFormModal from '../components/ReportFormModal';
 import HelpModal from '../components/HelpModal';
 import AIAssistantBubble from '../components/AIAssistantBubble';
-import CyberButtonLabel from '../components/ui/CyberButtonLabel';
 import InterfaceSounds from '../components/InterfaceSounds';
 import PersonSearch from '../components/PersonSearch';
-import { buildApiUrl, getApiBaseUrl } from './services/apiConfig';
+import ProfileScreen from '../components/screens/ProfileScreen';
+import Skeleton from '../components/ui/Skeleton';
+import AppHeader from '../components/layout/AppHeader';
+import DeskNavigation from '../components/layout/DeskNavigation';
+import SiteFooter from '../components/layout/SiteFooter';
+import AdminBanner from '../components/layout/AdminBanner';
+import SessionActions from '../components/layout/SessionActions';
+import AccessScreen from '../components/screens/AccessScreen';
+import ReportScreen from '../components/screens/ReportScreen';
+import useSession from './hooks/useSession';
+import useAppNavigation from './hooks/useAppNavigation';
+import useReportArchive from './hooks/useReportArchive';
+import { handleInternalLink } from './services/appNavigation';
+import { getApiBaseUrl } from './services/apiConfig';
 import { assignExpedienteIds } from './services/expedienteIds';
-import { normalizeReportSeverity, normalizeReportValidation } from './services/casePresentation';
+import { mapWordpressReportToReporte, normalizeReporte, normalizeComentariosFromCommunityVerification } from './services/reportViewModel';
 import { resolvePlayerRid } from '../shared/playerIdentity';
 import { playerPath } from './services/playerRoute';
-import { version as appVersion } from '../package.json';
 import {
-  fetchWordpressReportsSnapshot,
   submitWordpressCommunityVerificationVote,
 } from './services/reportSubmissionService';
 
-/**
- * App - Componente principal de MOST WANTED
- * SPA para tracking de modders, griffers y ardidos
- * Kaith's Rebels Crew
- * 
- * URLs soportadas:
- * - / - Lista de todos los reportes
- * - /expediente/:id - Ver expediente por ID incremental
- * - /?admin=1 - Modo administrador
- */
-
-// Base URL de la API (solo desde .env)
 const API_BASE_URL = getApiBaseUrl();
 
-// Obtener referencia de expediente desde la URL.
-const getExpedienteIdFromURL = () => {
-  const match = window.location.pathname.match(/^\/expediente\/(\d+)$/);
-  return match ? Number(match[1]) : null;
-};
-
-// Enlace estable a un reporte por su ID de WordPress (lo usan los botones del embed de Discord).
-const getReporteIdFromURL = () => {
-  const match = window.location.pathname.match(/^\/reporte\/(\d+)$/);
-  return match ? Number(match[1]) : null;
-};
-
-const DISCORD_AUTH_URL = buildApiUrl('/auth/discord');
-const RETURN_PATH_STORAGE_KEY = 'mostwanted_return_path';
-
-const mapCategoriaLegacy = (categorias = [], categoriaActual = '') => {
-  if (categoriaActual) return categoriaActual;
-  const first = Array.isArray(categorias) ? categorias[0] : '';
-  if (first === 'MODDER') return 'modder';
-  if (first === 'GRIFFER') return 'griffer';
-  if (first === 'GLITCHER' || first === 'ACOSO-RAID') return 'ardido';
-  return 'ardido';
-};
-
-const mapCategoriaFromWordpressType = (categories = []) => {
-  const firstType = Array.isArray(categories) && categories.length > 0 ? String(categories[0]).toUpperCase() : '';
-  if (firstType === 'MODDER') return 'modder';
-  if (firstType === 'GRIFFER') return 'griffer';
-  return 'ardido';
-};
-
-const normalizeComentariosFromCommunityVerification = (communityVerification = {}) => {
-  const confirmations = Array.isArray(communityVerification?.confirmations)
-    ? communityVerification.confirmations
-    : [];
-
-  return confirmations
-    .filter((entry) => String(entry?.reason || '').trim() !== '')
-    .map((entry) => ({
-      tipo: 'down',
-      comentario: String(entry?.reason || '').trim(),
-      autor: 'Comunidad',
-      fecha: new Date().toISOString(),
-    }));
-};
-
-const mapWordpressReportToReporte = (report = {}) => {
-  const evidence = Array.isArray(report?.evidence) ? report.evidence : [];
-  const usuario = String(report?.nickname || report?.title || '').trim();
-
-  const communityVerification = report?.communityVerification || {};
-  const normalizedComments = normalizeComentariosFromCommunityVerification(communityVerification);
-
-  return {
-    id: Number(report?.id) || Date.now(),
-    usuario: usuario || 'USUARIO_SIN_NOMBRE',
-    motivo: report?.content || 'Reporte registrado en MostWanted.',
-    reportadoPor: 'ANONIMO',
-    categoria: mapCategoriaFromWordpressType(report?.categories || []),
-    fecha: report?.createdAt || report?.date || '',
-    evidencia: evidence[0]?.url || '',
-    evidencias: evidence.map((item, index) => ({
-      id: `${report?.id || 'report'}-evidence-${index}`,
-      preview: item?.url || '',
-      nombre: item?.name || `Evidencia ${index + 1}`,
-      tipo: item?.contentType || 'image/png',
-    })).filter((item) => item.preview),
-    estado: 'activo',
-    severidad: normalizeReportSeverity(report?.severidad || report?.severity),
-    validacion: normalizeReportValidation(report?.validacion || report?.validation),
-    votos: {
-      up: Number(communityVerification?.up) || 0,
-      down: Number(communityVerification?.down) || 0,
-      comentarios: normalizedComments,
-    },
-    wpRid: resolvePlayerRid(report),
-    aliases: Array.isArray(report.aliases) ? report.aliases : [],
-    crews: Array.isArray(report.crews) ? report.crews : [],
-    avatar1: report.avatar1 || '',
-    avatar2: report.avatar2 || '',
-    categories: Array.isArray(report?.categories) ? report.categories : [],
-  };
-};
-
-const normalizeReporte = (reporte = {}) => {
-  const id = reporte.id ?? Date.now();
-  const categoria = mapCategoriaLegacy(reporte.categorias, reporte.categoria);
-  const severidad = normalizeReportSeverity(reporte.severidad);
-  const fecha = reporte.fecha ?? new Date().toISOString().slice(0, 10);
-
-  return {
-    ...reporte,
-    id,
-    usuario: reporte.usuario || 'USUARIO_SIN_NOMBRE',
-    categoria,
-    severidad,
-    fecha,
-    reportadoPor: 'ANONIMO',
-    validacion: reporte.validacion ?? 'pendiente'
-  };
-};
-
-
 function App() {
-  const [path, setPath] = useState(window.location.pathname);
   const [caseRevision, setCaseRevision] = useState(0);
   const [deskReset, setDeskReset] = useState(0);
   const [reportPlayer, setReportPlayer] = useState(null);
@@ -149,38 +42,19 @@ function App() {
       { ...player, source: 'Analizado en esta sesión' },
     ]);
   }, []);
-  const [reportsError, setReportsError] = useState('');
-  const [capabilities, setCapabilities] = useState({ manageCases: false });
+  const { reportes, setReportes, reportsError, isLoading, fetchReportsFromAPI, getUserVotes } = useReportArchive();
   const detailReturnPath = useRef('/');
   const formReturnPath = useRef('/');
-  const navigate = useCallback((nextPath, replace = false) => {
-    const previousPath = window.location.pathname;
-    window.history[replace ? 'replaceState' : 'pushState']({}, '', `${nextPath}${window.location.search}`);
-    setPath(nextPath);
-    if (nextPath === '/denunciar' || previousPath === '/denunciar') window.scrollTo(0, 0);
+  const resetDesk = useCallback(() => {
+    setSearchPlayer(null);
+    setDeskReset(value => value + 1);
   }, []);
-  useEffect(() => {
-    if (window.location.pathname === '/' && window.location.hash === '#reportar') navigate('/denunciar', true);
-  }, [navigate]);
-  useEffect(() => {
-    const onPopState = () => {
-      setPath(window.location.pathname);
-      setSearchPlayer(null);
-      setDeskReset(value => value + 1);
-    };
-    window.addEventListener('popstate', onPopState);
-    return () => window.removeEventListener('popstate', onPopState);
-  }, []);
+  const { path, navigate, isAuthCallback, isValidPath, expedienteId, reportId } = useAppNavigation({ onPopState: resetDesk });
+  const { user, capabilities, sessionError, isAuthChecked, login: handleLogin, logout, expireSession } = useSession({ isAuthCallback });
   // Estado para el modal de ayuda
   const [showHelp, setShowHelp] = useState(false);
-  // Estado para los reportes (incluyendo nuevos enviados)
-  const [reportes, setReportes] = useState([]);
-
   // Estado para el modal de detalle
   const [reporteSeleccionado, setReporteSeleccionado] = useState(null);
-
-  // Estado de carga
-  const [isLoading, setIsLoading] = useState(true);
 
   // Estado de modo admin (activar con ?admin=1 o localStorage)
   const [isAdmin, setIsAdmin] = useState(false);
@@ -190,52 +64,6 @@ function App() {
     const urlParams = new URLSearchParams(window.location.search);
     return urlParams.get('demo') === 'true';
   });
-
-  // Estado para el usuario autenticado
-  const [user, setUser] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('discord_user')) || null;
-    } catch {
-      return null;
-    }
-  });
-  const [isAuthChecked, setIsAuthChecked] = useState(false);
-
-  useEffect(() => {
-    if (window.location.pathname === '/auth-callback') return undefined;
-
-    let active = true;
-    fetch(buildApiUrl('/auth/me'), { credentials: 'include' })
-      .then(async (response) => {
-        if (!response.ok) {
-          return { authenticated: false, user: null };
-        }
-        return response.json();
-      })
-      .then((data) => {
-        if (!active) return;
-        if (data?.authenticated && data?.user?.id) {
-          setUser(data.user);
-          setCapabilities(data.capabilities || { manageCases: false });
-          localStorage.setItem('discord_user', JSON.stringify(data.user));
-        } else {
-          setUser(null);
-          localStorage.removeItem('discord_user');
-        }
-      })
-      .catch(() => {
-        if (!active) return;
-        setUser(null);
-        localStorage.removeItem('discord_user');
-      })
-      .finally(() => {
-        if (active) setIsAuthChecked(true);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
 
   // Verificar URL de expediente y modo admin al cargar
   useEffect(() => {
@@ -251,42 +79,13 @@ function App() {
     }
   }, []);
 
-  // Detectar si estamos en /auth-callback
-  const isAuthCallback = path === '/auth-callback';
-  const isValidPath = path === '/' || path === '/denunciar' || /^\/(usuario\/.+|expediente\/\d+|reporte\/\d+|jugador\/[^/]+)$/.test(path);
-
-  useEffect(() => {
-    if (isAuthCallback) {
-      fetch(buildApiUrl('/auth/me'), {
-        credentials: 'include',
-      })
-        .then((res) => (res.ok ? res.json() : { authenticated: false, user: null }))
-        .then((data) => {
-          if (data?.authenticated && data?.user) {
-            setUser(data.user);
-            localStorage.setItem('discord_user', JSON.stringify(data.user));
-          } else {
-            localStorage.removeItem('discord_user');
-          }
-          window.location.href = sessionStorage.getItem(RETURN_PATH_STORAGE_KEY) || '/';
-          sessionStorage.removeItem(RETURN_PATH_STORAGE_KEY);
-        })
-        .catch(() => {
-          localStorage.removeItem('discord_user');
-          window.location.href = sessionStorage.getItem(RETURN_PATH_STORAGE_KEY) || '/';
-          sessionStorage.removeItem(RETURN_PATH_STORAGE_KEY);
-        });
-    }
-  }, [isAuthCallback]);
-
   // Manejar navegación por URL (abrir expediente desde URL)
   useEffect(() => {
     const abrirExpedienteDesdeURL = () => {
-      const expedienteId = getExpedienteIdFromURL();
       if (reportes.length > 0) {
         let reporte = null;
 
-        const reporteId = getReporteIdFromURL();
+        const reporteId = reportId;
         if (reporteId) {
           reporte = reportes.find(r => Number(r.id) === reporteId);
         } else if (expedienteId) {
@@ -306,7 +105,7 @@ function App() {
       abrirExpedienteDesdeURL();
     }
 
-  }, [isLoading, reportes, path]);
+  }, [isLoading, reportes, path, expedienteId, reportId]);
 
 
   const handleCardClick = (reporte) => {
@@ -480,72 +279,6 @@ function App() {
     }
   }, [reportes, reporteSeleccionado]);
 
-  // Cargar votos de usuario desde localStorage
-  const getUserVotes = () => {
-    try {
-      return JSON.parse(localStorage.getItem('mostwanted_user_votes') || '{}');
-    } catch {
-      return {};
-    }
-  };
-
-  // Carga inicial de reportes para la UI (API WordPress /reports + persistencia local)
-  const fetchReportsFromAPI = async () => {
-    try {
-      const reports = [];
-      let page = 1;
-
-      while (true) {
-        const snapshot = await fetchWordpressReportsSnapshot({ perPage: 100, page });
-        const pageReports = Array.isArray(snapshot?.items) ? snapshot.items : [];
-        reports.push(...pageReports);
-        if (pageReports.length < 100) break;
-        page += 1;
-      }
-
-      const mapped = reports.map(mapWordpressReportToReporte);
-
-      // Persistencia local para fallback offline y continuidad visual.
-      localStorage.setItem('mostwanted_reportes', JSON.stringify(mapped));
-      setReportsError('');
-      return mapped;
-    } catch (error) {
-      console.error('Error consultando WordPress reports snapshot:', error);
-      setReportsError('No se pudo actualizar el archivo. Las coincidencias locales pueden estar desactualizadas.');
-      const local = localStorage.getItem('mostwanted_reportes');
-      if (local) return JSON.parse(local);
-      return [];
-    }
-  };
-
-  // Al cargar reportes, incluir el voto del usuario en cada uno
-  useEffect(() => {
-    const fetchReportes = async () => {
-      setIsLoading(true);
-      let data = [];
-      try {
-        data = await fetchReportsFromAPI();
-      } catch (e) {
-        // Si falla, intenta cargar de localStorage
-        const local = localStorage.getItem('mostwanted_reportes');
-        if (local) {
-          data = JSON.parse(local);
-        } else {
-          data = [];
-        }
-      }
-      const userVotes = getUserVotes();
-      // Mapear userVote a cada reporte
-      data = data.map(r => ({
-        ...normalizeReporte(r),
-        userVote: userVotes[r.id] || r.userVote || null
-      }));
-      setReportes(assignExpedienteIds(data));
-      setIsLoading(false);
-    };
-    fetchReportes();
-  }, []);
-
   // Cuando el usuario vota, persistir en WordPress y refrescar el reporte local.
   const handleVote = async (reporteId, votePayload = {}) => {
     const reporteActual = reportes.find((item) => item.id === reporteId);
@@ -617,43 +350,20 @@ function App() {
     };
   };
 
-  // Botón de login/logout
-  const handleLogin = () => {
-    const currentPath = `${window.location.pathname}${window.location.search}`;
-    if (currentPath !== '/') {
-      sessionStorage.setItem(RETURN_PATH_STORAGE_KEY, currentPath);
+  const handleLogout = async () => {
+    if (await logout()) {
+      setReporteSeleccionado(null);
+      navigate('/', true);
     }
-    window.location.href = DISCORD_AUTH_URL;
-  };
-  const handleLogout = () => {
-    fetch(buildApiUrl('/auth/logout'), {
-      method: 'POST',
-      credentials: 'include',
-    }).catch(() => undefined);
-    setUser(null);
-    setCapabilities({ manageCases: false });
-    localStorage.removeItem('discord_user');
   };
 
-  if (isAuthCallback) return <main className="desk-empty" role="status">Iniciando sesión con Discord…</main>;
+  if (isAuthCallback) return <main className="app-container app-loading"><Skeleton label="Iniciando sesión con Discord…" rows={6} /></main>;
   if (!isValidPath) return <main className="desk-empty"><h1>Página no encontrada</h1><a href="/">Volver al inicio</a></main>;
 
   // Mostrar loading
-  if (isLoading) {
+  if (isLoading || !isAuthChecked) {
     return (
-      <div className="app-container" style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        minHeight: '100vh',
-        flexDirection: 'column',
-        gap: '1rem'
-      }}>
-        <div style={{ fontSize: '4rem', animation: 'pulse 1s ease-in-out infinite' }}>☠️</div>
-        <div style={{ fontFamily: 'var(--font-stencil)', color: 'var(--color-red-alert)' }}>
-          CARGANDO EXPEDIENTES...
-        </div>
-      </div>
+      <main className="app-container app-loading"><Skeleton label="Cargando sesión y despacho…" rows={8} /></main>
     );
   }
 
@@ -664,100 +374,45 @@ function App() {
     setReportPlayer(player);
     navigate('/denunciar');
   };
-  const archivePath = path === '/denunciar' ? formReturnPath.current
+  const returnPath = path === '/denunciar' ? formReturnPath.current
     : path.startsWith('/reporte/') ? detailReturnPath.current : path;
+  const archivePath = returnPath === '/perfil' ? '/' : returnPath;
+  const isProfileScreen = path === '/perfil' || (path.startsWith('/reporte/') && detailReturnPath.current === '/perfil');
 
   return (
     <div className={`app-container${canUseReports ? '' : ' app-container--access'}`} style={{ position: 'relative' }}>
       <InterfaceSounds />
 
       {/* ============ ADMIN BANNER ============ */}
-      {isAdmin && (
-        <div className="admin-mode-banner">
-          🔐 MODO ADMINISTRADOR ACTIVO
-          <button
-            className="admin-mode-toggle"
-            onClick={() => {
-              setIsAdmin(false);
-              localStorage.removeItem('mostwanted_admin');
-            }}
-          >
-            ✕ Desactivar
-          </button>
-        </div>
-      )}
+      {isAdmin && <AdminBanner onDisable={() => {
+        setIsAdmin(false);
+        localStorage.removeItem('mostwanted_admin');
+      }} />}
 
       {/* ============ HEADER ============ */}
-      <header className="site-header">
-        <div className="site-brand">
-          <img src="/Logo.png" alt="Kaith's Rebels" width="44" height="44" />
-          <div>
-            <span className="site-brand__eyebrow">KAITH'S REBELS / DIVISIÓN H.E.X.</span>
-            <h1>MOST WANTED<span className="site-brand__glitch" aria-hidden="true">MOST WANTED</span><span className="site-brand__glitch site-brand__glitch--echo" aria-hidden="true">MOST WANTED</span></h1>
-          </div>
-        </div>
-        {canUseReports && <PersonSearch revision={caseRevision} reports={reportes} knownPlayers={knownPlayers} onSelect={player => {
+      <AppHeader
+        search={canUseReports && <PersonSearch revision={caseRevision} reports={reportes} knownPlayers={knownPlayers} onSelect={player => {
           setSearchPlayer(player);
           setDeskReset(value => value + 1);
           navigate(playerPath(player.nickname || player.rid));
         }} />}
-        {/* Información de usuario y botón de login/logout */}
-        <div className="site-header__actions">
-          {user ? (
-            <>
-              <span className="site-header__username notranslate" translate="no">{user.username}</span>
-              <button className="cyber-button-small mw-cyber-button mw-cyber-button--secondary" onClick={handleLogout}>
-                <CyberButtonLabel>Cerrar sesión</CyberButtonLabel>
-              </button>
-            </>
-          ) : isDemo ? (
-            <button className="cyber-button-small mw-cyber-button mw-cyber-button--secondary" onClick={handleLogin}>
-              <CyberButtonLabel>Iniciar sesión con Discord</CyberButtonLabel>
-            </button>
-          ) : null}
-          {canUseReports && (
-            <button className="cyber-button-small mw-cyber-button mw-cyber-button--secondary" onClick={() => setShowHelp(true)} aria-label="Ayuda sobre la herramienta">
-              <CyberButtonLabel>Ayuda</CyberButtonLabel>
-            </button>
-          )}
-        </div>
-      </header>
-      {canUseReports && <nav className="desk-navigation" aria-label="Áreas del despacho">
-        <a href={`${archivePath}${isDemo ? '?demo=true' : ''}`} aria-current={path !== '/denunciar' ? 'page' : undefined} onClick={event => { if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); if (path !== archivePath) navigate(archivePath); } }}>
-          <span aria-hidden="true">01</span> Archivo de investigación
-        </a>
-        {path === '/denunciar' && <a href={isDemo ? '/denunciar?demo=true' : '/denunciar'} aria-current="page">
-          <span aria-hidden="true">02</span> Mesa de denuncias
-        </a>}
-      </nav>}
+        actions={<SessionActions user={user} isDemo={isDemo} canUseReports={canUseReports} isProfileScreen={isProfileScreen} onNavigate={navigate} onLogin={handleLogin} onHelp={() => setShowHelp(true)} />}
+      />
+      {canUseReports && <DeskNavigation items={[
+        { href: `${archivePath}${isDemo ? '?demo=true' : ''}`, number: '01', label: 'Archivo de investigación', current: path !== '/denunciar' && !isProfileScreen,
+          onClick: event => handleInternalLink(event, nextPath => { if (path !== nextPath) navigate(nextPath); }, archivePath) },
+        ...(path === '/denunciar' ? [{ href: isDemo ? '/denunciar?demo=true' : '/denunciar', number: '02', label: 'Mesa de denuncias', current: true }] : []),
+      ]} />}
       {/* Modal de ayuda */}
       <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />
+      {sessionError && <p className="rfm-submit-error" role="alert">{sessionError}</p>}
 
       {canUseReports ? (
       <>
-      {path === '/denunciar' ? <main id="reportar" className="report-workspace">
-        <div className="workspace-intro">
-          <div>
-            <h2 className="cyber-h">Registrar un reporte</h2>
-          </div>
-        </div>
-        <ReportFormModal onSubmit={handleNewReport} currentUser={user} isDemo={isDemo} initialPlayer={reportPlayer} onReturnToCase={() => navigate(formReturnPath.current)} />
-      </main> : <InvestigationDesk key={deskReset} initialPlayer={searchPlayer} onPlayerResolved={rememberPlayer} reportsError={reportsError} path={path} onNavigate={navigate} onOpenReport={handleCardClick} onStartReport={startReport} mapReport={mapWordpressReportToReporte} canManageCases={isAuthChecked && Boolean(user) && capabilities.manageCases} revision={caseRevision} />}
+      {isProfileScreen ? user ? <ProfileScreen key={user.id} user={user} onNavigate={navigate} onLogout={handleLogout} onOpenReport={handleCardClick} mapReport={mapWordpressReportToReporte} onHelp={() => setShowHelp(true)} revision={caseRevision} /> : <main className="desk-empty"><h2>Mi perfil</h2><p>Inicia sesión para consultar tu cuenta y tus reportes.</p><button type="button" className="cyber-button-small mw-cyber-button" onClick={handleLogin}>Iniciar sesión con Discord</button></main> : path === '/denunciar' ? <ReportScreen onSubmit={handleNewReport} currentUser={user} isDemo={isDemo} initialPlayer={reportPlayer} onReturnToCase={() => navigate(formReturnPath.current)} /> : <InvestigationDesk key={deskReset} initialPlayer={searchPlayer} onPlayerResolved={rememberPlayer} reportsError={reportsError} path={path} onNavigate={navigate} onOpenReport={handleCardClick} onStartReport={startReport} mapReport={mapWordpressReportToReporte} canManageCases={isAuthChecked && Boolean(user) && capabilities.manageCases} revision={caseRevision} />}
       </>
       ) : (
-        <main className="desk-access-stage">
-          <section className="desk-access" aria-labelledby="desk-access-title">
-          <h2 id="desk-access-title" className="cyber-h">Acceso al despacho</h2>
-          <p>Consulta jugadores y registra reportes de la comunidad.</p>
-          <button
-            type="button"
-            onClick={handleLogin}
-            className="cyber-button mw-cyber-button"
-          >
-            <CyberButtonLabel>Iniciar sesión con Discord</CyberButtonLabel>
-          </button>
-          </section>
-        </main>
+        <AccessScreen onLogin={handleLogin} />
       )}
 
       {reporteSeleccionado && (
@@ -772,18 +427,11 @@ function App() {
         />
       )}
 
-      <footer className="site-footer">
-        <span className="site-footer__text">H.E.X. / Archivo de investigación comunitaria</span>
-        <span className="site-footer__version" style={{ marginLeft: '8px' }}>v{appVersion}</span>
-        <img src="/Logo.png" width="20" style={{ marginLeft: '8px' }} alt="Kaith's Rebels" className="site-footer__logo" />
-      </footer>
+      <SiteFooter />
 
       <AIAssistantBubble
         isAuthenticated={isAuthChecked && Boolean(user?.id)}
-        onSessionExpired={() => {
-          setUser(null);
-          localStorage.removeItem('discord_user');
-        }}
+        onSessionExpired={expireSession}
       />
     </div>
   );

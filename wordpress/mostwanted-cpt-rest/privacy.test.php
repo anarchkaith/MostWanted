@@ -20,6 +20,7 @@ $GLOBALS['test_meta'] = [
     '_mw_report_payload' => [
         'nickname' => 'Player', 'rid' => '123', 'reason' => 'Denuncia',
         'reporter' => ['name' => 'PRIVATE_NAME', 'id' => 'PRIVATE_ID', 'ip' => 'PRIVATE_IP'],
+        'ownerDiscordId' => 'PRIVATE_OWNER',
         'reportedby' => 'PRIVATE_NAME', 'reportadoPor' => 'PRIVATE_NAME',
         'contacto' => 'PRIVATE_CONTACT', 'metadata' => ['reporter' => 'PRIVATE_NAME'],
         'report' => ['reportedby' => 'PRIVATE_NESTED', 'categories' => ['MODDER']],

@@ -101,7 +101,7 @@ export async function fetchWordpressPlayersSnapshot({ perPage = 100, reportsLimi
   return payload;
 }
 
-export async function fetchWordpressReportsSnapshot({ perPage = 100, page = 1 } = {}) {
+export async function fetchWordpressReportsSnapshot({ perPage = 100, page = 1, signal } = {}) {
   const safePerPage = Number.isFinite(perPage) ? Math.max(1, Math.min(100, Number(perPage))) : 100;
   const safePage = Number.isFinite(page) ? Math.max(1, Number(page)) : 1;
 
@@ -109,6 +109,7 @@ export async function fetchWordpressReportsSnapshot({ perPage = 100, page = 1 } 
   const response = await fetch(endpoint, {
     method: 'GET',
     cache: 'no-store',
+    signal,
     headers: { Accept: 'application/json' },
   });
 

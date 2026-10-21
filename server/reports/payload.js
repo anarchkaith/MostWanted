@@ -48,6 +48,7 @@ export function buildWordpressReportPayload(input = {}) {
   };
 
   return {
+    ...(input.ownerDiscordId ? { ownerDiscordId: input.ownerDiscordId } : {}),
     username: nickname,
     // Información del jugador reportado
     nickname,
