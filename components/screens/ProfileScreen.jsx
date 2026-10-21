@@ -1,37 +1,11 @@
-import { useEffect, useState } from 'react';
-import { buildApiUrl } from '../../src/services/apiConfig';
+import useOwnedReports from '../../src/hooks/useOwnedReports';
 import { formatCaseDate } from '../../src/services/casePresentation';
 import DiscordAvatar from '../ui/DiscordAvatar';
 import Skeleton from '../ui/Skeleton';
 import Button from '../ui/Button';
 
 export default function ProfileScreen({ user, onNavigate, onLogout, onOpenReport, mapReport, onHelp, revision }) {
-  const [page, setPage] = useState(1);
-  const [version, setVersion] = useState(0);
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  useEffect(() => {
-    const controller = new AbortController();
-    setLoading(true);
-    setError('');
-    setData(null);
-    fetch(buildApiUrl(`/reports/mine?page=${page}`), {
-      credentials: 'include', cache: 'no-store', signal: controller.signal,
-      headers: { Accept: 'application/json' },
-    }).then(async response => {
-      const payload = await response.json();
-      if (!response.ok || payload.ok !== true || !Array.isArray(payload.items)) {
-        throw new Error(payload.error || 'No se pudieron consultar tus reportes.');
-      }
-      if (!controller.signal.aborted) setData(payload);
-    }).catch(cause => {
-      if (!controller.signal.aborted) setError(cause.message || 'No se pudieron consultar tus reportes.');
-    }).finally(() => {
-      if (!controller.signal.aborted) setLoading(false);
-    });
-    return () => controller.abort();
-  }, [user.id, page, version, revision]);
+  const { page, setPage, data, loading, error, retry } = useOwnedReports({ userId: user.id, revision });
 
   return (
     <main className="profile-screen">
@@ -54,7 +28,7 @@ export default function ProfileScreen({ user, onNavigate, onLogout, onOpenReport
         <header className="case-reports__header"><h2 id="my-reports-title">Mis reportes</h2></header>
         <p className="case-muted profile-report-note">Solo tú puedes consultar esta lista. Los reportes anteriores sin una vinculación privada con tu cuenta no aparecen aquí; no se asignan por nombre de usuario.</p>
         {loading && <Skeleton label="Cargando mis reportes…" rows={6} />}
-        {error && <div className="rfm-submit-error" role="alert"><p>{error}</p><Button variant="secondary" onClick={() => setVersion(value => value + 1)}>Reintentar</Button></div>}
+        {error && <div className="rfm-submit-error" role="alert"><p>{error}</p><Button variant="secondary" onClick={retry}>Reintentar</Button></div>}
         {!loading && !error && data && <>
           {data.items.length ? <ul className="profile-reports">
             {data.items.map(report => <li key={report.id}>

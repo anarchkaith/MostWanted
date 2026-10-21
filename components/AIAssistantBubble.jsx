@@ -4,9 +4,8 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import { buildReportesChatContext, readReportesFromLocalStorage } from './chatTools';
-import { unwrapMarkdownFence } from './markdownUtils';
 import { getIaChatEndpoint, getIaIntentEndpoint } from '../src/services/apiConfig';
-import { inferReportIntent } from '../shared/reportIntent';
+import { requestAssistantReply } from '../src/services/assistantChat';
 import CyberButtonLabel from './ui/CyberButtonLabel';
 
 const HEX_LOGO_RED = '/HEX_LOGO_RED.png';
@@ -23,111 +22,6 @@ const MARKDOWN_COMPONENTS = {
       <table className="cyber-table cyber-style-1 mw-cyber-table">{children}</table>
     </div>
   ),
-};
-
-const normalizeMessages = (messages = []) => (
-  Array.isArray(messages)
-    ? messages
-      .filter((item) => item && typeof item.content === 'string' && item.content.trim())
-      .map((item) => ({
-        role: item.role === 'assistant' ? 'assistant' : (item.role === 'system' ? 'system' : 'user'),
-        content: item.content.trim(),
-      }))
-    : []
-);
-
-const buildFallbackIntent = (userText = '', candidateUsuarios = []) => {
-  const reportIntent = inferReportIntent(userText, candidateUsuarios);
-  if (reportIntent) return reportIntent;
-
-  return {
-    needsReportContext: false,
-    related: false,
-    intentType: 'general',
-    tool: 'general_response',
-    params: {
-      usuario: null,
-      reportId: null,
-      recentDays: null,
-    },
-    confidence: 0,
-    reason: 'Clasificacion local de respaldo.',
-  };
-};
-
-async function resolveIntentData({ userText, messages, candidateUsuarios }) {
-  const fallbackIntent = buildFallbackIntent(userText, candidateUsuarios);
-
-  try {
-    const response = await fetch(INTENT_ENDPOINT, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        query: userText,
-        history: normalizeMessages(messages).slice(-6),
-        candidateUsuarios: candidateUsuarios.slice(0, 100),
-      }),
-    });
-
-    if (!response.ok) {
-      return fallbackIntent;
-    }
-
-    const payload = await response.json();
-    return payload && typeof payload === 'object' ? payload : fallbackIntent;
-  } catch {
-    return fallbackIntent;
-  }
-}
-
-const buildChatRequest = (messages = [], reportesContextData = {}) => {
-  const requestBody = {
-    messages: normalizeMessages(messages),
-  };
-
-  if (!reportesContextData?.useReportesDb) {
-    return requestBody;
-  }
-
-  requestBody.useReportesDb = true;
-
-  if (reportesContextData.reportQuery) {
-    requestBody.reportQuery = reportesContextData.reportQuery;
-  }
-
-  const scopedReportes = Array.isArray(reportesContextData?.reportesContext?.reportes)
-    ? reportesContextData.reportesContext.reportes
-    : [];
-
-  if (scopedReportes.length > 0) {
-    requestBody.reportesContext = {
-      source: 'localStorage',
-      reportes: scopedReportes,
-    };
-  }
-
-  return requestBody;
-};
-
-const getAssistantReply = (payload = {}) => {
-  if (typeof payload.response === 'string' && payload.response.trim()) {
-    return unwrapMarkdownFence(payload.response.trim());
-  }
-
-  if (typeof payload.text === 'string' && payload.text.trim()) {
-    return unwrapMarkdownFence(payload.text.trim());
-  }
-
-  if (typeof payload.output === 'string' && payload.output.trim()) {
-    return unwrapMarkdownFence(payload.output.trim());
-  }
-
-  if (payload.message && typeof payload.message.content === 'string' && payload.message.content.trim()) {
-    return unwrapMarkdownFence(payload.message.content.trim());
-  }
-
-  return 'No pude generar una respuesta en este momento.';
 };
 
 const formatLatency = (ms) => `${(ms / 1000).toFixed(2)}s`;
@@ -151,6 +45,8 @@ export default function AIAssistantBubble({ isAuthenticated = false, onSessionEx
   const progressIntervalRef = useRef(null);
   const latencyAvgRef = useRef(PROGRESS_BASELINE_MS);
   const latencySamplesRef = useRef(0);
+  const activeRequestRef = useRef(null);
+  const completionTimerRef = useRef(null);
 
   const copyMessage = (content, idx) => {
     navigator.clipboard.writeText(content).then(() => {
@@ -239,7 +135,12 @@ export default function AIAssistantBubble({ isAuthenticated = false, onSessionEx
     };
   }, [isOpen, isFullscreen]);
 
-  useEffect(() => () => stopProgressTicker(), []);
+  useEffect(() => () => {
+    activeRequestRef.current?.abort();
+    activeRequestRef.current = null;
+    stopProgressTicker();
+    clearTimeout(completionTimerRef.current);
+  }, []);
 
   const formik = useFormik({
     initialValues: {
@@ -248,8 +149,10 @@ export default function AIAssistantBubble({ isAuthenticated = false, onSessionEx
     onSubmit: async (values, helpers) => {
       const userText = values.message.trim();
 
-      if (!userText || isSending) return;
+      if (!userText || activeRequestRef.current) return;
 
+      clearTimeout(completionTimerRef.current);
+      setIsCompleting(false);
       const updatedMessages = [...messages, { role: 'user', content: userText }];
       setMessages(updatedMessages);
       helpers.resetForm();
@@ -259,6 +162,7 @@ export default function AIAssistantBubble({ isAuthenticated = false, onSessionEx
       const assistantIndex = updatedMessages.length;
       const startedAt = performance.now();
       const controller = new AbortController();
+      activeRequestRef.current = controller;
       const timeoutId = setTimeout(() => controller.abort(), MAX_REQUEST_TIMEOUT_MS);
 
       setMessages((prev) => [
@@ -275,58 +179,17 @@ export default function AIAssistantBubble({ isAuthenticated = false, onSessionEx
         const candidateUsuarios = localReportes
           .map((reporte) => String(reporte?.usuario || '').trim())
           .filter(Boolean);
-        const intentData = await resolveIntentData({
+        const assistantText = await requestAssistantReply({
           userText,
           messages: updatedMessages,
           candidateUsuarios,
-        });
-        const reportesChatContext = buildReportesChatContext(userText, intentData);
-
-        const response = await fetch(IA_ENDPOINT, {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
+          buildContext: buildReportesChatContext,
+          chatEndpoint: IA_ENDPOINT,
+          intentEndpoint: INTENT_ENDPOINT,
           signal: controller.signal,
-          body: JSON.stringify(buildChatRequest(updatedMessages, reportesChatContext))
+          onSessionExpired,
         });
-
-        if (response.status === 401) {
-          onSessionExpired?.();
-          throw new Error('Tu sesión de Discord expiró. Inicia sesión de nuevo para usar a HEX.');
-        }
-
-        if (!response.ok) {
-          const GATEWAY_ERRORS = { 502: 'Bad Gateway', 503: 'Servicio no disponible', 504: 'Gateway Time-out' };
-          if (response.status in GATEWAY_ERRORS) {
-            throw new Error(
-              `El servidor no respondio a tiempo (${response.status} ${GATEWAY_ERRORS[response.status]}). Intenta de nuevo en unos segundos.`
-            );
-          }
-
-          const rawText = await response.text();
-          let data = {};
-
-          try {
-            data = rawText ? JSON.parse(rawText) : {};
-          } catch {
-            data = {};
-          }
-
-          const detail = typeof data?.details === 'string' ? data.details.slice(0, 200) : '';
-          const message = data?.error || `Error HEX (${response.status}).`;
-          throw new Error(detail ? `${message} Detalle: ${detail}` : message);
-        }
-
-        const rawText = await response.text();
-        let payload = {};
-
-        try {
-          payload = rawText ? JSON.parse(rawText) : {};
-        } catch {
-          payload = { raw: rawText };
-        }
-
-        const assistantText = getAssistantReply(payload);
+        if (activeRequestRef.current !== controller) return;
 
         setMessages((prev) => prev.map((msg, idx) => (
           idx === assistantIndex
@@ -342,6 +205,7 @@ export default function AIAssistantBubble({ isAuthenticated = false, onSessionEx
             : msg
         )));
       } catch (error) {
+        if (activeRequestRef.current !== controller) return;
         const responseMs = Math.round(performance.now() - startedAt);
         registerLatencySample(responseMs);
         const timeoutError = error?.name === 'AbortError';
@@ -359,15 +223,18 @@ export default function AIAssistantBubble({ isAuthenticated = false, onSessionEx
         )));
       } finally {
         clearTimeout(timeoutId);
-        stopProgressTicker();
-        setIsCompleting(true);
-        setSendProgress(100);
-        setTimeout(() => {
-          setSendProgress(0);
-          setIsCompleting(false);
-        }, 500);
-        setIsSending(false);
-        helpers.setSubmitting(false);
+        if (activeRequestRef.current === controller) {
+          activeRequestRef.current = null;
+          stopProgressTicker();
+          setIsCompleting(true);
+          setSendProgress(100);
+          completionTimerRef.current = setTimeout(() => {
+            setSendProgress(0);
+            setIsCompleting(false);
+          }, 500);
+          setIsSending(false);
+          helpers.setSubmitting(false);
+        }
       }
     }
   });

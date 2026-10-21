@@ -71,7 +71,7 @@ async function postReportToBackend(path, { report, reporter, evidence }) {
   });
 
   const payload = await readApiResponse(response, 'Error al enviar el reporte al backend.');
-  if (payload.ok !== true || !payload.player) throw new Error('El servidor no confirmó el guardado del reporte.');
+  if (payload.ok !== true) throw new Error('El servidor no confirmó el guardado del reporte.');
   return payload;
 }
 

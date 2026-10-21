@@ -1,21 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import remarkBreaks from 'remark-breaks';
 import { unwrapMarkdownFence } from '../markdownUtils';
 import PlayerBackgroundPanel from '../PlayerBackgroundPanel';
 import CaseStaffPanel from '../CaseStaffPanel';
 import CyberButtonLabel from '../ui/CyberButtonLabel';
-import CyberSelect from '../ui/CyberSelect';
 import Skeleton from '../ui/Skeleton';
-import { requestCase } from '../../src/services/casesService';
-import { CASE_STATUSES, SEVERITY_LABELS, VALIDATION_LABELS, normalizeReportSeverity, filterCaseReports, reportCategories, summarizeVotes, formatCaseDate } from '../../src/services/casePresentation';
+import usePlayerCase from '../../src/hooks/usePlayerCase';
+import { PlayerCaseClassification, PlayerCommunityVerification } from '../player/PlayerCaseAssessment';
+import PlayerCaseReports from '../player/PlayerCaseReports';
+import { CASE_STATUSES, summarizeVotes, formatCaseDate } from '../../src/services/casePresentation';
 import { mergePlayerProfile } from '../../src/services/playerProfile';
 import { playerPath, readPlayerRoute } from '../../src/services/playerRoute';
 import { resolvePlayerRid } from '../../shared/playerIdentity';
-
-const EMPTY_FILTERS = { category: '', validation: '', from: '', to: '', query: '' };
-const PAGE_SIZE = 10;
 
 export default function InvestigationDesk({ initialPlayer, onPlayerResolved, reportsError, path, onNavigate, onOpenReport, onStartReport, mapReport, canManageCases, revision }) {
   const [selection] = useState(() => {
@@ -24,12 +19,6 @@ export default function InvestigationDesk({ initialPlayer, onPlayerResolved, rep
   });
   const [foundPlayer, setFoundPlayer] = useState(null);
   const [investigationCompleted, setInvestigationCompleted] = useState(false);
-  const [payload, setPayload] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [filters, setFilters] = useState(EMPTY_FILTERS);
-  const [page, setPage] = useState(1);
-  const [version, setVersion] = useState(0);
   const onInvestigationChange = useCallback(result => {
     const identity = result ? {
       nickname: result.nombre === `RID ${result.rid}` ? result.username || '' : result.nombre,
@@ -42,69 +31,23 @@ export default function InvestigationDesk({ initialPlayer, onPlayerResolved, rep
   const route = useMemo(() => readPlayerRoute(path), [path]);
   const caseId = route.caseId;
   const lookupPlayer = foundPlayer || selection || route.player;
+  const { payload, loading, error, refresh } = usePlayerCase({
+    caseId, nickname: lookupPlayer?.nickname, rid: lookupPlayer?.rid, revision,
+  });
   const dossier = payload?.case || null;
   const player = dossier?.player || lookupPlayer;
   const linkedReports = useMemo(() => (payload?.reports || []).map(mapReport), [payload, mapReport]);
-  const filtered = useMemo(() => filterCaseReports(linkedReports, filters), [linkedReports, filters]);
-  const categories = useMemo(() => [...new Set(linkedReports.flatMap(reportCategories))], [linkedReports]);
   const votes = useMemo(() => summarizeVotes(linkedReports), [linkedReports]);
-  useEffect(() => {
-    if (!caseId && !lookupPlayer) {
-      setLoading(false);
-      return undefined;
-    }
-    const controller = new AbortController();
-    const params = new URLSearchParams({ username: lookupPlayer?.nickname || '', rid: lookupPlayer?.rid || '' });
-    setLoading(true);
-    setError('');
-    requestCase(caseId ? `/${encodeURIComponent(caseId)}` : `/lookup?${params}`, { signal: controller.signal })
-      .then(data => {
-        setPayload(data);
-      })
-      .catch(error => { if (!controller.signal.aborted) setError(error.message); })
-      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
-    return () => controller.abort();
-  }, [caseId, lookupPlayer?.nickname, lookupPlayer?.rid, revision, version]);
-
   useEffect(() => {
     if (!foundPlayer?.nickname || path === '/denunciar' || /^\/(reporte|expediente)\//.test(path)) return;
     const canonical = playerPath(foundPlayer.nickname);
     if (path !== canonical) onNavigate(canonical, true);
   }, [foundPlayer, path, onNavigate]);
 
-  const updateFilter = (key, value) => { setFilters(current => ({ ...current, [key]: value })); setPage(1); };
-  const visiblePage = Math.min(page, Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)));
-  const shownReports = filtered.slice((visiblePage - 1) * PAGE_SIZE, visiblePage * PAGE_SIZE);
-  const hasSeverity = linkedReports.some(report => normalizeReportSeverity(report.severidad));
   const classificationText = unwrapMarkdownFence(dossier?.classification?.text || '').trim();
-  const classification = player && (loading || classificationText || dossier?.classification?.pending || dossier?.classification?.error) && (
-    <section className="case-section case-classification">
-      <h3>Análisis HEX</h3>
-      {loading && !classificationText ? <Skeleton label="Cargando análisis HEX…" rows={6} /> : classificationText ? <>
-        <div className="case-classification__text">
-          <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
-            {classificationText}
-          </ReactMarkdown>
-        </div>
-        <p className="case-muted">Resumen generado por HEX · {dossier.classification.reportCount} reporte(s) · {formatCaseDate(dossier.classification.updatedAt, true)}</p>
-      </> : null}
-      {dossier?.classification?.stale && <p className="case-muted" role="status">Resumen pendiente de actualizar.</p>}
-      {dossier?.classification?.error && <p className="rfm-submit-error" role="alert">{dossier.classification.error}</p>}
-      {!loading && dossier?.classification?.pending && <Skeleton label="Generando análisis HEX…" rows={3} />}
-    </section>
-  );
-  const verification = player && (loading || votes.total > 0) && (
-    <section className="case-section case-verification">
-      <h3>Verificación comunitaria</h3>
-      {loading ? <Skeleton label="Cargando votos de los reportes…" /> : <><dl className="case-votes">
-        <div><dt>Reportes legítimos</dt><dd>{votes.percent === null ? '—' : `${votes.percent}%`}</dd></div>
-        <div><dt>Reportes falsos</dt><dd>{votes.percent === null ? '—' : `${100 - votes.percent}%`}</dd></div>
-        <div><dt>Votos emitidos</dt><dd>{votes.total}</dd></div>
-      </dl>
-      {votes.percent !== null && <meter min="0" max="100" value={votes.percent} aria-label="Porcentaje de votos legítimos" />}
-      </>}
-    </section>
-  );
+  const classification = player && (loading || classificationText || dossier?.classification?.pending || dossier?.classification?.error) &&
+    <PlayerCaseClassification classification={dossier?.classification} text={classificationText} loading={loading} />;
+  const verification = player && (loading || votes.total > 0) && <PlayerCommunityVerification votes={votes} loading={loading} />;
   const caseManagement = player && (
     <div className="pbp-identity-actions">
       {loading ? <Skeleton label="Cargando estado del caso…" rows={2} /> : dossier && <div className="case-management__status">
@@ -136,8 +79,8 @@ export default function InvestigationDesk({ initialPlayer, onPlayerResolved, rep
       {!player && !caseId && <header className="desk-intro"><h2>Busca un jugador</h2><p>Usa su nombre o RID para consultar su ficha o registrar un reporte.</p></header>}
       {reportsError && <p className="rfm-submit-error" role="alert">{reportsError}</p>}
       {route.error && <p className="rfm-submit-error" role="alert">{route.error}</p>}
-      {error && <div className="rfm-submit-error" role="alert"><p>{error}</p>{payload && <p>Los datos anteriores pueden estar desactualizados.</p>}<button type="button" className="cyber-button-small mw-cyber-button mw-cyber-button--secondary" onClick={() => setVersion(value => value + 1)}>Reintentar consulta</button></div>}
-      {payload?.source?.stale && <div className="rfm-submit-error" role="alert"><p>Los reportes pueden estar desactualizados. {payload.source.error || 'No se pudo completar la actualización.'}</p><button type="button" className="cyber-button-small mw-cyber-button mw-cyber-button--secondary" onClick={() => setVersion(value => value + 1)}>Actualizar expediente</button></div>}
+      {error && <div className="rfm-submit-error" role="alert"><p>{error}</p>{payload && <p>Los datos anteriores pueden estar desactualizados.</p>}<button type="button" className="cyber-button-small mw-cyber-button mw-cyber-button--secondary" onClick={refresh}>Reintentar consulta</button></div>}
+      {payload?.source?.stale && <div className="rfm-submit-error" role="alert"><p>Los reportes pueden estar desactualizados. {payload.source.error || 'No se pudo completar la actualización.'}</p><button type="button" className="cyber-button-small mw-cyber-button mw-cyber-button--secondary" onClick={refresh}>Actualizar expediente</button></div>}
       <div className="desk-columns" aria-busy={loading}>
         <section className="case-file" aria-label="Expediente del jugador">
           <header className="case-file__header">
@@ -161,45 +104,11 @@ export default function InvestigationDesk({ initialPlayer, onPlayerResolved, rep
               classification={classification}
               verification={verification}
             />
-            {canManageCases && dossier && !loading && !error && <CaseStaffPanel key={dossier.id} caseId={dossier.id} currentStatus={dossier.status} onChanged={() => setVersion(value => value + 1)} />}
+            {canManageCases && dossier && !loading && !error && <CaseStaffPanel key={dossier.id} caseId={dossier.id} currentStatus={dossier.status} onChanged={refresh} />}
           </>}
         </section>
-        <section className="case-reports" aria-labelledby="linked-reports-title">
-          <header className="case-reports__header"><h2 id="linked-reports-title">Reportes <span>({payload ? linkedReports.length : '—'})</span></h2>{payload && filtered.length !== linkedReports.length && <p className="case-report-count" role="status" aria-live="polite">{filtered.length} resultados</p>}</header>
-          {loading && (player || caseId) && <Skeleton label="Cargando reportes del jugador…" rows={4} />}
-          {payload?.nameOnlyReportIds?.length > 0 && <p className="case-association-note" role="status">{payload.nameOnlyReportIds.length} reporte(s) solo por nombre; identidad sin confirmar.</p>}
-          {linkedReports.length > 0 && <div className="case-filters" role="group" aria-label="Filtrar reportes">
-            <label htmlFor="filter-category">Infracción<CyberSelect id="filter-category" value={filters.category} onChange={value => updateFilter('category', value)} options={[{ value: '', label: 'Todas las infracciones' }, ...categories.map(category => ({ value: category, label: category }))]} /></label>
-            <label htmlFor="filter-validation">Validación<CyberSelect id="filter-validation" value={filters.validation} onChange={value => updateFilter('validation', value)} options={[{ value: '', label: 'Todos los estados' }, ...Object.entries(VALIDATION_LABELS).map(([value, label]) => ({ value, label }))]} /></label>
-            <label htmlFor="filter-from">Desde<div className="cyber-input-full mw-cyber-input"><input id="filter-from" type="date" value={filters.from} max={filters.to || undefined} onChange={event => updateFilter('from', event.target.value)} /></div></label>
-            <label htmlFor="filter-to">Hasta<div className="cyber-input-full mw-cyber-input"><input id="filter-to" type="date" value={filters.to} min={filters.from || undefined} onChange={event => updateFilter('to', event.target.value)} /></div></label>
-            <label className="case-filters__search">Buscar en reportes<div className="cyber-input-full mw-cyber-input"><input type="search" value={filters.query} onChange={event => updateFilter('query', event.target.value)} placeholder="Nombre, motivo o número" /></div></label>
-            <button type="button" className="cyber-button-small mw-cyber-button mw-cyber-button--secondary" onClick={() => { setFilters(EMPTY_FILTERS); setPage(1); }}><CyberButtonLabel>Limpiar filtros</CyberButtonLabel></button>
-          </div>}
-          {!loading && !linkedReports.length && <p className="desk-empty">{error && !payload ? 'No se pudieron cargar los reportes.' : player && payload ? 'Sin reportes registrados.' : 'Sin jugador seleccionado.'}</p>}
-          {!loading && linkedReports.length > 0 && !filtered.length && <p className="desk-empty">No hay reportes que coincidan con estos filtros.</p>}
-          {shownReports.length > 0 && (
-            <table className="cyber-table cyber-style-2 case-table">
-              <caption className="sr-only">Reportes del jugador. Usa Ver reporte para consultar las evidencias y votar.</caption>
-              <thead><tr>
-                <th scope="col">Fecha / reporte</th><th scope="col">Infracción</th>{hasSeverity && <th scope="col">Severidad</th>}<th scope="col">Validación</th>
-                <th scope="col">Detalle</th>
-              </tr></thead>
-              <tbody>{shownReports.map(report => (
-                <tr key={report.id}>
-                  <td data-label="Fecha"><span className="case-report-reference"><time>{formatCaseDate(report.fecha)}</time><small>#{report.id}</small></span>
-                    {payload?.nameOnlyReportIds?.some(id => String(id) === String(report.id)) && <small>Asociación solo por nombre</small>}
-                  </td>
-                  <td data-label="Infracción">{reportCategories(report).join(', ') || 'Sin datos'}</td>
-                  {hasSeverity && <td data-label="Severidad">{SEVERITY_LABELS[normalizeReportSeverity(report.severidad)] || '—'}</td>}
-                  <td data-label="Validación"><span className="case-badge">{VALIDATION_LABELS[report.validacion] || report.validacion || 'Sin datos'}</span></td>
-                  <td><button type="button" className="cyber-button-small mw-cyber-button mw-cyber-button--secondary" onClick={() => onOpenReport(report)} aria-label={`Ver detalles del reporte ${report.id}`}><CyberButtonLabel>Ver reporte</CyberButtonLabel></button></td>
-                </tr>
-              ))}</tbody>
-            </table>
-          )}
-          {filtered.length > PAGE_SIZE && <nav className="case-pagination" aria-label="Páginas de reportes"><button type="button" className="cyber-button-small mw-cyber-button mw-cyber-button--secondary" disabled={visiblePage === 1} onClick={() => setPage(visiblePage - 1)}>Anterior</button><span>{visiblePage} / {Math.ceil(filtered.length / PAGE_SIZE)}</span><button type="button" className="cyber-button-small mw-cyber-button mw-cyber-button--secondary" disabled={visiblePage * PAGE_SIZE >= filtered.length} onClick={() => setPage(visiblePage + 1)}>Siguiente</button></nav>}
-        </section>
+        <PlayerCaseReports reports={linkedReports} payload={payload} player={player} caseId={caseId}
+          loading={loading} error={error} onOpenReport={onOpenReport} />
       </div>
     </main>
   );

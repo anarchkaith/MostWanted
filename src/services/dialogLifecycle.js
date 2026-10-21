@@ -1,7 +1,7 @@
 const documents = new WeakMap();
 const FOCUSABLE = 'button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';
 
-export function activateDialog({ dialog, initialFocus, onClose }) {
+export function activateDialog({ dialog, initialFocus, returnFocus, onClose }) {
   const doc = dialog.ownerDocument;
   let state = documents.get(doc);
   if (!state) {
@@ -9,7 +9,7 @@ export function activateDialog({ dialog, initialFocus, onClose }) {
     documents.set(doc, state);
     doc.body.style.overflow = 'hidden';
   }
-  const previousFocus = doc.activeElement;
+  const previousFocus = doc.activeElement === doc.body && returnFocus?.isConnected ? returnFocus : doc.activeElement;
   const entry = { dialog };
   state.stack.push(entry);
   const controls = () => [...dialog.querySelectorAll(FOCUSABLE)]

@@ -115,3 +115,11 @@ test('CSS-invisible and inert controls cannot trap focus or receive initial focu
   assert.equal(f.doc.activeElement, visible);
   release();
 });
+
+test('confirmation restores its submit trigger when async submission left focus on the body', () => {
+  const f = fixture();
+  f.doc.activeElement = f.doc.body;
+  const release = activateDialog({ dialog: f.dialog(), returnFocus: f.trigger, onClose() {} });
+  release();
+  assert.equal(f.doc.activeElement, f.trigger);
+});
