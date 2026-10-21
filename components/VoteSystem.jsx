@@ -1,4 +1,5 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useMemo, useState } from 'react';
+import useReportVote from '../src/hooks/useReportVote';
 
 /**
  * VoteSystem - Verificacion comunitaria por reporte.
@@ -7,27 +8,18 @@
  */
 const VoteSystem = ({
   reporteId,
-  votos: votosIniciales = { up: 0, down: 0, comentarios: [] },
+  votos: votosIniciales,
   onVote,
   umbralVerificacion = 5,
   compact = false,
   userVote: userVoteProp = null,
 }) => {
-  const [error, setError] = useState('');
   const [showFalseReasonForm, setShowFalseReasonForm] = useState(false);
   const [falseReason, setFalseReason] = useState('');
   const [falseReporterName, setFalseReporterName] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [userVote, setUserVote] = useState(userVoteProp);
-  const [votos, setVotos] = useState(votosIniciales);
-
-  useEffect(() => {
-    setVotos(votosIniciales || { up: 0, down: 0, comentarios: [] });
-  }, [votosIniciales]);
-
-  useEffect(() => {
-    setUserVote(userVoteProp || null);
-  }, [userVoteProp]);
+  const { votos, userVote, isLoading, error, warning, setError, submitVote: saveVote } = useReportVote({
+    reportId: reporteId, initialVotes: votosIniciales, initialVote: userVoteProp, onVote,
+  });
 
   const comentarios = Array.isArray(votos?.comentarios) ? votos.comentarios : [];
   const votosNetos = Number(votos?.up || 0) - Number(votos?.down || 0);
@@ -43,24 +35,10 @@ const VoteSystem = ({
   }, [esVerificadoComunidad, esRechazadoComunidad]);
 
   const submitVote = async ({ voteType, reason = '', voterName = '' }) => {
-    if (isLoading || typeof onVote !== 'function') return;
-
-    setError('');
-    setIsLoading(true);
-
-    try {
-      const result = await onVote(reporteId, { voteType, reason, voterName });
-      if (result?.votos) {
-        setVotos(result.votos);
-      }
-      setUserVote(result?.userVote || voteType);
+    if (await saveVote({ voteType, reason, voterName })) {
       setShowFalseReasonForm(false);
       setFalseReason('');
       setFalseReporterName('');
-    } catch (err) {
-      setError(err?.message || 'No se pudo registrar tu voto en este momento.');
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -136,7 +114,8 @@ const VoteSystem = ({
           {isLoading ? '⏳' : '👎'} {Number(votos?.down || 0)}
         </button>
 
-        {error && <div className="vote-system__error">⚠️ {error}</div>}
+        {error && <div className="vote-system__error" role="alert">⚠️ {error}</div>}
+        {warning && <p role="status" className="case-muted">{warning}</p>}
 
         <style>{`
           @layer legacy {
@@ -272,7 +251,8 @@ const VoteSystem = ({
         </div>
       )}
 
-      {error && <div className="vote-system__error">⚠️ {error}</div>}
+      {error && <div className="vote-system__error" role="alert">⚠️ {error}</div>}
+      {warning && <p role="status" className="case-muted">{warning}</p>}
 
       <div className="vote-system__progress">
         <div className="vote-system__progress-bar">

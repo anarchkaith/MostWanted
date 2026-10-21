@@ -1,4 +1,5 @@
-import { buildApiUrl } from './apiConfig';
+import { buildApiUrl } from './apiConfig.js';
+import { readApiResponse } from './jsonResponse.js';
 
 const DEFAULT_WORDPRESS_API_BASE_URL = 'https://kaithsrebels.com';
 
@@ -30,7 +31,7 @@ export async function uploadImageToImgbb(image, apiKey) {
     body: form,
   });
 
-  const payload = await response.json().catch(() => ({}));
+  const payload = await readApiResponse(response, `No se pudo publicar la evidencia ${imageName}.`);
 
   if (!response.ok || !payload?.success || !payload?.data?.url) {
     throw new Error(`No se pudo publicar la evidencia ${image?.name || ''}`.trim());
@@ -69,12 +70,8 @@ async function postReportToBackend(path, { report, reporter, evidence }) {
     }),
   });
 
-  const payload = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(payload?.error || 'Error al enviar el reporte al backend.');
-  }
-
+  const payload = await readApiResponse(response, 'Error al enviar el reporte al backend.');
+  if (payload.ok !== true || !payload.player) throw new Error('El servidor no confirmó el guardado del reporte.');
   return payload;
 }
 
@@ -92,13 +89,7 @@ export async function fetchWordpressPlayersSnapshot({ perPage = 100, reportsLimi
     headers: { Accept: 'application/json' },
   });
 
-  const payload = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(payload?.message || payload?.error || 'No se pudo consultar la API de jugadores de WordPress.');
-  }
-
-  return payload;
+  return readApiResponse(response, 'No se pudo consultar la API de jugadores de WordPress.');
 }
 
 export async function fetchWordpressReportsSnapshot({ perPage = 100, page = 1, signal } = {}) {
@@ -113,13 +104,7 @@ export async function fetchWordpressReportsSnapshot({ perPage = 100, page = 1, s
     headers: { Accept: 'application/json' },
   });
 
-  const payload = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(payload?.message || payload?.error || 'No se pudo consultar la API de reportes de WordPress.');
-  }
-
-  return payload;
+  return readApiResponse(response, 'No se pudo consultar la API de reportes de WordPress.');
 }
 
 export async function fetchWordpressPlayerInsights({ username = '', rid = '', signal } = {}) {
@@ -135,12 +120,7 @@ export async function fetchWordpressPlayerInsights({ username = '', rid = '', si
     headers: { Accept: 'application/json' },
   });
 
-  const payload = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(payload?.message || payload?.error || 'No se pudieron consultar los insights en WordPress.');
-  }
-
+  const payload = await readApiResponse(response, 'No se pudieron consultar los insights en WordPress.');
   return payload?.player ?? null;
 }
 
@@ -168,11 +148,5 @@ export async function submitWordpressCommunityVerificationVote({
     }),
   });
 
-  const payload = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(payload?.message || payload?.error || 'No se pudo registrar la verificacion comunitaria en WordPress.');
-  }
-
-  return payload;
+  return readApiResponse(response, 'No se pudo registrar la verificacion comunitaria en WordPress.');
 }

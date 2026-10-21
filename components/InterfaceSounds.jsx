@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { createInterfaceAudio } from '../src/services/interfaceAudio';
 import { getInterfaceHover } from '../src/services/interfaceHover';
 
-const DIALOGS = '.modal, .rfm-confirmation, .delete-confirm-modal, .ai-bubble__panel, .image-viewer, .image-viewer-overlay';
+const DIALOGS = '.modal, .rfm-confirmation, .ai-bubble__panel, .image-viewer';
 const CLOSE_ACTIONS = '.modal__close, .ai-bubble__close, [data-ui-sound="reject"]';
 
 export default function InterfaceSounds() {

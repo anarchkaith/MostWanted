@@ -3,6 +3,12 @@ import { resolvePlayerRid } from '../../shared/playerIdentity.js';
 export const CASE_STATUSES = { open: 'Abierto', investigating: 'En investigación', closed: 'Cerrado' };
 export const VALIDATION_LABELS = { pendiente: 'Pendiente', investigando: 'En investigación', verificado: 'Verificado', rechazado: 'Rechazado' };
 export const SEVERITY_LABELS = { baja: 'Baja', media: 'Media', alta: 'Alta', critica: 'Crítica' };
+export const CATEGORY_LABELS = { modder: 'MODDER', griffer: 'GRIFFER', ardido: 'ARDIDO' };
+
+export function formatReportDate(value) {
+  if (!value || !Number.isFinite(new Date(value).getTime())) return 'Fecha desconocida';
+  return new Date(value).toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' });
+}
 
 export function normalizeReportSeverity(value) {
   const key = typeof value === 'string' ? value.trim().toLowerCase() : '';

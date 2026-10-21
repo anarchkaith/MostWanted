@@ -66,7 +66,7 @@ body {
   79% { clip-path: inset(31% 0 55%); transform: translate(-3px, 0); }
 }
 /* Frame backgrounds, not the containers: menus, focus outlines and tooltips must escape. */
-:is(.desk-access, .case-file, .case-reports, .rfm-panel, .controls, .report-card, .tipo-card, .modal, .rfm-confirmation, .delete-confirm-modal, .ai-bubble__panel) {
+:is(.desk-access, .case-file, .case-reports, .rfm-panel, .controls, .report-card, .tipo-card, .modal, .rfm-confirmation, .ai-bubble__panel) {
   isolation: isolate;
   border: 0;
   border-radius: 0;
@@ -75,8 +75,8 @@ body {
   clip-path: none;
   --hex-frame-color: var(--surface-border);
 }
-:is(.desk-access, .case-file, .case-reports, .rfm-panel, .controls, .report-card, .tipo-card, .modal, .rfm-confirmation, .delete-confirm-modal) { position: relative; }
-:is(.desk-access, .case-file, .case-reports, .rfm-panel, .controls, .report-card, .tipo-card, .modal, .rfm-confirmation, .delete-confirm-modal, .ai-bubble__panel)::before {
+:is(.desk-access, .case-file, .case-reports, .rfm-panel, .controls, .report-card, .tipo-card, .modal, .rfm-confirmation) { position: relative; }
+:is(.desk-access, .case-file, .case-reports, .rfm-panel, .controls, .report-card, .tipo-card, .modal, .rfm-confirmation, .ai-bubble__panel)::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -90,7 +90,7 @@ body {
   background: var(--hex-frame-color);
   pointer-events: none;
 }
-:is(.desk-access, .case-file, .case-reports, .rfm-panel, .controls, .report-card, .tipo-card, .modal, .rfm-confirmation, .delete-confirm-modal, .ai-bubble__panel)::after {
+:is(.desk-access, .case-file, .case-reports, .rfm-panel, .controls, .report-card, .tipo-card, .modal, .rfm-confirmation, .ai-bubble__panel)::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -100,14 +100,10 @@ body {
   backdrop-filter: saturate(140%) blur(6px);
   pointer-events: none;
 }
-.desk-access, .modal, .rfm-confirmation, .delete-confirm-modal { --hex-border: 1px; }
+.desk-access, .modal, .rfm-confirmation { --hex-border: 1px; }
 .modal { max-height: none; overflow: visible; flex-shrink: 0; }
-.delete-confirm-overlay { overflow-y: auto; padding: 24px; }
-.delete-confirm-modal { max-height: none; overflow: visible; overflow-wrap: anywhere; flex-shrink: 0; }
 .rfm-confirmation { max-height: none; overflow: visible; margin: auto; }
 .rfm-confirmation-overlay { align-items: start; }
-.delete-confirm-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 16px; width: 100%; }
-.delete-confirm-actions > button { flex: 1 1 140px; --button-padding-h: 1rem; }
 .case-file__header, .case-reports__header, .modal__header, .ai-bubble__header {
   background: linear-gradient(110deg, #ff33330d, #111111b3);
   border-bottom: 1px solid #ffffff1c;
@@ -134,11 +130,10 @@ table:is(.case-table, .mw-cyber-table) { --ac: var(--hex-frame-color, var(--surf
 .case-badge, .rfm-optional { border-color: #ffffff38; background: #ffffff05; }
 .person-search__results { border-top-width: 1px; background: #141414f5; backdrop-filter: blur(8px); }
 
-.modal-overlay, .rfm-confirmation-overlay, .delete-confirm-overlay { background: #000000bd; backdrop-filter: blur(5px); }
+.modal-overlay, .rfm-confirmation-overlay { background: #000000bd; backdrop-filter: blur(5px); }
 .modal-overlay::before { content: none; }
 .modal::before, .modal::after,
-.rfm-confirmation::before, .rfm-confirmation::after,
-.delete-confirm-modal::before, .delete-confirm-modal::after { animation: hex-panel-enter 320ms ease-out both; }
+.rfm-confirmation::before, .rfm-confirmation::after { animation: hex-panel-enter 320ms ease-out both; }
 .modal__header, .rfm-confirmation h2 { animation: hex-content-enter 240ms 90ms ease-out both; }
 .modal__title { position: relative; padding-bottom: 8px; }
 .modal__title::after { content: ''; position: absolute; inset: auto 0 0; height: 2px; background: var(--hex-frame-color); transform-origin: left; animation: hex-heading-enter 260ms 120ms ease-out both; }

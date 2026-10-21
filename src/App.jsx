@@ -10,7 +10,6 @@ import Skeleton from '../components/ui/Skeleton';
 import AppHeader from '../components/layout/AppHeader';
 import DeskNavigation from '../components/layout/DeskNavigation';
 import SiteFooter from '../components/layout/SiteFooter';
-import AdminBanner from '../components/layout/AdminBanner';
 import SessionActions from '../components/layout/SessionActions';
 import AccessScreen from '../components/screens/AccessScreen';
 import ReportScreen from '../components/screens/ReportScreen';
@@ -18,16 +17,9 @@ import useSession from './hooks/useSession';
 import useAppNavigation from './hooks/useAppNavigation';
 import useReportArchive from './hooks/useReportArchive';
 import { handleInternalLink } from './services/appNavigation';
-import { getApiBaseUrl } from './services/apiConfig';
-import { assignExpedienteIds } from './services/expedienteIds';
-import { mapWordpressReportToReporte, normalizeReporte, normalizeComentariosFromCommunityVerification } from './services/reportViewModel';
+import { mapWordpressReportToReporte } from './services/reportViewModel';
 import { resolvePlayerRid } from '../shared/playerIdentity';
 import { playerPath } from './services/playerRoute';
-import {
-  submitWordpressCommunityVerificationVote,
-} from './services/reportSubmissionService';
-
-const API_BASE_URL = getApiBaseUrl();
 
 function App() {
   const [caseRevision, setCaseRevision] = useState(0);
@@ -42,7 +34,7 @@ function App() {
       { ...player, source: 'Analizado en esta sesión' },
     ]);
   }, []);
-  const { reportes, setReportes, reportsError, isLoading, fetchReportsFromAPI, getUserVotes } = useReportArchive();
+  const { reportes, setReportes, reportsError, isLoading, refreshReports, voteOnReport, getUserVotes } = useReportArchive();
   const detailReturnPath = useRef('/');
   const formReturnPath = useRef('/');
   const resetDesk = useCallback(() => {
@@ -56,28 +48,11 @@ function App() {
   // Estado para el modal de detalle
   const [reporteSeleccionado, setReporteSeleccionado] = useState(null);
 
-  // Estado de modo admin (activar con ?admin=1 o localStorage)
-  const [isAdmin, setIsAdmin] = useState(false);
-
   // Estado de modo demo (activar con ?demo=true)
   const [isDemo] = useState(() => {
     const urlParams = new URLSearchParams(window.location.search);
     return urlParams.get('demo') === 'true';
   });
-
-  // Verificar URL de expediente y modo admin al cargar
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const adminParam = urlParams.get('admin');
-    const storedAdmin = localStorage.getItem('mostwanted_admin');
-
-    if (adminParam === '1' || adminParam === 'true') {
-      setIsAdmin(true);
-      localStorage.setItem('mostwanted_admin', 'true');
-    } else if (storedAdmin === 'true') {
-      setIsAdmin(true);
-    }
-  }, []);
 
   // Manejar navegación por URL (abrir expediente desde URL)
   useEffect(() => {
@@ -135,219 +110,14 @@ function App() {
     rememberPlayer(refreshedPlayer);
     formReturnPath.current = refreshedPlayer.nickname ? playerPath(refreshedPlayer.nickname) : '/';
     setCaseRevision(value => value + 1);
-    try {
-      const data = await fetchReportsFromAPI();
-      const userVotes = getUserVotes();
-      const normalizados = assignExpedienteIds(data).map(r => ({
-        ...normalizeReporte(r),
-        userVote: userVotes[r.id] || null,
-      }));
-
-      setReportes(normalizados);
-      return;
-    } catch (error) {
-      console.warn('No se pudo refrescar desde WordPress tras el envio. Se aplicara fallback local.', error);
-    }
-
-    const usuarioFallback = String(nuevoReporte?.nickname || nuevoReporte?.username || nuevoReporte?.usuario || '').trim();
-
-    const nuevoNormalizado = normalizeReporte({
-      ...nuevoReporte,
-      id: Date.now(),
-      usuario: usuarioFallback || 'USUARIO_SIN_NOMBRE',
-      fecha: new Date().toISOString().slice(0, 10),
-      reportadoPor: 'ANONIMO',
-      botSyncStatus: submissionResult?.botDelivery?.ok ? 'delivered' : 'pending',
-      botSyncAt: new Date().toISOString(),
-      botSyncError: submissionResult?.botDelivery?.ok ? '' : (submissionResult?.botDelivery?.message || submissionResult?.warning || '')
-    });
-
-    const nuevosReportes = assignExpedienteIds([nuevoNormalizado, ...reportes]);
-    setReportes(nuevosReportes);
-    localStorage.setItem('mostwanted_reportes', JSON.stringify(nuevosReportes));
+    return refreshReports();
   };
-
-  // Manejar validación de reporte por admin
-  const handleValidate = useCallback(async (reporteId, validacion) => {
-    try {
-      // Actualizar en la API
-      const response = await fetch(`${API_BASE_URL}/reportes/${reporteId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          validacion: validacion.validacion,
-          adminNota: validacion.adminNota,
-          fechaValidacion: validacion.fechaValidacion
-        })
-      });
-
-      if (!response.ok) throw new Error('Error al validar');
-
-      const data = await response.json();
-      const reporteActualizado = data.reporte;
-
-      // Actualizar estado local
-      const reportesActualizados = reportes.map(reporte =>
-        reporte.id === reporteId ? { ...reporte, ...reporteActualizado } : reporte
-      );
-
-      setReportes(reportesActualizados);
-      localStorage.setItem('mostwanted_reportes', JSON.stringify(reportesActualizados));
-
-      // Actualizar el reporte seleccionado si es el mismo
-      if (reporteSeleccionado && reporteSeleccionado.id === reporteId) {
-        setReporteSeleccionado({ ...reporteSeleccionado, ...reporteActualizado });
-      }
-    } catch (error) {
-      console.error('Error al validar reporte:', error);
-      // Fallback a localStorage si la API falla
-      const reportesActualizados = reportes.map(reporte => {
-        if (reporte.id === reporteId) {
-          return {
-            ...reporte,
-            validacion: validacion.validacion,
-            adminNota: validacion.adminNota,
-            fechaValidacion: validacion.fechaValidacion
-          };
-        }
-        return reporte;
-      });
-
-      setReportes(reportesActualizados);
-      localStorage.setItem('mostwanted_reportes', JSON.stringify(reportesActualizados));
-
-      if (reporteSeleccionado && reporteSeleccionado.id === reporteId) {
-        const actualizado = reportesActualizados.find(r => r.id === reporteId);
-        setReporteSeleccionado(actualizado);
-      }
-    }
-  }, [reportes, reporteSeleccionado]);
-
-  // Manejar edición de reporte por admin
-  const handleEdit = useCallback((reporteActualizado) => {
-    // Mapear votosFavor/votosContra a votos.up/votos.down
-    const votos = {
-      up: reporteActualizado.votosFavor ?? (reporteActualizado.votos?.up ?? 0),
-      down: reporteActualizado.votosContra ?? (reporteActualizado.votos?.down ?? 0),
-      comentarios: reporteActualizado.comentariosVotos || []
-    };
-    const reporteConVotos = { ...reporteActualizado, votos };
-    const reportesActualizados = reportes.map(reporte =>
-      reporte.id === reporteConVotos.id ? reporteConVotos : reporte
-    );
-
-    setReportes(reportesActualizados);
-    // Guardar edición individual en localStorage por id
-    const edits = JSON.parse(localStorage.getItem('mostwanted_edits') || '{}');
-    edits[reporteConVotos.id] = { ...reporteConVotos };
-    localStorage.setItem('mostwanted_edits', JSON.stringify(edits));
-    localStorage.setItem('mostwanted_reportes', JSON.stringify(reportesActualizados));
-
-    // Actualizar el reporte seleccionado
-    setReporteSeleccionado(reporteConVotos);
-  }, [reportes]);
-
-  // Manejar eliminación de reporte por admin
-  const handleDelete = useCallback(async (reporteId) => {
-    try {
-      // Eliminar en la API
-      const response = await fetch(`${API_BASE_URL}/reportes/${reporteId}`, {
-        method: 'DELETE'
-      });
-
-      if (!response.ok) throw new Error('Error al eliminar');
-
-      // Actualizar estado local
-      const reportesActualizados = reportes.filter(reporte => reporte.id !== reporteId);
-      setReportes(reportesActualizados);
-      localStorage.setItem('mostwanted_reportes', JSON.stringify(reportesActualizados));
-
-      // Cerrar el modal si el reporte eliminado es el seleccionado
-      if (reporteSeleccionado && reporteSeleccionado.id === reporteId) {
-        setReporteSeleccionado(null);
-      }
-    } catch (error) {
-      console.error('Error al eliminar reporte:', error);
-      // Fallback a localStorage si la API falla
-      const reportesActualizados = reportes.filter(reporte => reporte.id !== reporteId);
-      setReportes(reportesActualizados);
-      localStorage.setItem('mostwanted_reportes', JSON.stringify(reportesActualizados));
-
-      if (reporteSeleccionado && reporteSeleccionado.id === reporteId) {
-        setReporteSeleccionado(null);
-      }
-    }
-  }, [reportes, reporteSeleccionado]);
 
   // Cuando el usuario vota, persistir en WordPress y refrescar el reporte local.
   const handleVote = async (reporteId, votePayload = {}) => {
-    const reporteActual = reportes.find((item) => item.id === reporteId);
-    if (!reporteActual) {
-      throw new Error('No se encontró el reporte para registrar el voto.');
-    }
-
-    const voteType = votePayload?.voteType;
-    const reason = String(votePayload?.reason || '').trim();
-    const voterNameInput = String(votePayload?.voterName || '').trim();
-
-    if (!['up', 'down'].includes(voteType)) {
-      throw new Error('El tipo de voto es invalido.');
-    }
-
-    if (voteType === 'down' && reason.length < 8) {
-      throw new Error('Debes explicar por qué el reporte es falso (minimo 8 caracteres).');
-    }
-
-    if (voteType === 'down' && voterNameInput.length < 2) {
-      throw new Error('Debes indicar el nombre de quien confirma el reporte falso.');
-    }
-
-    const voterName = voterNameInput || (user?.username
-      ? (user?.discriminator && user.discriminator !== '0'
-        ? `${user.username}#${user.discriminator}`
-        : user.username)
-      : 'Comunidad');
-
-    const voteResponse = await submitWordpressCommunityVerificationVote({
-      reportId: Number(reporteActual?.id),
-      voteType,
-      reason,
-      voterName,
-    });
-
-    const communityVerification = voteResponse?.communityVerification || {};
-    const up = Number(communityVerification?.up) || 0;
-    const down = Number(communityVerification?.down) || 0;
-    const comentarios = normalizeComentariosFromCommunityVerification(communityVerification);
-
-    const votosUsuario = JSON.parse(localStorage.getItem('mostwanted_user_votes') || '{}');
-    votosUsuario[reporteId] = voteType;
-    localStorage.setItem('mostwanted_user_votes', JSON.stringify(votosUsuario));
-
-    let updatedSelected = null;
-    const updatedReportes = reportes.map((item) => {
-      if (item.id !== reporteId) return item;
-      const nextItem = {
-        ...item,
-        votos: { up, down, comentarios },
-        userVote: voteType,
-      };
-      updatedSelected = nextItem;
-      return nextItem;
-    });
-
-    setReportes(updatedReportes);
+    const result = await voteOnReport(reporteId, votePayload, user);
     setCaseRevision(value => value + 1);
-    localStorage.setItem('mostwanted_reportes', JSON.stringify(updatedReportes));
-
-    if (updatedSelected && reporteSeleccionado?.id === reporteId) {
-      setReporteSeleccionado(updatedSelected);
-    }
-
-    return {
-      userVote: voteType,
-      votos: { up, down, comentarios },
-    };
+    return result;
   };
 
   const handleLogout = async () => {
@@ -383,12 +153,6 @@ function App() {
     <div className={`app-container${canUseReports ? '' : ' app-container--access'}`} style={{ position: 'relative' }}>
       <InterfaceSounds />
 
-      {/* ============ ADMIN BANNER ============ */}
-      {isAdmin && <AdminBanner onDisable={() => {
-        setIsAdmin(false);
-        localStorage.removeItem('mostwanted_admin');
-      }} />}
-
       {/* ============ HEADER ============ */}
       <AppHeader
         search={canUseReports && <PersonSearch revision={caseRevision} reports={reportes} knownPlayers={knownPlayers} onSelect={player => {
@@ -419,11 +183,7 @@ function App() {
         <ReportDetailModal
           reporte={reporteSeleccionado}
           onClose={handleCloseDetail}
-          onValidate={handleValidate}
           onVote={handleVote}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-          isAdmin={isAdmin}
         />
       )}
 

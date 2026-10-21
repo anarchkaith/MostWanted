@@ -1,5 +1,5 @@
 ﻿import VoteSystem from './VoteSystem';
-import { normalizeReportSeverity, SEVERITY_LABELS } from '../src/services/casePresentation';
+import { CATEGORY_LABELS, normalizeReportSeverity, SEVERITY_LABELS } from '../src/services/casePresentation';
 
 /**
  * ReportCard - Componente para mostrar una ficha individual de reporte
@@ -7,13 +7,6 @@ import { normalizeReportSeverity, SEVERITY_LABELS } from '../src/services/casePr
  * Muestra estado de validación y votos comunitarios
  */
 const ReportCard = ({ reporte, onClick, onVote }) => {
-  // Mapeo de categorías a etiquetas legibles
-  const categoryLabels = {
-    modder: 'MODDER',
-    griffer: 'GRIFFER',
-    ardido: 'ARDIDO'
-  };
-
   // Mapeo de validación
   const validationIcons = {
     pendiente: '⏳',
@@ -70,7 +63,7 @@ const ReportCard = ({ reporte, onClick, onVote }) => {
       <header className="report-card__header">
         <h3 className="report-card__user notranslate" translate="no">{reporte.usuario || 'USUARIO_SIN_NOMBRE'}</h3>
         <span className={`report-card__tag report-card__tag--${categoria}`}>
-          {categoryLabels[categoria] || categoria.toUpperCase()}
+          {CATEGORY_LABELS[categoria] || categoria.toUpperCase()}
         </span>
       </header>
 

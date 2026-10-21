@@ -427,7 +427,10 @@ const ReportFormModal = ({ onSubmit, currentUser = null, isDemo = false, initial
             setSubmissionWarning(submissionResult?.warning || '');
 
             try {
-              await onSubmit?.(nuevoReporte, submissionResult);
+              const refreshResult = await onSubmit?.(nuevoReporte, submissionResult);
+              if (refreshResult?.warning) {
+                setSubmissionWarning(current => [current, refreshResult.warning].filter(Boolean).join(' '));
+              }
             } catch (callbackError) {
               console.warn('[MostWanted] onSubmit callback fallo despues del envio exitoso.', callbackError);
               setSubmissionWarning(current => [current, 'El reporte se guardó, pero no se pudo refrescar la ficha. Vuelve a buscar al jugador para actualizarla.'].filter(Boolean).join(' '));
