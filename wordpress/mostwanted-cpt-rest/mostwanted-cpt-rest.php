@@ -2,7 +2,7 @@
 /**
  * Plugin Name: MostWanted CPT + REST
  * Description: CPT de jugadores/reportes y API REST para ingesta y consulta desde MostWanted.
- * Version: 0.6.4
+ * Version: 0.6.9
  * Author: KaithHacks
  */
 
@@ -13,9 +13,11 @@ if (!defined('ABSPATH')) {
 const MW_NAMESPACE = 'mostwanted/v1';
 const MW_SECRET_OPTION_KEY = 'mostwanted_api_secret';
 
+require_once __DIR__ . DIRECTORY_SEPARATOR . 'report-admin.php';
+
 function mw_register_post_types() {
     register_post_type('mw_player', [
-        'label' => 'MostWanted Players',
+        'label' => 'Jugadores MostWanted',
         'public' => false,
         'show_ui' => true,
         'show_in_rest' => true,
@@ -24,7 +26,17 @@ function mw_register_post_types() {
     ]);
 
     register_post_type('mw_report', [
-        'label' => 'MostWanted Reports',
+        'label' => 'Reportes MostWanted',
+        'labels' => [
+            'name' => 'Reportes MostWanted',
+            'singular_name' => 'Reporte MostWanted',
+            'menu_name' => 'MostWanted',
+            'all_items' => 'Reportes',
+            'edit_item' => 'Corregir reporte',
+            'add_new_item' => 'Nuevo reporte',
+            'search_items' => 'Buscar reportes',
+            'not_found' => 'No se encontraron reportes.',
+        ],
         'public' => true,
         'publicly_queryable' => true,
         'exclude_from_search' => true,
@@ -32,7 +44,7 @@ function mw_register_post_types() {
         'rewrite' => ['slug' => 'reportes', 'with_front' => false],
         'show_ui' => true,
         'show_in_rest' => true,
-        'supports' => ['title', 'editor', 'custom-fields'],
+        'supports' => ['title'],
         'menu_icon' => 'dashicons-warning',
     ]);
 }
@@ -545,8 +557,16 @@ function mw_normalize_crews_from_payload($payload) {
         ];
     };
 
-    $crews_objects = is_array($payload['crews'] ?? null) ? $payload['crews'] : [];
+    $crews_objects = $payload['crews'] ?? [];
+    if (is_string($crews_objects)) {
+        $crews_objects = preg_split('/[,;|\r\n]+/', $crews_objects, -1, PREG_SPLIT_NO_EMPTY);
+    }
+    $crews_objects = is_array($crews_objects) ? $crews_objects : [];
     foreach ($crews_objects as $crew) {
+        if (is_string($crew)) {
+            $push($crew);
+            continue;
+        }
         if (!is_array($crew)) {
             continue;
         }
@@ -845,43 +865,7 @@ function mw_map_report_item($report_post_id) {
     $analysis = is_array($safe_payload['analysis'] ?? null) ? $safe_payload['analysis'] : mw_safe_meta_array($report_post_id, '_mw_analysis');
     $created_at = mw_str(get_post_meta($report_post_id, '_mw_created_at', true));
     $community_verification = mw_get_community_verification($report_post_id);
-    $player_post_id = intval(get_post_meta($report_post_id, '_mw_player_post_id', true));
-
-    $crews = $safe_payload['crews'] ?? null;
-    if (!is_array($crews)) {
-        $crews = mw_safe_meta_array($player_post_id, '_mw_crews_data');
-    }
-
-    if (is_array($crews)) {
-        $normalized_crews = [];
-        $seen_crews = [];
-        foreach ($crews as $crew) {
-            if (!is_array($crew)) {
-                continue;
-            }
-            $name = mw_str($crew['name'] ?? '');
-            if ($name === '') {
-                continue;
-            }
-            $url = mw_str($crew['url'] ?? '');
-
-            $key = mb_strtolower($name);
-            if (isset($seen_crews[$key])) {
-                $index = intval($seen_crews[$key]);
-                if ($url !== '' && mw_str($normalized_crews[$index]['url'] ?? '') === '') {
-                    $normalized_crews[$index]['url'] = $url;
-                }
-                continue;
-            }
-
-            $seen_crews[$key] = count($normalized_crews);
-            $normalized_crews[] = [
-                'name' => $name,
-                'url' => $url,
-            ];
-        }
-        $crews = $normalized_crews;
-    }
+    $crews = mw_normalize_crews_from_payload($safe_payload);
 
     $aliases = mw_aliases_from_mixed($safe_payload['aliases'] ?? []);
 

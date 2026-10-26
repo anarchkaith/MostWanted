@@ -1,6 +1,18 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { handleInternalLink, navigateApp, readAppRoute } from './appNavigation.js';
+import { handleInternalLink, isSearchLanding, navigateApp, readAppRoute } from './appNavigation.js';
+
+test('centered search is only the home screen without a selected player', () => {
+  for (const player of [null, undefined, {}, { nickname: '', rid: '' }]) {
+    assert.equal(isSearchLanding('/', player), true);
+  }
+  for (const player of [{ nickname: 'Player' }, { rid: '123' }]) {
+    assert.equal(isSearchLanding('/', player), false);
+  }
+  for (const path of ['/perfil', '/denunciar', '/jugador/Player', '/jugador/123', '/usuario/Player', '/reporte/42', '/expediente/17']) {
+    assert.equal(isSearchLanding(path, null), false, path);
+  }
+});
 
 test('route parsing preserves public report, expediente, player, profile and callback paths', () => {
   for (const path of ['/', '/denunciar', '/perfil', '/usuario/Player', '/jugador/123', '/jugador/Player%20Name']) {

@@ -1,5 +1,9 @@
 export const RETURN_PATH_STORAGE_KEY = 'mostwanted_return_path';
 
+export function isSearchLanding(path, player) {
+  return path === '/' && !player?.nickname && !player?.rid;
+}
+
 export function readAppRoute(path) {
   const expediente = /^\/expediente\/(\d+)$/.exec(path);
   const report = /^\/reporte\/(\d+)$/.exec(path);

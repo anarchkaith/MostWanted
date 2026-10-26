@@ -14,6 +14,8 @@ Plataforma comunitaria de reportes para rastrear jugadores tóxicos (modders, gr
 
 ### Despacho y cuenta
 
+Al iniciar sesión en la página principal sin un jugador seleccionado, el buscador aparece centrado y se ocultan la navegación del archivo y los paneles vacíos. Al consultar un jugador, el buscador vuelve al encabezado y se muestra su expediente. Las rutas directas de jugadores, reportes, denuncias y perfil conservan sus pantallas habituales.
+
 El buscador acepta nombres, alias y RID. La ficha sitúa los avatares actuales junto a **Identificación** y mantiene el archivo de avatares anteriores por separado. Cada nombre dispone de un enlace **Ver perfil** a Social Club. Los datos pendientes muestran skeletons accesibles, sin animación cuando se solicita movimiento reducido. No se muestra la fecha de consulta: **Estado del caso** aparece solo para un caso registrado (también si está abierto), y **Verificación comunitaria** solo cuando existen votos.
 
 La ficha utiliza un bento grid organizado por jerarquía de consulta: identidad con avatares y acciones del caso en la primera franja; análisis HEX con valoración comunitaria en la segunda; nombres, crews y archivo fotográfico como antecedentes secundarios. La identidad y el análisis tienen mayor peso visual que los datos auxiliares. Cada franja se adapta independientemente a los paneles disponibles, sin reservar celdas vacías. En tablet, las acciones forman una barra compacta y el análisis ocupa todo el ancho; en móvil todo se apila en el mismo orden de lectura, sin reordenar visualmente el foco de teclado.

@@ -4,7 +4,7 @@ Plugin WordPress para registrar CPT de jugadores/reportes y exponer endpoints RE
 
 ## 1) Instalacion rapida
 
-Versión 0.6.4: añade la vinculación privada de reportes con su propietario de Discord y la consulta protegida de reportes propios. Requiere desplegar también el backend y frontend actualizados. Los reportes anteriores sin vinculación privada no se atribuyen por nombres.
+Versión 0.6.9: el editor muestra únicamente los campos del formulario de denuncia de MostWanted, en su mismo orden: Jugador, Datos adicionales, Infracciones, Motivo, Evidencias y Conductas. Elimina los controles de análisis, severidad, validación, avatares, anonimato, fecha, origen y estado de investigación; sus valores guardados se conservan internamente. La moderación de votos tiene un panel aparte. Mantiene la sincronización de correcciones con la ficha del jugador.
 
 Conserva nombres, crews y URLs de avatares al recibir nuevos reportes. Los datos vacíos no borran avatares conocidos y los nombres ausentes del reporte nuevo mantienen su fecha previa. La consulta por nombres históricos usa los alias registrados y nunca combina RIDs conocidos diferentes. `player-insights` añade `avatarHistory` y `crewHistory`, con fechas de registro cuando se conocen; no convierte los datos reportados en identidad externa verificada. El historial conserva URLs, no copias de imágenes alojadas por terceros.
 
@@ -26,7 +26,35 @@ define('MOSTWANTED_API_SECRET', 'cambia-esto-por-un-secreto-seguro');
 
 4. Guarda enlaces permanentes (WordPress suele refrescar reglas automaticamente al activar, esto es por seguridad extra).
 
-## 2) Endpoints
+## 2) Editar metadata desde WordPress
+
+1. Abre **MostWanted → Reportes** en el administrador y selecciona **Editar** en un reporte.
+2. En **Jugador**, corrige el nombre. **Datos adicionales** muestra el RID de la cuenta asociada (solo lectura), **Crews** como un único campo separado por comas y **Otros nombres conocidos** como información de solo lectura, igual que la web. Las crews sin cambios conservan sus enlaces guardados; un nombre corregido no conserva el enlace de la crew anterior.
+3. En **Infracciones**, marca una o varias categorías. En **Conductas**, elige opciones agrupadas por las infracciones seleccionadas, sin identificadores, texto personalizado ni campos de detalle. Al cambiar categorías, se limpian las conductas seleccionadas, igual que en la web. Las opciones históricas desconocidas se muestran solo para conservarlas o quitarlas, sin crear nuevas categorías arbitrarias. El catálogo replica `components/tiposEtiquetas.js`; si cambia en la aplicación, actualiza `mw_report_form_catalog()` conservando el orden de identificadores.
+4. **Motivo** tiene contador y límite de 500 caracteres; un texto histórico más largo se conserva sin truncarlo. Los cambios requieren un mínimo de 10 caracteres.
+5. **Evidencias** muestra una galería con botones para quitar imágenes y seleccionar/subir otras desde la biblioteca nativa de WordPress. No hay campos para URL, nombre o MIME: los datos se obtienen del archivo seleccionado en el servidor. Admite JPG, PNG, GIF y WEBP de hasta 5 MB, máximo cinco imágenes como la web. Los adjuntos históricos, incluidos otros formatos o listas de más de cinco, se conservan mientras no se quiten; la lista no puede crecer por encima de su tamaño histórico. Quitar una evidencia no borra el archivo original. La biblioteca nativa sustituye al uploader ImgBB de la web; no se envían imágenes a terceros desde el plugin.
+6. **Moderación de votos** es un metabox independiente, fuera del formulario de denuncia. Permite corregir los motivos de Falso o marcar **Eliminar voto completo al guardar**. La eliminación quita el motivo y el registro del votante y descuenta un voto «Falso»; editar solo el motivo no cambia contadores. Los motivos históricos sin registro de votante se pueden moderar sin reconstruir identidades. No se reinician los contadores históricos ni los votos «Verdadero».
+7. Pulsa **Actualizar** en el editor. El plugin valida todos los campos antes de escribir y sincroniza la metadata con el payload que consume la API. Si hay un error de validación no escribe cambios. Si los votos cambiaron mientras editabas, bloquea el guardado y pide recargar para evitar sobrescribir votos nuevos. Un formulario truncado por `max_input_vars` también se rechaza explícitamente. Los errores de base de datos se muestran y requieren revisar los datos antes de reintentar.
+
+El título sigue siendo independiente de la metadata. El editor de contenido y el panel genérico de campos personalizados se ocultan para los reportes: el motivo que muestra la aplicación se edita en **Motivo**. El plugin no añade controles para análisis, confianza, directivas, corrupción, severidad, validación, avatares, fecha, origen, anonimato o estado de investigación. Estos datos se conservan en el servidor sin reenviarlos en campos ocultos editables. Tampoco se modifica el RID ni los alias desde el formulario simplificado. Esto no borra contenido histórico ni cambia el CPT de jugadores. La autoría y el propietario de Discord siguen privados. Las identidades e IPs de votantes no se muestran; los motivos y contadores sí son públicos. Las cajas adicionales de Yoast, LiteSpeed u otros plugins son independientes de este formulario y no se eliminan.
+
+### Correcciones e historial del jugador
+
+Al guardar, se consultan todos los reportes actuales asociados al jugador por metadata o relación padre (publicados, privados, borradores, pendientes y programados; no papelera) y se recalculan nombres, crews, URLs, avatares, estado de investigación y número de reportes. No se usa la operación de ingesta: editar no suma reportes ni asigna una fecha nueva de recepción. La identidad principal procede del reporte más reciente; un nombre corregido en un reporte anterior queda como antecedente si hay reportes posteriores.
+
+- Editar el campo **Crews** reemplaza las crews del reporte, no agrega otra observación al historial anterior. Vaciarlo deja una lista vacía explícita.
+- Si otro reporte todavía registra la crew, alias o avatar anterior, permanece como antecedente válido. Corrige también ese otro reporte si contiene el mismo error.
+- Los reportes antiguos sin crews explícitas ya no heredan las crews agregadas del jugador como si fueran evidencia propia. Las crews en formato de texto antiguo se normalizan.
+- El historial agregado sin respaldo en ningún reporte actual se elimina al recalcular. Antes de actualizar, realiza una copia de seguridad si tienes datos importados o agregados manualmente solo al perfil.
+- Para reparar una edición hecha con 0.6.7, vuelve a abrir el reporte ya corregido y pulsa **Actualizar**: la sincronización es idempotente y limpia las copias anteriores sin volver a sumar datos.
+- MostWanted combina el archivo de WordPress con **Social Club**. Estos datos externos no se modifican ni se ocultan desde el plugin; una crew que aparezca con esa fuente puede seguir visible.
+- No es una herramienta para fusionar o mover reportes entre cuentas. Necesitas permisos de edición tanto del reporte como del jugador asociado. Las identidades con RIDs incompatibles se bloquean antes del guardado.
+
+Los errores de sincronización de base de datos se notifican explícitamente. El guardado no es transaccional: si el reporte se guardó pero la ficha no pudo completarse, reintentar **Actualizar** reconstruye la ficha desde los datos persistidos. Se requieren nonce válido y formulario completo; los autosaves, revisiones y guardados que no incluyen el panel no alteran estos datos. Si hay caché REST/CDN, púrgala y vuelve a consultar la ficha en MostWanted para ver las correcciones.
+
+Pruebas locales del editor: `php wordpress/mostwanted-cpt-rest/reportAdmin.test.php`. Incluyen reemplazo/eliminación de crews, enlaces corregidos, antecedentes de otros reportes, nombres y avatares, contadores, RIDs incompatibles y reintentos tras fallos de sincronización. Para una actualización manual, copia la carpeta completa del plugin (incluidos `report-admin.php`, `report-admin-form.php`, `report-profile-sync.php`, `report-admin.js` y `report-admin.css`), no solo el archivo principal. Los botones para agregar, quitar y seleccionar archivos requieren JavaScript. Los assets solo se cargan al editar reportes, no en el resto del administrador ni en la aplicación pública.
+
+## 3) Endpoints
 
 Base: `/wp-json/mostwanted/v1`
 
@@ -55,7 +83,7 @@ Historial y actualizaciones parciales: `php wordpress/mostwanted-cpt-rest/profil
 
 Los titulos de `mw_player` y `mw_report` se normalizan como `NICKNAME [RID <valor>]` cuando hay RID.
 
-## 3) Pruebas inmediatas con curl
+## 4) Pruebas inmediatas con curl
 
 ### Health
 
@@ -95,7 +123,7 @@ curl -X POST "https://TU-WP/wp-json/mostwanted/v1/players/load-default" \
 
 Puedes sobreescribir campos enviando cualquier dato del payload en el body.
 
-## 4) Integracion con backend MostWanted
+## 5) Integracion con backend MostWanted
 
 En el backend Node de este repo:
 
@@ -106,7 +134,7 @@ En el backend Node de este repo:
 
 Con eso, `/api/reports` y `/api/reports/health` se enrutan a WordPress.
 
-## 5) Notas
+## 6) Notas
 
 - No crees los mismos CPT con otro plugin visual usando los mismos slugs (`mw_player`, `mw_report`).
 - Si ya existen contenidos previos, manteniendo slugs no deberias perderlos.

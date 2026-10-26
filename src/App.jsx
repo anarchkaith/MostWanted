@@ -16,7 +16,7 @@ import ReportScreen from '../components/screens/ReportScreen';
 import useSession from './hooks/useSession';
 import useAppNavigation from './hooks/useAppNavigation';
 import useReportArchive from './hooks/useReportArchive';
-import { handleInternalLink } from './services/appNavigation';
+import { handleInternalLink, isSearchLanding } from './services/appNavigation';
 import { mapWordpressReportToReporte } from './services/reportViewModel';
 import { resolvePlayerRid } from '../shared/playerIdentity';
 import { playerPath } from './services/playerRoute';
@@ -148,21 +148,23 @@ function App() {
     : path.startsWith('/reporte/') ? detailReturnPath.current : path;
   const archivePath = returnPath === '/perfil' ? '/' : returnPath;
   const isProfileScreen = path === '/perfil' || (path.startsWith('/reporte/') && detailReturnPath.current === '/perfil');
+  const showSearchLanding = canUseReports && isSearchLanding(path, searchPlayer);
+  const personSearch = canUseReports && <PersonSearch revision={caseRevision} reports={reportes} knownPlayers={knownPlayers} onSelect={player => {
+    setSearchPlayer(player);
+    setDeskReset(value => value + 1);
+    navigate(playerPath(player.nickname || player.rid));
+  }} />;
 
   return (
-    <div className={`app-container${canUseReports ? '' : ' app-container--access'}`} style={{ position: 'relative' }}>
+    <div className={`app-container${canUseReports ? '' : ' app-container--access'}${showSearchLanding ? ' app-container--search' : ''}`} style={{ position: 'relative' }}>
       <InterfaceSounds />
 
       {/* ============ HEADER ============ */}
       <AppHeader
-        search={canUseReports && <PersonSearch revision={caseRevision} reports={reportes} knownPlayers={knownPlayers} onSelect={player => {
-          setSearchPlayer(player);
-          setDeskReset(value => value + 1);
-          navigate(playerPath(player.nickname || player.rid));
-        }} />}
+        search={!showSearchLanding && personSearch}
         actions={<SessionActions user={user} isDemo={isDemo} canUseReports={canUseReports} isProfileScreen={isProfileScreen} onNavigate={navigate} onLogin={handleLogin} onHelp={() => setShowHelp(true)} />}
       />
-      {canUseReports && <DeskNavigation items={[
+      {canUseReports && !showSearchLanding && <DeskNavigation items={[
         { href: `${archivePath}${isDemo ? '?demo=true' : ''}`, number: '01', label: 'Archivo de investigación', current: path !== '/denunciar' && !isProfileScreen,
           onClick: event => handleInternalLink(event, nextPath => { if (path !== nextPath) navigate(nextPath); }, archivePath) },
         ...(path === '/denunciar' ? [{ href: isDemo ? '/denunciar?demo=true' : '/denunciar', number: '02', label: 'Mesa de denuncias', current: true }] : []),
@@ -171,7 +173,16 @@ function App() {
       <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />
       {sessionError && <p className="rfm-submit-error" role="alert">{sessionError}</p>}
 
-      {canUseReports ? (
+      {showSearchLanding ? (
+        <main className="search-landing" aria-labelledby="search-landing-title">
+          <div className="search-landing__content">
+            <h2 id="search-landing-title">Busca un jugador</h2>
+            <p>Consulta su ficha y sus reportes por nombre, alias o RID.</p>
+            {personSearch}
+            {reportsError && <p className="rfm-submit-error" role="alert">{reportsError}</p>}
+          </div>
+        </main>
+      ) : canUseReports ? (
       <>
       {isProfileScreen ? user ? <ProfileScreen key={user.id} user={user} onNavigate={navigate} onLogout={handleLogout} onOpenReport={handleCardClick} mapReport={mapWordpressReportToReporte} onHelp={() => setShowHelp(true)} revision={caseRevision} /> : <main className="desk-empty"><h2>Mi perfil</h2><p>Inicia sesión para consultar tu cuenta y tus reportes.</p><button type="button" className="cyber-button-small mw-cyber-button" onClick={handleLogin}>Iniciar sesión con Discord</button></main> : path === '/denunciar' ? <ReportScreen onSubmit={handleNewReport} currentUser={user} isDemo={isDemo} initialPlayer={reportPlayer} onReturnToCase={() => navigate(formReturnPath.current)} /> : <InvestigationDesk key={deskReset} initialPlayer={searchPlayer} onPlayerResolved={rememberPlayer} reportsError={reportsError} path={path} onNavigate={navigate} onOpenReport={handleCardClick} onStartReport={startReport} mapReport={mapWordpressReportToReporte} canManageCases={isAuthChecked && Boolean(user) && capabilities.manageCases} revision={caseRevision} />}
       </>

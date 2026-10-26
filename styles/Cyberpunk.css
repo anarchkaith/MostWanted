@@ -94,6 +94,14 @@ a { color: var(--color-cream); text-underline-offset: 3px; }
 .person-search__results button span { font-size: 0.8125rem; color: var(--color-text-muted); }
 .person-search__results p { margin: 8px; font-size: 0.875rem; overflow-wrap: anywhere; }
 .person-search__results [role='alert'] { color: #ffb3b3; }
+.app-container--search { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; }
+.app-container--search > .site-header { grid-template-columns: minmax(0, 1fr) auto; }
+.search-landing { display: grid; place-items: center; flex: 1; padding: 48px 0; min-height: 360px; }
+.search-landing__content { width: min(100%, 680px); }
+.search-landing h2 { margin: 0 0 12px; text-align: center; font: 1.75rem/1.4 var(--font-stencil); }
+.search-landing__content > p { color: var(--color-text-muted); text-align: center; margin: 0 0 28px; }
+.search-landing .person-search { width: 100%; }
+.search-landing .person-search__results { max-height: min(360px, 40dvh); }
 .site-header__username { max-width: 180px; overflow-wrap: anywhere; color: var(--color-text-muted); }
 .site-help { background: transparent; border: 1px solid var(--surface-border); color: var(--color-cream); min-height: 44px; padding: 8px 16px; }
 .site-help:hover { border-color: var(--color-cream); }
@@ -532,6 +540,7 @@ table.cyber-table:is(.case-table, .mw-cyber-table)::after { caption-side: bottom
   .pbp-evidence-panel { max-width: 260px; }
 }
 @media (max-width: 640px) {
+  .app-container--search > .site-header { grid-template-columns: minmax(0, 1fr); }
   .app-container { padding: 0 16px; }
   .site-header { align-items: flex-start; flex-direction: column; gap: 16px; padding: 20px 0; }
   .site-header__actions { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
