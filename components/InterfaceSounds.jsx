@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
-import { createInterfaceAudio } from '../src/services/interfaceAudio';
+import { createInterfaceAudio, INTERFACE_AUDIO_SOURCES } from '../src/services/interfaceAudio';
 import { getInterfaceHover } from '../src/services/interfaceHover';
+import { isKeystrokeTarget } from '../src/services/interfaceKeystroke';
+import { INTERFACE_SOUND_EVENT } from '../src/services/interfaceSoundBus';
 
 const DIALOGS = '.modal, .rfm-confirmation, .ai-bubble__panel, .image-viewer';
 const CLOSE_ACTIONS = '.modal__close, .ai-bubble__close, [data-ui-sound="reject"]';
@@ -47,6 +49,13 @@ export default function InterfaceSounds() {
       }, 0);
       timers.add(timer);
     };
+    const onTyping = event => {
+      if (isKeystrokeTarget(event.target, event)) void audio.play('keystroke');
+    };
+    const onSoundRequest = event => {
+      const kind = event.detail?.kind;
+      if (Object.hasOwn(INTERFACE_AUDIO_SOURCES, kind)) void audio.play(kind);
+    };
     const observer = new MutationObserver(() => {
       const current = new Set(document.querySelectorAll(DIALOGS));
       if (interacted && [...current].some(dialog => !dialogs.has(dialog))) void audio.play('slide');
@@ -58,8 +67,12 @@ export default function InterfaceSounds() {
     document.addEventListener('pointerdown', onInteraction, true);
     document.addEventListener('keydown', onInteraction, true);
     document.addEventListener('pointerover', onHover, true);
+    document.addEventListener('keydown', onTyping, true);
+    globalThis.addEventListener(INTERFACE_SOUND_EVENT, onSoundRequest);
     return () => {
       observer.disconnect();
+      document.removeEventListener('keydown', onTyping, true);
+      globalThis.removeEventListener(INTERFACE_SOUND_EVENT, onSoundRequest);
       document.removeEventListener('click', onClick, true);
       document.removeEventListener('keydown', onKeyDown, true);
       document.removeEventListener('pointerdown', onInteraction, true);

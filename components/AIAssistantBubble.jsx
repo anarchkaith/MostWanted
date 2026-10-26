@@ -7,6 +7,7 @@ import { buildReportesChatContext, readReportesFromLocalStorage } from './chatTo
 import { getIaChatEndpoint, getIaIntentEndpoint } from '../src/services/apiConfig';
 import { requestAssistantReply } from '../src/services/assistantChat';
 import CyberButtonLabel from './ui/CyberButtonLabel';
+import { useTerminalText } from './ui/useTerminalText';
 
 const HEX_LOGO_RED = '/HEX_LOGO_RED.png';
 const IA_ENDPOINT = getIaChatEndpoint();
@@ -25,6 +26,21 @@ const MARKDOWN_COMPONENTS = {
 };
 
 const formatLatency = (ms) => `${(ms / 1000).toFixed(2)}s`;
+
+function AssistantReply({ text, animate }) {
+  const { visible, typing } = useTerminalText(text, { animate });
+  return (
+    <div className="ai-bubble__message-body">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm, remarkBreaks]}
+        components={MARKDOWN_COMPONENTS}
+      >
+        {visible}
+      </ReactMarkdown>
+      {typing && <span className="terminal-text__cursor" aria-hidden="true" />}
+    </div>
+  );
+}
 
 export default function AIAssistantBubble({ isAuthenticated = false, onSessionExpired }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -193,7 +209,7 @@ export default function AIAssistantBubble({ isAuthenticated = false, onSessionEx
 
         setMessages((prev) => prev.map((msg, idx) => (
           idx === assistantIndex
-            ? { ...msg, content: assistantText }
+            ? { ...msg, content: assistantText, typewriter: true }
             : msg
         )));
 
@@ -307,14 +323,7 @@ export default function AIAssistantBubble({ isAuthenticated = false, onSessionEx
                     )}
                   </span>
                   {message.role === 'assistant' ? (
-                    <div className="ai-bubble__message-body">
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm, remarkBreaks]}
-                        components={MARKDOWN_COMPONENTS}
-                      >
-                        {message.content}
-                      </ReactMarkdown>
-                    </div>
+                    <AssistantReply text={message.content} animate={message.typewriter === true} />
                   ) : (
                     <p>{message.content}</p>
                   )}

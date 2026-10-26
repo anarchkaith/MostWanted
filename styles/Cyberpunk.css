@@ -496,6 +496,11 @@ a { color: var(--color-cream); text-underline-offset: 3px; }
 .desk-access p { margin-bottom: 24px; }
 .desk-access > .workspace-eyebrow { margin-top: 0; }
 .desk-access > .mw-cyber-button { --button-font-size: 1rem; letter-spacing: 1px; }
+.desk-access__trust { margin-top: 32px; padding-top: 20px; border-top: 1px solid var(--surface-border); text-align: left; }
+.desk-access__trust h3 { font: 0.95rem/1.4 var(--font-stencil); margin: 0 0 12px; letter-spacing: 1px; text-transform: uppercase; }
+.desk-access__trust ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; font-size: 0.92rem; }
+.desk-access__trust li { position: relative; padding-left: 22px; }
+.desk-access__trust li::before { content: ''; position: absolute; left: 0; top: 0.55em; width: 8px; height: 8px; background: var(--color-red-alert); }
 .app-container--access > .site-footer { padding-bottom: 24px; }
 
 .ai-bubble__panel { animation: none; width: min(460px, calc(100vw - 32px)); height: min(700px, 80dvh); max-height: none; border: 1px solid var(--surface-border); border-top: 3px solid var(--color-red-alert); background: var(--color-black); }

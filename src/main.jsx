@@ -5,6 +5,7 @@ import '../styles/PlayerDossier.css'
 import '../styles/ReportForm.css'
 import '../styles/Cyberpunk.css'
 import '../styles/GlitchTheme.css'
+import '../styles/TerminalText.css'
 import App from './App.jsx'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 

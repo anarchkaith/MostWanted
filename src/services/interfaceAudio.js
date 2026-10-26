@@ -4,6 +4,8 @@ export const INTERFACE_AUDIO_SOURCES = {
   reject: 'https://cdn.freesound.org/previews/657/657950_6142149-lq.mp3',
   hoverOption: 'https://cdn.freesound.org/previews/370/370962_5450487-lq.mp3',
   hoverButton: 'https://cdn.freesound.org/previews/703/703884_6142149-lq.mp3',
+  keystroke: 'https://cdn.freesound.org/previews/185/185828_2567799-lq.mp3',
+  terminal: 'https://cdn.freesound.org/previews/512/512137_11214653-lq.mp3',
 };
 
 export function createInterfaceAudio({ createAudio, onError, onReady }) {

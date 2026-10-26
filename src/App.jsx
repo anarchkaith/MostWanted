@@ -3,6 +3,7 @@ import InvestigationDesk from '../components/screens/InvestigationDesk';
 import ReportDetailModal from '../components/ReportDetailModal';
 import HelpModal from '../components/HelpModal';
 import AIAssistantBubble from '../components/AIAssistantBubble';
+import TerminalText from '../components/ui/TerminalText';
 import InterfaceSounds from '../components/InterfaceSounds';
 import PersonSearch from '../components/PersonSearch';
 import ProfileScreen from '../components/screens/ProfileScreen';
@@ -176,7 +177,7 @@ function App() {
       {showSearchLanding ? (
         <main className="search-landing" aria-labelledby="search-landing-title">
           <div className="search-landing__content">
-            <h2 id="search-landing-title">Busca un jugador</h2>
+            <h2 id="search-landing-title"><TerminalText text="Busca un jugador" /></h2>
             <p>Consulta su ficha y sus reportes por nombre, alias o RID.</p>
             {personSearch}
             {reportsError && <p className="rfm-submit-error" role="alert">{reportsError}</p>}

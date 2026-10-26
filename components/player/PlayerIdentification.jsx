@@ -1,4 +1,5 @@
 import Skeleton from '../ui/Skeleton';
+import TerminalText from '../ui/TerminalText';
 import CurrentPlayerAvatars from './CurrentPlayerAvatars';
 import SocialClubProfileLink from './SocialClubProfileLink';
 import { createPlayerAvatarSlots } from '../../src/services/playerAvatarState';
@@ -16,7 +17,7 @@ export default function PlayerIdentification({ investigation, username, rid, var
     <div className="pbp-identity-panel">
       <div className="pbp-identity-header">
         <div className="pbp-identity-header__copy">
-          {variant === 'dossier' && <h3 className="pbp-panel-title">Identificación</h3>}
+          {variant === 'dossier' && <TerminalText as="h3" className="pbp-panel-title" text="Identificación" />}
           {!investigation?.currentProfile && <div className="pbp-identity-header__eyebrow">{investigation?.reportInsights ? 'Perfil archivado' : 'Identidad sin confirmar'}</div>}
           <div className="pbp-name-row pbp-name-row--primary">
             <div className="pbp-current__name notranslate" translate="no">{playerName}</div>

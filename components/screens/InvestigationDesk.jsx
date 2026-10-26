@@ -3,6 +3,7 @@ import { unwrapMarkdownFence } from '../markdownUtils';
 import PlayerBackgroundPanel from '../PlayerBackgroundPanel';
 import CaseStaffPanel from '../CaseStaffPanel';
 import CyberButtonLabel from '../ui/CyberButtonLabel';
+import TerminalText from '../ui/TerminalText';
 import Skeleton from '../ui/Skeleton';
 import usePlayerCase from '../../src/hooks/usePlayerCase';
 import { PlayerCaseClassification, PlayerCommunityVerification } from '../player/PlayerCaseAssessment';
@@ -84,7 +85,7 @@ export default function InvestigationDesk({ initialPlayer, onPlayerResolved, rep
       <div className="desk-columns" aria-busy={loading}>
         <section className="case-file" aria-label="Expediente del jugador">
           <header className="case-file__header">
-            <div><p className="case-file__eyebrow">H.E.X. / Archivo de jugadores</p><h2>Ficha del jugador</h2></div>
+            <div><p className="case-file__eyebrow">H.E.X. / Archivo de jugadores</p><h2><TerminalText text="Ficha del jugador" /></h2></div>
             {dossier && <>
               <dl className="case-file__metadata"><div><dt>Primera denuncia</dt><dd>{formatCaseDate(linkedReports.map(report => report.fecha).filter(Boolean).sort()[0])}</dd></div><div><dt>Última actualización</dt><dd>{formatCaseDate(dossier.updatedAt, true)}</dd></div></dl>
             </>}
