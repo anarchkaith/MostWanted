@@ -4,7 +4,7 @@ Plugin WordPress para registrar CPT de jugadores/reportes y exponer endpoints RE
 
 ## 1) Instalacion rapida
 
-Versión 0.6.10: incorpora `GET /reports/<id>` para obtener un reporte publicado por su ID y generar vistas previas al compartir enlaces de MostWanted. No publica borradores, reportes privados ni datos del reportante.
+Versión 0.6.11: elimina el BOM UTF-8 inicial del plugin para que las respuestas REST sean JSON valido sin bytes de salida adicionales. Conserva `GET /reports/<id>` (desde 0.6.10) para obtener un reporte publicado por su ID y generar vistas previas al compartir enlaces de MostWanted. No publica borradores, reportes privados ni datos del reportante. Si este endpoint responde `rest_no_route`, actualizar el plugin instalado y purgar la cache REST/CDN; no indica que el reporte solicitado no exista.
 
 Desde 0.6.9, el editor muestra únicamente los campos del formulario de denuncia de MostWanted, en su mismo orden: Jugador, Datos adicionales, Infracciones, Motivo, Evidencias y Conductas. Elimina los controles de análisis, severidad, validación, avatares, anonimato, fecha, origen y estado de investigación; sus valores guardados se conservan internamente. La moderación de votos tiene un panel aparte. Mantiene la sincronización de correcciones con la ficha del jugador.
 

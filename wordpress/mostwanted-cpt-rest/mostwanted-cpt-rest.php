@@ -1,8 +1,8 @@
-﻿<?php
+<?php
 /**
  * Plugin Name: MostWanted CPT + REST
  * Description: CPT de jugadores/reportes y API REST para ingesta y consulta desde MostWanted.
- * Version: 0.6.10
+ * Version: 0.6.11
  * Author: KaithHacks
  */
 

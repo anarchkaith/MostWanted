@@ -118,6 +118,21 @@ function mw_share_html($template, $metadata, $indexable = true) {
     return str_replace('</head>', implode("\n    ", $tags) . "\n  </head>", $template);
 }
 
+function mw_share_decode_response($body, $status) {
+    // Older plugin versions emitted a UTF-8 BOM before every REST response.
+    if (str_starts_with($body, "\xEF\xBB\xBF")) $body = substr($body, 3);
+    $data = json_decode($body, true);
+    if ($status === 404 && is_array($data) && ($data['code'] ?? '') === 'rest_no_route') {
+        throw new RuntimeException('WordPress preview endpoint is not installed. Update the MostWanted plugin.', 503);
+    }
+    if ($status === 404) throw new RuntimeException('Shared resource not found.', 404);
+    if ($status !== 200) throw new RuntimeException('WordPress preview request failed: ' . $status, 502);
+    if (json_last_error() !== JSON_ERROR_NONE || !is_array($data)) {
+        throw new RuntimeException('Invalid WordPress preview JSON: ' . json_last_error_msg(), 502);
+    }
+    return $data;
+}
+
 function mw_share_fetch($endpoint) {
     if (!function_exists('curl_init')) throw new RuntimeException('PHP cURL is required for link previews.', 503);
     $base = rtrim(getenv('WORDPRESS_API_BASE_URL') ?: 'https://kaithsrebels.com', '/');
@@ -133,11 +148,8 @@ function mw_share_fetch($endpoint) {
     $status = curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
     $error = curl_error($handle);
     curl_close($handle);
-    if ($status === 404) throw new RuntimeException('Shared resource not found.', 404);
-    if ($body === false || $status !== 200) throw new RuntimeException('WordPress preview request failed: ' . $status . ' ' . $error, 502);
-    $data = json_decode($body, true);
-    if (!is_array($data)) throw new RuntimeException('Invalid WordPress preview JSON.', 502);
-    return $data;
+    if ($body === false) throw new RuntimeException('WordPress preview connection failed: ' . $error, 502);
+    return mw_share_decode_response($body, $status);
 }
 
 function mw_share_response($path, $template, callable $fetch) {

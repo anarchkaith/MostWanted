@@ -16,6 +16,27 @@ function meta_value($html, $name) {
 }
 
 $template = file_get_contents($argv[1] ?? dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'index.html');
+$json = '{"ok":true,"found":true,"player":{"nickname":"Pol4ar24","totalReports":1}}';
+foreach ([$json, "\xEF\xBB\xBF" . $json] as $body) {
+    $response = mw_share_response('/jugador/Pol4ar24', $template, static fn() => mw_share_decode_response($body, 200));
+    check($response['status'] === 200, 'Accept WordPress JSON with or without a leading BOM');
+    check(meta_value($response['html'], 'og:title') === 'Perfil de Pol4ar24 | MostWanted', 'Render player data from the actual REST response format');
+    check(str_contains(meta_value($response['html'], 'og:description'), '1 reporte registrado.'), 'Preserve the player summary');
+}
+foreach ([
+    ["\xEF\xBB\xBF" . '{"code":"rest_no_route","data":{"status":404}}', 404, 503],
+    ['{"ok":false,"error":"report_not_found"}', 404, 404],
+    ['{"code":"rest_post_invalid_id"}', 404, 404],
+    ['<html>Bad gateway</html>', 502, 502],
+    ["\xEF\xBB\xBF" . 'invalid', 200, 502],
+    ['null', 200, 502],
+] as [$body, $upstreamStatus, $expectedStatus]) {
+    $response = mw_share_response('/reporte/6816', $template, static fn() => mw_share_decode_response($body, $upstreamStatus));
+    check($response['status'] === $expectedStatus, 'Distinguish missing endpoint from missing report and invalid JSON');
+    check(meta_value($response['html'], 'robots') === 'noindex, nofollow', 'Do not index upstream errors');
+}
+$pluginPath = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'wordpress' . DIRECTORY_SEPARATOR . 'mostwanted-cpt-rest' . DIRECTORY_SEPARATOR . 'mostwanted-cpt-rest.php';
+check(str_starts_with(file_get_contents($pluginPath), '<?php'), 'The plugin must not emit a BOM before REST JSON');
 $report = [
     'id' => 42, 'nickname' => 'Player "Uno" & Dos',
     'reason' => '<b>Motivo</b> con "comillas" & detalles',
