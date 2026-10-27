@@ -4,7 +4,9 @@ Plugin WordPress para registrar CPT de jugadores/reportes y exponer endpoints RE
 
 ## 1) Instalacion rapida
 
-Versión 0.6.11: elimina el BOM UTF-8 inicial del plugin para que las respuestas REST sean JSON valido sin bytes de salida adicionales. Conserva `GET /reports/<id>` (desde 0.6.10) para obtener un reporte publicado por su ID y generar vistas previas al compartir enlaces de MostWanted. No publica borradores, reportes privados ni datos del reportante. Si este endpoint responde `rest_no_route`, actualizar el plugin instalado y purgar la cache REST/CDN; no indica que el reporte solicitado no exista.
+Versión 0.6.12: guarda el resumen HEX como metadata `_mw_ai_summary` de la ficha y lo devuelve como `player.aiSummary` con texto, fecha, cantidad de reportes y vigencia (`stale`). El backend Node publica el texto ya generado; WordPress y las vistas previas solo leen el resumen, nunca llaman a la IA. Cambios relevantes en los reportes invalidan la copia; votos y visitas no lo hacen. Hasta que Node sincronice un resumen actualizado se conserva el anterior marcado como desactualizado, sin presentarlo como vigente en las vistas previas.
+
+Conserva la correccion del BOM UTF-8 de 0.6.11 y `GET /reports/<id>` (desde 0.6.10) para obtener un reporte publicado por su ID. No publica borradores, reportes privados ni datos del reportante. Si este endpoint responde `rest_no_route`, actualizar el plugin instalado y purgar la cache REST/CDN; no indica que el reporte solicitado no exista.
 
 Desde 0.6.9, el editor muestra únicamente los campos del formulario de denuncia de MostWanted, en su mismo orden: Jugador, Datos adicionales, Infracciones, Motivo, Evidencias y Conductas. Elimina los controles de análisis, severidad, validación, avatares, anonimato, fecha, origen y estado de investigación; sus valores guardados se conservan internamente. La moderación de votos tiene un panel aparte. Mantiene la sincronización de correcciones con la ficha del jugador.
 
@@ -66,6 +68,8 @@ Base: `/wp-json/mostwanted/v1`
 - `GET /reports/<id>`: devuelve `{ok: true, report}` para un reporte publicado. Un ID inexistente, otro tipo de entrada o un reporte no publicado devuelve 404. Usa el mismo formato público y las mismas restricciones de autoría que el listado.
 - `GET /reports/owned?ownerDiscordId=...&page=1&per_page=20` (requiere el secreto del backend): consulta exacta por `_mw_owner_discord_id`, devuelve `{ok, items, page, perPage, hasMore}` sin metadatos privados y con `Cache-Control: private, no-store`. No llamar desde el navegador ni exponer el secreto. La autoría se recibe únicamente del backend confiable al ingerir reportes autenticados; no se reconstruye a partir de nombres históricos.
 - `GET /players`
+- `GET /players/ai-summary?rid=...` (o `nickname=...`): exige secreto del backend; devuelve los reportes publicados de la identidad y su revision para sincronizar un resumen. No genera IA.
+- `POST /players/ai-summary`: exige secreto del backend; recibe `{nickname, rid, text, sourceRevision}` y persiste el resumen si la revision sigue vigente. Devuelve 409 si cambiaron los reportes; nunca admite una publicacion para una fuente vacia. Solo el texto, fecha y cantidad de reportes se devuelven en las lecturas publicas del jugador, junto a `stale`; no se publican tokens internos ni el secreto.
 - `GET /players/lookup?rid=...` o `playerId=...` o `nickname=...`
 - `GET /player-insights?username=...&rid=...`: perfil para el panel de antecedentes (`names[{name,time}]`, `avatars`, `crews`, `activeCrew`, `reportCount`, `lastReportAt`). Responde `player: null` si no existe.
 - `POST /players/load-default` (requiere token): carga jugador de prueba con datos completos (default: `1R0N_STR1K3R`)

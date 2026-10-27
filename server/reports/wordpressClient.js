@@ -128,6 +128,22 @@ export async function getWordpressOwnedReports({ config, ownerDiscordId, page, p
   });
 }
 
+export async function getWordpressSummarySource({ config, nickname, rid, logger = console }) {
+  const query = new URLSearchParams({ nickname, rid });
+  return requestWordpressApi({
+    config, logger, method: 'GET', path: `/wp-json/mostwanted/v1/players/ai-summary?${query}`,
+    operation: 'Player summary source', useAuth: true,
+  });
+}
+
+export async function postWordpressPlayerSummary({ config, nickname, rid, text, sourceRevision, logger = console }) {
+  return requestWordpressApi({
+    config, logger, method: 'POST', path: '/wp-json/mostwanted/v1/players/ai-summary',
+    operation: 'Player summary publication', useAuth: true,
+    body: { nickname, rid, text, sourceRevision },
+  });
+}
+
 /**
  * Crea una entrada en cualquier Custom Post Type usando WP REST v2.
  */

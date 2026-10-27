@@ -51,6 +51,9 @@ $legacy = mw_store_report(1, $base + ['reporter' => ['name' => '111']]);
 check(get_post_meta($first, '_mw_owner_discord_id', true) === '111', 'Persist private stable owner');
 check(!isset($GLOBALS['meta'][$legacy]['_mw_owner_discord_id']), 'Never infer ownership from names');
 mw_register_rest_routes();
+foreach ($GLOBALS['routes']['/players/ai-summary'] as $route) {
+    check($route['permission_callback'] === 'mw_can_ingest_reports', 'Protect summary publication/source with the backend secret');
+}
 check($GLOBALS['routes']['/reports/owned']['permission_callback'] === 'mw_can_ingest_reports', 'Protect private route with backend secret');
 check(mw_can_ingest_reports(new Request()) instanceof WP_Error, 'Reject anonymous private queries');
 check(mw_can_ingest_reports(new Request([], 'Bearer wrong')) instanceof WP_Error, 'Reject wrong token');

@@ -2,12 +2,12 @@ import { createRequireCaseStaff } from '../../../shared/auth/discordStaff.js';
 import { getSessionUser } from '../../../shared/auth/sessionAuth.js';
 import { manageCase, readCase, staffCase } from '../services/cases.service.js';
 
-export function registerCasesRoutes(app, { rootDir, rateLimits, requireBodyObject, verifyCaseStaff, getCaseReports, generateCaseSummary }) {
+export function registerCasesRoutes(app, { rootDir, rateLimits, requireBodyObject, verifyCaseStaff, getCaseReports, generateCaseSummary, publishCaseSummary }) {
   const staffAccess = createRequireCaseStaff(verifyCaseStaff);
   const read = async (req, res, query) => {
     res.set('Cache-Control', 'private, no-store');
     try {
-      const result = await readCase({ rootDir, source: getCaseReports, generateCaseSummary, ...query });
+      const result = await readCase({ rootDir, source: getCaseReports, generateCaseSummary, publishCaseSummary, ...query });
       return res.status(result.status).json(result.payload);
     } catch {
       return res.status(503).json({ ok: false, error: 'case_storage_unavailable' });

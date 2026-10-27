@@ -21,7 +21,7 @@ export function publicCase(item, reports = item.caseSnapshot?.reports || []) {
   };
 }
 
-export async function readCase({ rootDir, source, generateCaseSummary, id, nickname = '', rid = '' }) {
+export async function readCase({ rootDir, source, generateCaseSummary, publishCaseSummary, id, nickname = '', rid = '' }) {
   rid = normalizeRid(rid);
   let item = findCase(readExpedientes(rootDir), { id, nickname, rid });
   if (id && !item) return { status: 404, payload: { ok: false, error: 'case_not_found' } };
@@ -78,6 +78,9 @@ export async function readCase({ rootDir, source, generateCaseSummary, id, nickn
     });
     if (generateCaseSummary) {
       item = await refreshCaseSummary({ rootDir, id: item.expedienteId, generate: generateCaseSummary });
+    }
+    if (publishCaseSummary && item && publicClassification(item, reports)?.stale === false) {
+      item = await publishCaseSummary(item);
     }
   }
   return { status: 200, payload: { ok: true, case: item ? publicCase(item, reports) : null, reports, source: sourceInfo,

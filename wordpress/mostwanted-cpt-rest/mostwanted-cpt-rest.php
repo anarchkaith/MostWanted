@@ -2,7 +2,7 @@
 /**
  * Plugin Name: MostWanted CPT + REST
  * Description: CPT de jugadores/reportes y API REST para ingesta y consulta desde MostWanted.
- * Version: 0.6.11
+ * Version: 0.6.12
  * Author: KaithHacks
  */
 
@@ -14,6 +14,7 @@ const MW_NAMESPACE = 'mostwanted/v1';
 const MW_SECRET_OPTION_KEY = 'mostwanted_api_secret';
 
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'report-admin.php';
+require_once __DIR__ . DIRECTORY_SEPARATOR . 'player-summary.php';
 
 function mw_register_post_types() {
     register_post_type('mw_player', [
@@ -1080,6 +1081,7 @@ function mw_map_player_item($player_post_id, $with_reports = true, $reports_limi
         'investigationStatus' => mw_str(get_post_meta($player_post_id, '_mw_investigation_status', true)),
         'totalReports' => intval(get_post_meta($player_post_id, '_mw_total_reports', true)),
         'lastSeenAt' => mw_str(get_post_meta($player_post_id, '_mw_last_seen_at', true)),
+        'aiSummary' => mw_player_public_summary($player_post_id),
     ];
 
     if (!$with_reports) {
@@ -1525,6 +1527,18 @@ function mw_rest_player_insights($request) {
 }
 
 function mw_register_rest_routes() {
+    register_rest_route(MW_NAMESPACE, '/players/ai-summary', [
+        [
+            'methods' => WP_REST_Server::READABLE,
+            'callback' => 'mw_rest_player_summary',
+            'permission_callback' => 'mw_can_ingest_reports',
+        ],
+        [
+            'methods' => WP_REST_Server::CREATABLE,
+            'callback' => 'mw_rest_player_summary',
+            'permission_callback' => 'mw_can_ingest_reports',
+        ],
+    ]);
     register_rest_route(MW_NAMESPACE, '/reports/owned', [
         'methods' => 'GET',
         'callback' => 'mw_rest_owned_reports',

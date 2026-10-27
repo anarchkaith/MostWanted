@@ -35,7 +35,7 @@ export function publicClassification(item, reports) {
     reportCount: summary.reportCount || 0,
     stale: summary.fingerprint !== fingerprint(reports),
     pending: Date.parse(summary.pendingUntil) > Date.now(),
-    error: summary.error || null,
+    error: summary.error || summary.publicationError || null,
   };
 }
 
@@ -111,6 +111,7 @@ export async function refreshCaseSummary({ rootDir, id, generate, logger = conso
       ...(!error && unchanged ? {
         text: text.trim(), fingerprint: job.inputFingerprint,
         updatedAt: new Date().toISOString(), reportCount: job.reports.length,
+        publicationError: null, publishRetryAfter: null,
       } : {}),
     };
     return current;
