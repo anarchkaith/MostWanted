@@ -8,7 +8,7 @@ Plataforma comunitaria de reportes para rastrear jugadores tóxicos (modders, gr
 - **Sistema de votos comunitario**: la comunidad puede validar o rechazar reportes mediante upvotes/downvotes.
 - **Perfiles por jugador**: URL directa por nombre exacto (`/jugador/{nickname}`), conservando mayúsculas y guiones bajos, con historial completo de reportes.
 - **Asistente IA**: chat integrado (gateway de IA de H.E.X.; Ollama local opcional) para consultar rankings, estadísticas, correlaciones y análisis tácticos sobre los reportes.
-- **Integración con Discord**: notificaciones automáticas con embeds enriquecidos al canal del equipo al registrar un reporte, con botones de enlace a la web (votar y perfil de Social Club).
+- **Integración con Discord**: notificaciones automáticas con embeds enriquecidos al canal del equipo al registrar un reporte, con enlaces al reporte para votar en la web y al perfil de Social Club.
 - **Persistencia en WordPress**: reportes, jugadores y votos se guardan como custom post types mediante el plugin `wordpress/mostwanted-cpt-rest/`, que expone la API REST `/wp-json/mostwanted/v1/`.
 - **Moderación de administradores**: capacidades de administración y gestión del estado de los reportes.
 
@@ -168,6 +168,21 @@ npm run build
 npm run start
 ```
 
+### Vistas previas al compartir reportes y jugadores
+
+En el hosting estatico Apache/LiteSpeed, las rutas `/reporte/<id>`, `/jugador/<nickname-o-rid>` y el alias `/usuario/<nickname-o-rid>` pasan por `public/share.php` mediante las reglas de `.htaccess`. Este archivo sirve el HTML compilado de la SPA con titulo, descripcion, canonical, Open Graph y Twitter especificos, antes de ejecutar JavaScript. No cambia el acceso a la aplicacion ni requiere una sesion para que Discord lea la vista previa.
+
+- **Reporte:** nombre del jugador, numero de reporte, motivo e infracciones reportadas. La imagen prioriza una evidencia de imagen; despues, los avatares del reporte.
+- **Jugador:** nombre, cantidad de reportes y crews. La imagen usa su avatar. El perfil privado `/perfil` no publica metadata de la cuenta.
+- Sin imagen valida se usa `og-image.png`. No se reutilizan las dimensiones del banner para las imagenes de jugadores o evidencias, ni el bloque generico `discord:component-embed`.
+- Un recurso inexistente devuelve 404. Una consulta fallida devuelve 502/503 con `noindex` y sin cache; no inventa datos del jugador o del reporte. Las respuestas validas se pueden cachear durante cinco minutos. Discord y otras plataformas pueden conservar su propia cache por mas tiempo.
+
+**Despliegue en Hostinger:** actualizar el plugin WordPress a **0.6.10**, que incorpora la consulta publica `GET /wp-json/mostwanted/v1/reports/<id>` solo para reportes publicados; despues ejecutar `npm run build` y subir **todo** `dist/`, incluidos `share.php` y `.htaccess`. Se requiere PHP 8.0+ con cURL, y las reglas de reescritura activadas. El origen WordPress por defecto es `https://kaithsrebels.com`; puede cambiarse mediante la variable de entorno PHP `WORDPRESS_API_BASE_URL`. No se necesita ni se envia el secreto de ingesta.
+
+Estas reglas corresponden al despliegue estatico Apache/LiteSpeed: `vite preview` y el servidor estatico de Express no ejecutan PHP. Para las vistas previas en ese esquema, el proxy del dominio debe servir estas rutas con PHP. Las rutas de API siguen su configuracion habitual.
+
+Validacion local: `npm run test:metadata` (requiere PHP CLI con DOM y mbstring para las pruebas). Tambien puede comprobarse el HTML compilado con `php server/reports/shareMetadata.test.php dist/index.html` despues del build.
+
 ## API del servidor
 
 | Endpoint | Método | Descripción |
@@ -257,13 +272,14 @@ npm run test:reports
 
 Cuando se envía un reporte, el backend publica un embed en Discord con la ficha del jugador: apodo, crews, estado, RID (oculto como spoiler), aliases (solo si son distintos del apodo), etiquetas, tipos de infracción, motivo y "Evidencias de Video" (solo si hay evidencias de video). Las imágenes van en una galería de embeds que comparten la misma URL, y las etiquetas se muestran en texto pequeño (`-# `).
 
-El mensaje incluye dos botones de enlace:
+El mensaje incluye enlaces dentro del embed, sin depender de componentes o botones:
 
-- **Votar en la web**: abre `https://mostwanted.kaithsrebels.com/reporte/<id>`. Si el login es necesario, la web vuelve a esa ruta después de iniciar sesión.
-- **Perfil de Social Club**: abre el perfil del jugador en Rockstar Social Club.
+- **Ver reporte y votar**: aparece debajo del encabezado «Reporte de jugador» y abre `https://mostwanted.kaithsrebels.com/reporte/<id>`. Si el login es necesario, la web vuelve a esa ruta después de iniciar sesión. Sin un ID válido se muestra un enlace general a la web, no a un reporte inexistente.
+- **Nombre del jugador**: es el título del embed y abre su perfil en Rockstar Social Club.
 - **Reportar a un jugador**: abre `https://mostwanted.kaithsrebels.com/#reportar`, que lleva directo al formulario de reporte de la web.
+- **Ver lista de reportes**: abre `https://mostwanted.kaithsrebels.com/#reportes-lista`.
 
-Los botones de enlace no requieren bot. Votar desde Discord no está disponible; el voto se hace en la web.
+Los webhooks normales de Discord pueden ignorar `components`; los enlaces Markdown del embed no requieren bot. Votar desde Discord no está disponible; el voto se hace en la web.
 
 El envío de notificaciones está limitado por `DISCORD_WEBHOOK_MIN_INTERVAL_MS` (por defecto 45 segundos).
 

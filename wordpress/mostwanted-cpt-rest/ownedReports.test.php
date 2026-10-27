@@ -7,6 +7,7 @@ function register_activation_hook(...$args) {}
 function register_deactivation_hook(...$args) {}
 function register_rest_route($namespace, $path, $args) { $GLOBALS['routes'][$path] = $args; }
 function get_the_title($id) { return 'Player'; }
+function get_post($id) { return $GLOBALS['posts'][$id] ?? null; }
 function wp_strip_all_tags($text) { return strip_tags($text); }
 function current_time($format) { return '2026-10-21 12:00:00'; }
 function get_post_meta($id, $key, $single) { return $GLOBALS['meta'][$id][$key] ?? ''; }
@@ -62,4 +63,14 @@ check(!isset($response->data['items'][0]['ownerDiscordId']), 'Ownership stays pr
 $next = mw_rest_owned_reports(new Request(['ownerDiscordId' => '111', 'per_page' => 1, 'page' => 2]));
 check(array_column($next->data['items'], 'id') === [$first] && !$next->data['hasMore'], 'Paginate without leaking another owner');
 check(mw_rest_owned_reports(new Request(['ownerDiscordId' => 'invalid']))->status === 400, 'Reject invalid owner');
+$GLOBALS['posts'][$first] = (object) ['post_type' => 'mw_report', 'post_status' => 'publish'];
+$GLOBALS['posts'][$other] = (object) ['post_type' => 'mw_report', 'post_status' => 'draft'];
+$GLOBALS['posts'][$second] = (object) ['post_type' => 'mw_player', 'post_status' => 'publish'];
+check($GLOBALS['routes']['/reports/(?P<id>\d+)']['permission_callback'] === '__return_true', 'Published report detail is public');
+$detail = mw_rest_report_detail(new Request(['id' => $first]));
+check($detail->status === 200 && $detail->data['report']['id'] === $first, 'Read the exact published report');
+check(!isset($detail->data['report']['ownerDiscordId']), 'Report detail does not expose ownership');
+foreach ([$other, $second, 999, 0, -1] as $id) {
+    check(mw_rest_report_detail(new Request(['id' => $id]))->status === 404, 'Never expose drafts, another post type or missing posts');
+}
 echo "OK private ownership storage, permission, isolation, pagination and privacy\n";

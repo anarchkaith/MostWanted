@@ -12,6 +12,9 @@ RewriteRule ^ - [L]
 RewriteRule ^api(?:/|$) - [L]
 
 # === SPA FALLBACK ===
+# Las vistas previas deben incluir metadata en el HTML, antes de ejecutar React.
+RewriteRule ^(?:reporte/[0-9]+|(?:jugador|usuario)/[^/]+)/?$ share.php [L]
+
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^ index.html [L]

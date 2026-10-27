@@ -213,21 +213,26 @@ export function buildDiscordReportPayload({ report = {}, reporter = {}, evidence
   const reporterAvatarUrl = /^https?:\/\//i.test(reporterAvatarCandidate) ? reporterAvatarCandidate : '';
 
   const fields = [
-    { name: 'RID', value: `||${truncateText(String(report.rid || 'N/A'), 1018)}||`, inline: false },
+    { name: 'RID', value: `||${truncateText(String(report.rid || 'N/A'), 1018)}||`, inline: true },
+    { name: '👥 Crews', value: buildCrewFieldValue(crews), inline: true },
     { name: '🗒 Motivo', value: buildReasonQuote(reasonText), inline: false },
   ];
   if (aliases.length > 0) {
     fields.push({ name: '🎭 Aliases', value: truncateText(aliases.join(', '), 1024), inline: true });
   }
   fields.push(
-    { name: '👥 Crews', value: buildCrewFieldValue(crews), inline: false },
-    { name: '🏷 Etiquetas', value: truncateText(`-# ${labels.join(', ') || '#Sin etiquetas de amenaza'}`, 1024), inline: false },
     { name: '🚥 Tipos de infraccion', value: truncateText(infractions.join(', ') || 'NO ESPECIFICADO', 1024), inline: false },
+    { name: '🏷 Etiquetas', value: truncateText(`-# ${labels.join(', ') || '#Sin etiquetas de amenaza'}`, 1024), inline: false },
   );
   const videoValue = buildVideoEvidenceField(evidence);
   if (videoValue) {
     fields.push({ name: '📼 Evidencias de Video', value: videoValue, inline: false });
   }
+  fields.push({
+    name: '🔗 Enlaces',
+    value: `[Reportar a un jugador](${MOSTWANTED_WEB_URL}/#reportar)\n[Ver lista de reportes](${MOSTWANTED_WEB_URL}/#reportes-lista)`,
+    inline: false,
+  });
 
   // Discord agrupa en una galería los embeds de un mismo mensaje que comparten la misma url.
   const galleryEmbeds = galleryImageUrls
@@ -245,30 +250,19 @@ export function buildDiscordReportPayload({ report = {}, reporter = {}, evidence
           url: 'https://mostwanted.kaithsrebels.com',
           ...(reporterAvatarUrl ? { icon_url: reporterAvatarUrl } : {}),
         },
-        title: '[ SUJETO MARCADO PARA ELIMINACIÓN ]',
-        description: `\`\`\`${truncateText(report.nickname, 300)}\`\`\``,
+        title: truncateText(toTrimmedString(report.nickname), 256),
+        description: `**Reporte de jugador**\n[${reportUrl === MOSTWANTED_WEB_URL ? 'Ver reportes en la web' : 'Ver reporte y votar'}](${reportUrl})`,
         url: profileUrl,
         color: embedColor,
         fields,
         ...(mainImageUrl ? { image: { url: mainImageUrl } } : {}),
         footer: {
-          text: 'MostWanted • Sistema de reportes de bad players',
+          text: 'MostWanted • Sistema de reportes',
           icon_url: 'https://i.ibb.co/fV98zMbz/HEX-LOGO-RED.png',
         },
         timestamp: new Date(normalizeTimestamp(report.time)).toISOString(),
       },
       ...galleryEmbeds,
-    ],
-    components: [
-      {
-        type: 1,
-        components: [
-          { type: 2, style: 5, label: '🗳 Votar en la web', url: reportUrl },
-          { type: 2, style: 5, label: '🎮 Perfil de Social Club', url: profileUrl },
-          { type: 2, style: 5, label: '🚨 Reportar a un jugador', url: `${MOSTWANTED_WEB_URL}/#reportar` },
-          { type: 2, style: 5, label: '📋 Ver lista de reportes', url: `${MOSTWANTED_WEB_URL}/#reportes-lista` },
-        ],
-      },
     ],
     allowed_mentions: { parse: [] },
   };

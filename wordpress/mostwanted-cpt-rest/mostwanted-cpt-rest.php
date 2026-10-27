@@ -2,7 +2,7 @@
 /**
  * Plugin Name: MostWanted CPT + REST
  * Description: CPT de jugadores/reportes y API REST para ingesta y consulta desde MostWanted.
- * Version: 0.6.9
+ * Version: 0.6.10
  * Author: KaithHacks
  */
 
@@ -1389,6 +1389,16 @@ function mw_rest_owned_reports($request) {
     return $response;
 }
 
+function mw_rest_report_detail($request) {
+    $id = intval($request->get_param('id'));
+    $post = $id > 0 ? get_post($id) : null;
+    if (!$post || $post->post_type !== 'mw_report' || $post->post_status !== 'publish') {
+        return new WP_REST_Response(['ok' => false, 'error' => 'report_not_found'], 404);
+    }
+
+    return new WP_REST_Response(['ok' => true, 'report' => mw_map_report_item($id)], 200);
+}
+
 function mw_rest_reports_list($request) {
     $page = max(1, intval($request->get_param('page') ?: 1));
     $per_page = max(1, min(100, intval($request->get_param('per_page') ?: 25)));
@@ -1537,6 +1547,12 @@ function mw_register_rest_routes() {
             'callback' => 'mw_rest_ingest_report',
             'permission_callback' => 'mw_can_ingest_reports',
         ],
+    ]);
+
+    register_rest_route(MW_NAMESPACE, '/reports/(?P<id>\d+)', [
+        'methods' => WP_REST_Server::READABLE,
+        'callback' => 'mw_rest_report_detail',
+        'permission_callback' => '__return_true',
     ]);
 
     register_rest_route(MW_NAMESPACE, '/reports/(?P<id>\d+)/community-verification', [

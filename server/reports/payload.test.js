@@ -209,17 +209,41 @@ runTest('crews conserva la URL de Social Club en WordPress y Discord', () => {
     `[${crew.name}](${crew.url})`);
 });
 
-runTest('buildDiscordReportPayload incluye los botones de link, incluidos Reportar a un jugador y Ver lista de reportes', () => {
+runTest('buildDiscordReportPayload enlaza el nombre al perfil y el reporte desde el embed sin componentes', () => {
   const payload = buildDiscordReportPayload({
     report: { id: 5, nickname: 'Jugador123', rid: '123', reason: 'Motivo', typesOfInfraction: [], labels: [], time: Date.now() },
     reporter: { name: 'Kaith' },
   });
-  const buttons = payload.components[0].components;
-  assert.equal(buttons.length, 4);
-  assert.equal(buttons[2].label, '🚨 Reportar a un jugador');
-  assert.equal(buttons[2].url, 'https://mostwanted.kaithsrebels.com/#reportar');
-  assert.equal(buttons[3].label, '📋 Ver lista de reportes');
-  assert.equal(buttons[3].url, 'https://mostwanted.kaithsrebels.com/#reportes-lista');
+  const embed = payload.embeds[0];
+  assert.equal(embed.title, 'Jugador123');
+  assert.equal(embed.url, 'https://socialclub.rockstargames.com/members/Jugador123/');
+  assert.equal(embed.description, '**Reporte de jugador**\n[Ver reporte y votar](https://mostwanted.kaithsrebels.com/reporte/5)');
+  assert.equal(embed.fields.find(({ name }) => name.includes('Enlaces')).value,
+    '[Reportar a un jugador](https://mostwanted.kaithsrebels.com/#reportar)\n[Ver lista de reportes](https://mostwanted.kaithsrebels.com/#reportes-lista)');
+  assert.equal(Object.hasOwn(payload, 'components'), false);
+  assert.deepEqual(payload.allowed_mentions, { parse: [] });
+});
+
+runTest('buildDiscordReportPayload codifica el perfil y conserva la URL compartida de la galeria', () => {
+  const payload = buildDiscordReportPayload({
+    report: { id: '42', nickname: ' Jugador #1 ', avatar1: 'https://example.com/avatar.png', time: Date.now() },
+    evidence: [{ url: 'https://example.com/evidence.png', contentType: 'image/png' }],
+  });
+  assert.equal(payload.embeds[0].title, 'Jugador #1');
+  assert.equal(payload.embeds[0].url, 'https://socialclub.rockstargames.com/members/Jugador%20%231/');
+  assert.match(payload.embeds[0].description, /\/reporte\/42\)/);
+  assert.equal(payload.embeds.length, 2);
+  assert.equal(payload.embeds[1].url, payload.embeds[0].url);
+  assert.equal(payload.embeds[1].image.url, 'https://example.com/evidence.png');
+});
+
+runTest('buildDiscordReportPayload respeta el limite del titulo y no inventa enlaces a reportes sin ID valido', () => {
+  for (const id of [undefined, 0, -1, 'invalido', 1.5]) {
+    const payload = buildDiscordReportPayload({ report: { id, nickname: 'a'.repeat(300), time: Date.now() } });
+    assert.equal(payload.embeds[0].title.length, 256);
+    assert.equal(payload.embeds[0].description,
+      '**Reporte de jugador**\n[Ver reportes en la web](https://mostwanted.kaithsrebels.com)');
+  }
 });
 
 runTest('buildDiscordAvatarUrl y attachSessionAvatarToReporter usan solo la sesión del mismo usuario', () => {

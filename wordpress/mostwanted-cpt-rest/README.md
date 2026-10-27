@@ -4,7 +4,9 @@ Plugin WordPress para registrar CPT de jugadores/reportes y exponer endpoints RE
 
 ## 1) Instalacion rapida
 
-Versión 0.6.9: el editor muestra únicamente los campos del formulario de denuncia de MostWanted, en su mismo orden: Jugador, Datos adicionales, Infracciones, Motivo, Evidencias y Conductas. Elimina los controles de análisis, severidad, validación, avatares, anonimato, fecha, origen y estado de investigación; sus valores guardados se conservan internamente. La moderación de votos tiene un panel aparte. Mantiene la sincronización de correcciones con la ficha del jugador.
+Versión 0.6.10: incorpora `GET /reports/<id>` para obtener un reporte publicado por su ID y generar vistas previas al compartir enlaces de MostWanted. No publica borradores, reportes privados ni datos del reportante.
+
+Desde 0.6.9, el editor muestra únicamente los campos del formulario de denuncia de MostWanted, en su mismo orden: Jugador, Datos adicionales, Infracciones, Motivo, Evidencias y Conductas. Elimina los controles de análisis, severidad, validación, avatares, anonimato, fecha, origen y estado de investigación; sus valores guardados se conservan internamente. La moderación de votos tiene un panel aparte. Mantiene la sincronización de correcciones con la ficha del jugador.
 
 Conserva nombres, crews y URLs de avatares al recibir nuevos reportes. Los datos vacíos no borran avatares conocidos y los nombres ausentes del reporte nuevo mantienen su fecha previa. La consulta por nombres históricos usa los alias registrados y nunca combina RIDs conocidos diferentes. `player-insights` añade `avatarHistory` y `crewHistory`, con fechas de registro cuando se conocen; no convierte los datos reportados en identidad externa verificada. El historial conserva URLs, no copias de imágenes alojadas por terceros.
 
@@ -61,6 +63,7 @@ Base: `/wp-json/mostwanted/v1`
 - `GET /health`
 - `POST /reports` (requiere token)
 - `GET /reports` (paginado, sin datos del reportante)
+- `GET /reports/<id>`: devuelve `{ok: true, report}` para un reporte publicado. Un ID inexistente, otro tipo de entrada o un reporte no publicado devuelve 404. Usa el mismo formato público y las mismas restricciones de autoría que el listado.
 - `GET /reports/owned?ownerDiscordId=...&page=1&per_page=20` (requiere el secreto del backend): consulta exacta por `_mw_owner_discord_id`, devuelve `{ok, items, page, perPage, hasMore}` sin metadatos privados y con `Cache-Control: private, no-store`. No llamar desde el navegador ni exponer el secreto. La autoría se recibe únicamente del backend confiable al ingerir reportes autenticados; no se reconstruye a partir de nombres históricos.
 - `GET /players`
 - `GET /players/lookup?rid=...` o `playerId=...` o `nickname=...`
