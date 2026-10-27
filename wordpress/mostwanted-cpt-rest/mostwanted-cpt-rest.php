@@ -2,7 +2,7 @@
 /**
  * Plugin Name: MostWanted CPT + REST
  * Description: CPT de jugadores/reportes y API REST para ingesta y consulta desde MostWanted.
- * Version: 0.6.12
+ * Version: 0.6.13
  * Author: KaithHacks
  */
 
@@ -15,6 +15,7 @@ const MW_SECRET_OPTION_KEY = 'mostwanted_api_secret';
 
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'report-admin.php';
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'player-summary.php';
+require_once __DIR__ . DIRECTORY_SEPARATOR . 'account-activity.php';
 
 function mw_register_post_types() {
     register_post_type('mw_player', [
@@ -775,6 +776,12 @@ function mw_store_report($player_post_id, $payload) {
     update_post_meta($report_post_id, '_mw_types', is_array($types) ? $types : []);
     update_post_meta($report_post_id, '_mw_labels', is_array($labels_table) ? $labels_table : []);
     update_post_meta($report_post_id, '_mw_reporter', $reporter);
+    $private_identity = mw_private_identity($payload['privateIdentity'] ?? null);
+    if ($private_identity && $private_identity['id'] === ($payload['ownerDiscordId'] ?? '')) {
+        update_post_meta($report_post_id, '_mw_private_identity', wp_slash($private_identity));
+        $account = mw_record_account($private_identity, 'report');
+        if (is_wp_error($account)) error_log('[mostwanted-account] Failed to record report account: ' . $account->get_error_code());
+    }
     $owner_discord_id = mw_str($payload['ownerDiscordId'] ?? '');
     if (preg_match('/^\d+$/', $owner_discord_id)) {
         update_post_meta($report_post_id, '_mw_owner_discord_id', $owner_discord_id);

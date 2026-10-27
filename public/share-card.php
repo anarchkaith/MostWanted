@@ -75,10 +75,10 @@ function mw_share_card_photo($image, $photo, $x, $y, $boxWidth, $boxHeight, $acc
 function mw_share_card_palette($risk) {
     return [
         'neutral' => [170, 185, 204],
-        'low' => [241, 239, 79],
-        'medium' => [255, 164, 64],
-        'high' => [255, 75, 85],
-        'critical' => [245, 90, 210],
+        'low' => [74, 222, 128],
+        'medium' => [241, 239, 79],
+        'high' => [255, 164, 64],
+        'critical' => [255, 75, 85],
     ][$risk] ?? [170, 185, 204];
 }
 

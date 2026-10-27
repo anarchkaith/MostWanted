@@ -13,6 +13,7 @@ export default function AccessScreen({ onLogin }) {
           <ul>
             <li>Te llevará a discord.com, la plataforma oficial. Esta web nunca ve tu contraseña.</li>
             <li>Discord te muestra los permisos que se piden antes de que aceptes.</li>
+            <li>Los administradores conservan tu ID, nombre, avatar y correo de Discord disponible, junto con tus accesos, actividad autenticada y reportes enviados, para administrar y prevenir abusos. Estos datos no se publican.</li>
             <li>Se pide tu perfil básico, tu correo y tu rol en el servidor, para comprobar si tienes acceso.</li>
             <li>La sesión viaja en una cookie protegida que el navegador no expone a scripts.</li>
           </ul>

@@ -66,7 +66,7 @@ check(meta_value($html, 'twitter:image') === meta_value($html, 'og:image'), 'Mat
 check(meta_value($html, 'twitter:title') === meta_value($html, 'og:title'), 'Matching Twitter title');
 check(str_contains(meta_value($html, 'description'), '2 evidencias adjuntas.'), 'Report preview includes real evidence count');
 check(!str_contains($html, 'private-owner-id') && !str_contains($html, 'private-ip'), 'Never embed private data');
-check(!str_contains($html, 'discord:component-embed'), 'Remove the generic Discord component metadata');
+check(substr_count($html, 'id="discord:component-embed"') === 1, 'Provide one route-specific Discord component payload');
 check(meta_value($html, 'og:image:width') === '1200' && (int) meta_value($html, 'og:image:height') >= 630
     && meta_value($html, 'og:image:type') === 'image/png', 'Declare actual PNG dimensions');
 check(str_contains($html, '<div id="root"><main><h1>') && str_contains($html, '<script type="module"'), 'Preserve the application shell with visible initial content');
@@ -165,6 +165,62 @@ $aiMetadata = mw_share_metadata('/jugador/Test', static function ($endpoint) use
 check($aiCalls === 1 && str_starts_with($aiMetadata['description'], 'Resumen guardado: patrones'), 'Lead metadata with saved AI text, not counters or labels');
 check(!str_contains($aiMetadata['description'], '**'), 'Convert saved Markdown to plain metadata text');
 check($aiMetadata['description'] === mw_share_ai_text($withAi['aiSummary']), 'Profile description is exactly the complete saved AI summary without counters, labels or crews');
+foreach ([$aiMetadata, $playerMetadata, $normalized] as $entry) {
+    $componentJson = mw_share_discord_json($entry);
+    check(strlen($componentJson) <= 3000, 'Discord component payload respects the actual serialized byte limit');
+    $component = json_decode($componentJson, true, 512, JSON_THROW_ON_ERROR);
+    check(array_keys($component) === ['component'] && $component['component']['type'] === 17, 'Use one parent container as required by Discord');
+    $children = $component['component']['components'];
+    check($children[0]['type'] === 10 && str_contains($children[0]['content'], '## '), 'Provide a readable Discord heading and description');
+    check($children[1]['type'] === 12 && $children[1]['items'][0]['media']['url'] === $entry['image'], 'Reuse the real data-driven preview image');
+    $actions = end($children);
+    check($actions['type'] === 1 && count($actions['components']) === 3, 'Provide three appropriate link actions');
+    foreach ($actions['components'] as $button) {
+        check(array_keys($button) === ['type', 'style', 'url', 'label'] && $button['type'] === 2 && $button['style'] === 5,
+            'Use only permitted link button fields, never interactive vote callbacks');
+    }
+    check($actions['components'][0]['url'] === $entry['playerUrl'], 'Contribute opens the matching player profile');
+    check($actions['components'][1]['url'] === MW_SHARE_ORIGIN . '/denunciar', 'Report opens the existing reporting flow');
+    check($actions['components'][2]['url'] === $entry['reportUrl'], 'Voting opens the actual report rather than casting a vote automatically');
+}
+$discordHtml = mw_share_html($template, $aiMetadata);
+$discordDom = new DOMDocument();
+@$discordDom->loadHTML('<?xml encoding="UTF-8">' . preg_replace('/^\xEF\xBB\xBF/', '', $discordHtml));
+$discordNode = (new DOMXPath($discordDom))->query('//head/script[@id="discord:component-embed"]')->item(0);
+check($discordNode !== null && $discordNode->getAttribute('type') === 'application/json', 'Server-render component JSON in the HTML head');
+check(json_decode($discordNode->textContent, true, 512, JSON_THROW_ON_ERROR)['component']['components'][0]['content']
+    === json_decode(mw_share_discord_json($aiMetadata), true)['component']['components'][0]['content'], 'Keep valid JSON through HTML serialization');
+$unsafeDiscord = $aiMetadata;
+$unsafeDiscord['description'] = '</script><script>alert("x")</script> **not formatting**';
+$safeDiscordJson = mw_share_discord_json($unsafeDiscord);
+check(!str_contains($safeDiscordJson, '</script>') && str_contains(json_decode($safeDiscordJson, true)['component']['components'][0]['content'], '\\*\\*not formatting\\*\\*'),
+    'Escape HTML closing tags and untrusted Discord Markdown');
+$sizeCase = $aiMetadata;
+$foundExactLimit = false;
+for ($length = 1900; $length <= 3000; $length++) {
+    $sizeCase['description'] = str_repeat('a', $length);
+    $jsonAtLimit = mw_share_discord_json($sizeCase);
+    if (strlen($jsonAtLimit ?? '') === 3000) {
+        $foundExactLimit = true;
+        check(str_contains(json_decode($jsonAtLimit, true)['component']['components'][0]['content'], $sizeCase['description']),
+            'Accept the exact 3000-byte limit without truncating the summary');
+        break;
+    }
+}
+check($foundExactLimit, 'Exercise Discord byte threshold exactly');
+$oversized = $aiMetadata;
+$oversized['description'] = str_repeat('Resumen completo con caracteres españoles. ', 120);
+$discordLog = tempnam(sys_get_temp_dir(), 'mw-discord-');
+$previousDiscordLog = ini_set('error_log', $discordLog);
+try {
+    $oversizedHtml = mw_share_html($template, $oversized);
+    check(!str_contains($oversizedHtml, 'id="discord:component-embed"'), 'Oversized summaries fall back to Open Graph, not invalid component JSON');
+    check(meta_value($oversizedHtml, 'og:description') === $oversized['description'], 'Preserve the full summary even when Discord components cannot fit');
+    check(str_contains(file_get_contents($discordLog), '[share-discord]'), 'Log the explicit oversized payload fallback');
+} finally {
+    ini_set('error_log', $previousDiscordLog);
+    unlink($discordLog);
+}
 check(meta_value(mw_share_html($template, $aiMetadata), 'og:site_name') === 'MostWanted', 'Retain site attribution outside the profile title');
 check(!str_contains(json_encode($aiMetadata['card']), 'Resumen guardado'), 'Keep AI summary out of the image');
 check($aiMetadata['card']['reasonLabel'] === '', 'Do not spend image space on a redundant details heading');
@@ -183,6 +239,10 @@ $noReports = mw_share_metadata('/jugador/Test', static fn() => ['ok' => true, 'f
     'player' => ['nickname' => 'Test', 'totalReports' => 0, 'reports' => []]]);
 check($noReports['description'] === '0 reportes registrados.', 'Include the known zero count but no empty reason placeholders');
 check(!str_contains($noReports['description'], 'votos'), 'Do not invent vote totals for an absent report');
+$noReportsDiscord = json_decode(mw_share_discord_json($noReports), true);
+$noReportActions = $noReportsDiscord['component']['components'];
+check(count(end($noReportActions)['components']) === 2, 'Omit report and vote action when no report exists');
+check(!str_contains(mw_share_html($template, $aiMetadata, false), 'id="discord:component-embed"'), 'Do not advertise component embeds on error pages');
 foreach ([$playerMetadata, $aiMetadata, $staleAi, $noReports, $metadata] as $entry) {
     $rendered = mw_share_html($template, $entry);
     check(meta_value($rendered, 'description') === meta_value($rendered, 'og:description')
@@ -264,12 +324,12 @@ foreach ($galleryLayout['evidence'] as $slot) {
     $photoWidth = $slot['width'];
     $photoHeight = (int) round($photoWidth / 4);
     $photoTop = $slot['y'] + (int) (($slot['height'] - $photoHeight) / 2);
-    check((imagecolorat($galleryImage, $slot['x'] - 4, $photoTop - 4) & 0xFFFFFF) === 0xF1EF4F,
+    check((imagecolorat($galleryImage, $slot['x'] - 4, $photoTop - 4) & 0xFFFFFF) === 0x4ADE80,
         'HUD corners frame the actual photograph without covering it');
 }
 check((imagecolorat($galleryImage, 1155, 20) & 0xFFFFFF) === 0x121618, 'Use a subtle dotted background');
-check((imagecolorat($galleryImage, 60, $galleryLayout['evidence'][0]['y'] - 12) & 0xFFFFFF) === 0xF1EF4F,
-    'Separate evidence from text with a compact yellow accent');
+check((imagecolorat($galleryImage, 60, $galleryLayout['evidence'][0]['y'] - 12) & 0xFFFFFF) === 0x4ADE80,
+    'Separate evidence from text with a green accent for low severity');
 check(imagesy($galleryImage) === $gallery['imageHeight'], 'Metadata declares the gallery height accurately');
 imagedestroy($galleryImage);
 $tallPhoto = imagecreatetruecolor(1440, 3200);
@@ -358,7 +418,7 @@ foreach ($identityLayout['tags'] as $tag) {
 }
 $identityPng = imagecreatefromstring(mw_share_card_png($identity['card']));
 $tag = $identityLayout['tags'][0];
-check((imagecolorat($identityPng, $tag['x'] + 8, $tag['y']) & 0xFFFFFF) === 0xFFA440, 'Render conduct tag outlines using the risk palette');
+check((imagecolorat($identityPng, $tag['x'] + 8, $tag['y']) & 0xFFFFFF) === 0xF1EF4F, 'Render medium-severity conduct tags in yellow');
 imagedestroy($identityPng);
 foreach ([
     ['Spawnkill', 'low'], ['Crash', 'medium'], ['Wallhack / ESP', 'high'],
@@ -370,12 +430,11 @@ check(mw_share_risk([['severity' => 'BAJA', 'labels' => ['Crash']]]) === 'low', 
 check(mw_share_risk([['severity' => 'invalid', 'labels' => ['Crash']]]) === 'medium', 'Unknown severity uses known conduct scores');
 check(mw_share_risk([['analysis' => ['severidad' => 'Crítica']]]) === 'critical', 'Accept accented severity from analysis');
 check(mw_share_risk([['severity' => 'baja'], ['severity' => 'alta']]) === 'high', 'Profiles use the maximum severity among consulted reports');
-foreach (['neutral', 'low', 'medium', 'high', 'critical'] as $risk) {
+foreach (['neutral' => 0xAAB9CC, 'low' => 0x4ADE80, 'medium' => 0xF1EF4F, 'high' => 0xFFA440, 'critical' => 0xFF4B55] as $risk => $expectedColor) {
     $riskCard = $emptyCard;
     $riskCard['risk'] = $risk;
     $rendered = imagecreatefromstring(mw_share_card_png($riskCard));
-    [$r, $g, $b] = mw_share_card_palette($risk);
-    check((imagecolorat($rendered, 35, 25) & 0xFFFFFF) === (($r << 16) | ($g << 8) | $b), 'Render exact palette for ' . $risk);
+    check((imagecolorat($rendered, 35, 25) & 0xFFFFFF) === $expectedColor, 'Render exact palette for ' . $risk);
     imagedestroy($rendered);
 }
 $emptyReport = mw_share_metadata('/reporte/42', static fn() => ['ok' => true, 'report' => ['id' => 42, 'nickname' => 'Player']]);

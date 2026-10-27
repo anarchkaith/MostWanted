@@ -158,6 +158,8 @@ function mw_share_metadata($path, callable $fetch) {
         $summary = mw_share_report_summary($report);
         return mw_share_card_metadata([
             'url' => MW_SHARE_ORIGIN . '/reporte/' . $id,
+            'playerUrl' => $nickname !== '' ? MW_SHARE_ORIGIN . '/jugador/' . rawurlencode($nickname) : null,
+            'reportUrl' => MW_SHARE_ORIGIN . '/reporte/' . $id,
             'title' => 'Reporte #' . $id . ($nickname !== '' ? ' de ' . $nickname : '')
                 . ($summary['categories'] !== '' ? ' | ' . $summary['categories'] : '') . ' | MostWanted',
             'description' => mw_share_report_description($summary),
@@ -213,6 +215,9 @@ function mw_share_metadata($path, callable $fetch) {
         }
         return mw_share_card_metadata([
             'url' => MW_SHARE_ORIGIN . '/jugador/' . rawurlencode($identity),
+            'playerUrl' => MW_SHARE_ORIGIN . '/jugador/' . rawurlencode($identity),
+            'reportUrl' => isset($latest['id']) && ctype_digit((string) $latest['id'])
+                ? MW_SHARE_ORIGIN . '/reporte/' . $latest['id'] : null,
             'title' => 'Perfil de ' . $nickname . (!empty($summary['categories']) ? ' | ' . $summary['categories'] : ''),
             'description' => $description,
             'imageAlt' => 'Perfil de ' . $nickname,
@@ -235,6 +240,34 @@ function mw_share_metadata($path, callable $fetch) {
     }
 
     throw new RuntimeException('Unsupported share URL.', 404);
+}
+
+function mw_share_discord_json($metadata) {
+    $markdown = static fn($text) => preg_replace('/([\\\\`*_{}\[\]()<>#+.!|~>])/u', '\\\\$1', $text);
+    $buttons = [];
+    if (!empty($metadata['playerUrl'])) $buttons[] = [
+        'type' => 2, 'style' => 5, 'url' => $metadata['playerUrl'], 'label' => 'Aportar informacion',
+    ];
+    $buttons[] = ['type' => 2, 'style' => 5, 'url' => MW_SHARE_ORIGIN . '/denunciar', 'label' => 'Reportar'];
+    if (!empty($metadata['reportUrl'])) $buttons[] = [
+        'type' => 2, 'style' => 5, 'url' => $metadata['reportUrl'], 'label' => 'Ver reporte y votar',
+    ];
+    [$r, $g, $b] = mw_share_card_palette($metadata['card']['risk'] ?? 'neutral');
+    $components = [['type' => 10, 'content' => '## ' . $markdown($metadata['title'])
+        . ($metadata['description'] !== '' ? "\n\n" . $markdown($metadata['description']) : '')]];
+    $components[] = ['type' => 12, 'items' => [['media' => ['url' => $metadata['image']]]]];
+    $components[] = ['type' => 1, 'components' => $buttons];
+    $encode = static fn($items) => json_encode(['component' => [
+        'type' => 17, 'accent_color' => ($r << 16) | ($g << 8) | $b, 'components' => $items,
+    ]], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_THROW_ON_ERROR);
+    $json = $encode($components);
+    if (strlen($json) <= 3000) return $json;
+    // Keep the full summary and actions if only the optional image exceeds Discord's budget.
+    array_splice($components, 1, 1);
+    $json = $encode($components);
+    if (strlen($json) <= 3000) return $json;
+    error_log('[share-discord] Component embed exceeds 3000 bytes; using complete Open Graph metadata.');
+    return null;
 }
 
 function mw_share_html($template, $metadata, $indexable = true) {
@@ -269,6 +302,8 @@ function mw_share_html($template, $metadata, $indexable = true) {
         $tags[] = '<meta ' . (str_starts_with($name, 'og:') ? 'property' : 'name') . '="' . $name . '" content="' . $escape($value) . '" />';
     }
     if ($indexable) {
+        $discord = mw_share_discord_json($metadata);
+        if ($discord !== null) $tags[] = '<script id="discord:component-embed" type="application/json">' . $discord . '</script>';
         $schema = [
             '@context' => 'https://schema.org',
             '@type' => $metadata['type'] === 'profile' ? 'ProfilePage' : 'WebPage',

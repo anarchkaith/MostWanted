@@ -83,6 +83,13 @@ async function requestWordpressApi({
   };
 }
 
+export async function postWordpressAccountActivity({ config, identity, event, logger = console }) {
+  return requestWordpressApi({
+    config, logger, method: 'POST', path: '/wp-json/mostwanted/v1/accounts/activity',
+    operation: 'Private account activity', body: { identity, event }, useAuth: true,
+  });
+}
+
 export async function postWordpressReport({ config, payload, logger = console }) {
   return requestWordpressApi({
     config,

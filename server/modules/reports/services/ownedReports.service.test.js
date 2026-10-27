@@ -15,12 +15,16 @@ test('ownership is taken only from the authenticated session, never from the sub
     sent.push(JSON.parse(options.body));
     return new Response(JSON.stringify({ ok: true, reportId: 7, player: null }), { status: 201 });
   });
-  const body = { report, reporter: { id: '999', name: 'Claimed user' }, ownerDiscordId: '999' };
-  const result = await submitWordpressReport({ body, sessionUser: { id: '123456789' }, wordpressReportsConfig: config, logger });
+  const body = { report, reporter: { id: '999', name: 'Claimed user' }, ownerDiscordId: '999',
+    privateIdentity: { id: '999', email: 'forged@example.test' } };
+  const result = await submitWordpressReport({ body, sessionUser: { id: '123456789', username: 'Verified', email: 'verified@example.test' }, wordpressReportsConfig: config, logger });
   assert.equal(result.status, 201);
   assert.equal(sent[0].ownerDiscordId, '123456789');
+  assert.equal(sent[0].privateIdentity.email, 'verified@example.test');
+  assert.equal(sent[0].privateIdentity.username, 'Verified');
   await submitWordpressReport({ body, wordpressReportsConfig: config, logger });
   assert.equal(Object.hasOwn(sent[1], 'ownerDiscordId'), false);
+  assert.equal(Object.hasOwn(sent[1], 'privateIdentity'), false);
 });
 
 test('owned reports require identity, valid pagination and configured WordPress', async () => {

@@ -1,5 +1,6 @@
 ﻿import crypto from 'node:crypto';
 import { getSessionUser } from '../../../shared/auth/sessionAuth.js';
+import { publishAccountActivity } from '../../../shared/auth/privateIdentity.js';
 
 /**
  * Agrega parametros de query a una URL base de forma segura.
@@ -57,6 +58,7 @@ export function registerAuthRoutes(app, deps) {
     authFrontendFailureUrl,
     authAllowedDiscordUserIds,
     verifyCaseStaff,
+    wordpressReportsConfig,
   } = deps;
 
   app.get('/api/auth/discord', (req, res) => {
@@ -170,6 +172,10 @@ export function registerAuthRoutes(app, deps) {
         premiumType: Number(me?.premium_type || 0),
         loggedAt: new Date().toISOString(),
       };
+      if (wordpressReportsConfig) {
+        const saved = await publishAccountActivity({ config: wordpressReportsConfig, user: req.session.authUser, event: 'login' });
+        if (saved) req.session.activityRecordedAt = Date.now();
+      }
 
       return req.session.save((error) => error
         ? redirectAuthFailure(res, authFrontendFailureUrl, 'session_storage_failed')
@@ -185,6 +191,10 @@ export function registerAuthRoutes(app, deps) {
     const user = getSessionUser(req);
     if (!user) {
       return res.status(401).json({ authenticated: false, user: null, capabilities: { manageCases: false } });
+    }
+    if (wordpressReportsConfig && Date.now() - (req.session.activityRecordedAt || 0) > 15 * 60 * 1000) {
+      const saved = await publishAccountActivity({ config: wordpressReportsConfig, user, event: 'active' });
+      if (saved) req.session.activityRecordedAt = Date.now();
     }
 
     try {

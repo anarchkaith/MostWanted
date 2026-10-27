@@ -21,6 +21,7 @@ $GLOBALS['test_meta'] = [
         'nickname' => 'Player', 'rid' => '123', 'reason' => 'Denuncia',
         'reporter' => ['name' => 'PRIVATE_NAME', 'id' => 'PRIVATE_ID', 'ip' => 'PRIVATE_IP'],
         'ownerDiscordId' => 'PRIVATE_OWNER',
+        'privateIdentity' => ['id' => 'PRIVATE_ID', 'email' => 'PRIVATE_EMAIL'],
         'reportedby' => 'PRIVATE_NAME', 'reportadoPor' => 'PRIVATE_NAME',
         'contacto' => 'PRIVATE_CONTACT', 'metadata' => ['reporter' => 'PRIVATE_NAME'],
         'report' => ['reportedby' => 'PRIVATE_NESTED', 'categories' => ['MODDER']],
@@ -28,6 +29,7 @@ $GLOBALS['test_meta'] = [
         'evidence' => [['url' => 'evidence.png']],
     ],
     '_mw_created_at' => '2026-10-01',
+    '_mw_private_identity' => ['email' => 'PRIVATE_EMAIL'],
     '_mw_community_verification' => [
         'up' => 2, 'down' => 1,
         'feedback' => [['author' => 'PRIVATE_VOTER', 'ip' => 'PRIVATE_VOTER_IP', 'reason' => 'Revisar']],
