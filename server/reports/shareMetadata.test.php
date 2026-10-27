@@ -23,7 +23,7 @@ $json = '{"ok":true,"found":true,"player":{"nickname":"Pol4ar24","totalReports":
 foreach ([$json, "\xEF\xBB\xBF" . $json] as $body) {
     $response = mw_share_response('/jugador/Pol4ar24', $template, static fn() => mw_share_decode_response($body, 200));
     check($response['status'] === 200, 'Accept WordPress JSON with or without a leading BOM');
-    check(meta_value($response['html'], 'og:title') === 'Perfil de Pol4ar24 | MostWanted', 'Render player data from the actual REST response format');
+    check(meta_value($response['html'], 'og:title') === 'Perfil de Pol4ar24', 'Render player identity without redundant site branding');
     check(str_contains(meta_value($response['html'], 'og:description'), '1 reporte registrado.'), 'Preserve the player summary');
 }
 foreach ([
@@ -94,13 +94,12 @@ foreach (['/jugador/Jugador%20con%20espacios', '/usuario/Jugador%20con%20espacio
         return ['ok' => true, 'found' => true, 'player' => $player];
     });
     check($response['status'] === 200, 'Player response succeeds');
-    check(meta_value($response['html'], 'og:title') === 'Perfil de Jugador con espacios | MODDER | MostWanted', 'Player title includes latest report types');
+    check(meta_value($response['html'], 'og:title') === 'Perfil de Jugador con espacios | MODDER', 'Player title includes latest report types without redundant branding');
     check(meta_value($response['html'], 'og:url') === MW_SHARE_ORIGIN . '/jugador/Jugador%20con%20espacios', 'Canonical player route including legacy alias');
     check(meta_value($response['html'], 'og:type') === 'profile', 'Profile type');
     $description = html_entity_decode(strip_tags($response['html']), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-    check(str_contains($description, '3 reportes registrados.') && str_contains($description, 'Crews: Crew Uno.'), 'Player report count and crews');
+    check(meta_value($response['html'], 'og:description') === $player['reports'][1]['reason'], 'Fallback uses the complete reason without labels or supplementary fields');
     check(str_contains($description, 'Expulsa y crashea') && !str_contains($description, 'Motivo antiguo'), 'Summarize the most recent report, not just labels');
-    check(str_contains($description, '2 votos a favor / 1 en contra') && str_contains($description, '1 evidencia adjunta'), 'Describe real votes and evidence');
     check(str_starts_with(meta_value($response['html'], 'og:image'), MW_SHARE_ORIGIN . '/share-image.php?path=%2Fjugador%2F'), 'Generate a player-specific image');
 }
 $response = mw_share_response('/jugador/123', $template, static function ($endpoint) use ($player) {
@@ -165,6 +164,8 @@ $aiMetadata = mw_share_metadata('/jugador/Test', static function ($endpoint) use
 });
 check($aiCalls === 1 && str_starts_with($aiMetadata['description'], 'Resumen guardado: patrones'), 'Lead metadata with saved AI text, not counters or labels');
 check(!str_contains($aiMetadata['description'], '**'), 'Convert saved Markdown to plain metadata text');
+check($aiMetadata['description'] === mw_share_ai_text($withAi['aiSummary']), 'Profile description is exactly the complete saved AI summary without counters, labels or crews');
+check(meta_value(mw_share_html($template, $aiMetadata), 'og:site_name') === 'MostWanted', 'Retain site attribution outside the profile title');
 check(!str_contains(json_encode($aiMetadata['card']), 'Resumen guardado'), 'Keep AI summary out of the image');
 check($aiMetadata['card']['reasonLabel'] === '', 'Do not spend image space on a redundant details heading');
 check(str_contains($aiMetadata['card']['context'], '#42'), 'Keep latest report identity in the image');
@@ -228,6 +229,7 @@ $noAvatarCalls = 0;
 mw_share_card_png($emptyCard, static function () use (&$noAvatarCalls) { $noAvatarCalls++; throw new LogicException('No avatar should be loaded'); });
 check($noAvatarCalls === 0, 'No invented avatar when no URL exists');
 $galleryReport = $report;
+$galleryReport['severity'] = 'baja';
 $galleryReport['avatar1'] = '';
 $galleryReport['evidence'] = [
     ['url' => 'https://i.ibb.co/example/a.png', 'contentType' => 'image/png'],
@@ -258,16 +260,16 @@ $galleryImage = imagecreatefromstring($galleryPng);
 foreach ($galleryLayout['evidence'] as $slot) {
     check((imagecolorat($galleryImage, $slot['x'] + (int) ($slot['width'] / 2), $slot['y'] + (int) ($slot['height'] / 2)) & 0xFFFFFF) === 0x00FF00,
         'Each evidence thumbnail is visible');
-    check((imagecolorat($galleryImage, $slot['x'] + 1, $slot['y'] + 1) & 0xFFFFFF) === 0x111827, 'Fit without cropping or stretching the evidence');
+    check((imagecolorat($galleryImage, $slot['x'] + 1, $slot['y'] + 1) & 0xFFFFFF) === 0x080A0C, 'Fit without cropping or stretching the evidence');
     $photoWidth = $slot['width'];
     $photoHeight = (int) round($photoWidth / 4);
     $photoTop = $slot['y'] + (int) (($slot['height'] - $photoHeight) / 2);
-    check((imagecolorat($galleryImage, $slot['x'] - 4, $photoTop - 4) & 0xFFFFFF) === 0xA4404D,
+    check((imagecolorat($galleryImage, $slot['x'] - 4, $photoTop - 4) & 0xFFFFFF) === 0xF1EF4F,
         'HUD corners frame the actual photograph without covering it');
 }
-check((imagecolorat($galleryImage, 1155, 20) & 0xFFFFFF) === 0x172030, 'Use a subtle dotted background');
-check((imagecolorat($galleryImage, 60, $galleryLayout['evidence'][0]['y'] - 12) & 0xFFFFFF) === 0xFF4B55,
-    'Separate evidence from text with a compact red accent');
+check((imagecolorat($galleryImage, 1155, 20) & 0xFFFFFF) === 0x121618, 'Use a subtle dotted background');
+check((imagecolorat($galleryImage, 60, $galleryLayout['evidence'][0]['y'] - 12) & 0xFFFFFF) === 0xF1EF4F,
+    'Separate evidence from text with a compact yellow accent');
 check(imagesy($galleryImage) === $gallery['imageHeight'], 'Metadata declares the gallery height accurately');
 imagedestroy($galleryImage);
 $tallPhoto = imagecreatetruecolor(1440, 3200);
@@ -339,6 +341,43 @@ foreach ($twoAvatarLayout['blocks'] as $block) {
     check($block['y'] >= 218 || 55 + $block['width'] < $twoAvatarLayout['avatars'][0]['x'], 'Text does not overlap avatars');
 }
 imagedestroy($twoAvatarImage);
+$identityPlayer = $player;
+$identityPlayer['aliases'] = [['alias' => $player['nickname']], ['alias' => 'rusiochikito']];
+$identityPlayer['reports'][1]['aliases'] = ['rusiochikito', 'Otro nombre'];
+$identityPlayer['reports'][1]['crews'] = [['name' => 'FastDecendents'], ['name' => 'Crew Uno']];
+$identityPlayer['reports'][1]['labels'] = [['label' => 'Crash'], ['label' => str_repeat('Conducta larga ', 15)]];
+$identity = mw_share_metadata('/jugador/Test', static fn() => ['ok' => true, 'found' => true, 'player' => $identityPlayer]);
+check(str_contains($identity['card']['reason'], 'Otros nombres: rusiochikito, Otro nombre'), 'Merge structured player aliases and report aliases without repeating the current nickname');
+check(str_contains($identity['card']['reason'], 'Crews: Crew Uno, FastDecendents'), 'Include profile and reported crews without duplicates');
+check(!str_contains($identity['card']['reason'], 'Conductas reportadas'), 'Render conduct as tags instead of a prose field');
+$identityLayout = mw_share_card_layout($identity['card']);
+check(count($identityLayout['tags']) === 2 && $identityLayout['tags'][0]['text'] === 'Crash', 'Lay out each reported conduct as an individual tag');
+foreach ($identityLayout['tags'] as $tag) {
+    check($tag['x'] >= 55 && $tag['x'] + $tag['width'] <= 1145, 'Wrap long tags within the image');
+    check($tag['y'] + $tag['height'] < $identityLayout['evidence'][0]['y'], 'Keep tags above the evidence gallery');
+}
+$identityPng = imagecreatefromstring(mw_share_card_png($identity['card']));
+$tag = $identityLayout['tags'][0];
+check((imagecolorat($identityPng, $tag['x'] + 8, $tag['y']) & 0xFFFFFF) === 0xFFA440, 'Render conduct tag outlines using the risk palette');
+imagedestroy($identityPng);
+foreach ([
+    ['Spawnkill', 'low'], ['Crash', 'medium'], ['Wallhack / ESP', 'high'],
+    ['Divulgación de información privada (doxxing)', 'critical'], ['Unknown', 'neutral'],
+] as [$label, $expected]) {
+    check(mw_share_risk([['labels' => [['label' => $label]]]]) === $expected, 'Use catalog score for ' . $label);
+}
+check(mw_share_risk([['severity' => 'BAJA', 'labels' => ['Crash']]]) === 'low', 'Prefer recorded severity over conduct fallback');
+check(mw_share_risk([['severity' => 'invalid', 'labels' => ['Crash']]]) === 'medium', 'Unknown severity uses known conduct scores');
+check(mw_share_risk([['analysis' => ['severidad' => 'Crítica']]]) === 'critical', 'Accept accented severity from analysis');
+check(mw_share_risk([['severity' => 'baja'], ['severity' => 'alta']]) === 'high', 'Profiles use the maximum severity among consulted reports');
+foreach (['neutral', 'low', 'medium', 'high', 'critical'] as $risk) {
+    $riskCard = $emptyCard;
+    $riskCard['risk'] = $risk;
+    $rendered = imagecreatefromstring(mw_share_card_png($riskCard));
+    [$r, $g, $b] = mw_share_card_palette($risk);
+    check((imagecolorat($rendered, 35, 25) & 0xFFFFFF) === (($r << 16) | ($g << 8) | $b), 'Render exact palette for ' . $risk);
+    imagedestroy($rendered);
+}
 $emptyReport = mw_share_metadata('/reporte/42', static fn() => ['ok' => true, 'report' => ['id' => 42, 'nickname' => 'Player']]);
 check($emptyReport['description'] === '' && $emptyReport['card']['reason'] === '' && $emptyReport['card']['stats'] === ''
     && $emptyReport['card']['context'] === '', 'Do not invent empty report field values');
