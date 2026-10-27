@@ -244,6 +244,7 @@ $galleryLayout = mw_share_card_layout($gallery['card']);
 $lastBlock = end($galleryLayout['blocks']);
 $lastBottom = $lastBlock['y'] + count(mw_share_card_lines($lastBlock['text'], $lastBlock['width'], $lastBlock['scale'])) * 19 * $lastBlock['scale'];
 check($galleryLayout['evidence'][0]['y'] > $lastBottom, 'Evidence never covers the full report text');
+check($galleryLayout['evidence'][0]['height'] >= 300, 'Give evidence at least 300 pixels of height for larger thumbnails');
 $galleryCalls = [];
 $galleryPng = mw_share_card_png($gallery['card'], static function ($url, $kind) use (&$galleryCalls) {
     check($kind === 'evidence', 'Use evidence-specific image download limits');
@@ -258,7 +259,15 @@ foreach ($galleryLayout['evidence'] as $slot) {
     check((imagecolorat($galleryImage, $slot['x'] + (int) ($slot['width'] / 2), $slot['y'] + (int) ($slot['height'] / 2)) & 0xFFFFFF) === 0x00FF00,
         'Each evidence thumbnail is visible');
     check((imagecolorat($galleryImage, $slot['x'] + 1, $slot['y'] + 1) & 0xFFFFFF) === 0x111827, 'Fit without cropping or stretching the evidence');
+    $photoWidth = $slot['width'];
+    $photoHeight = (int) round($photoWidth / 4);
+    $photoTop = $slot['y'] + (int) (($slot['height'] - $photoHeight) / 2);
+    check((imagecolorat($galleryImage, $slot['x'] - 4, $photoTop - 4) & 0xFFFFFF) === 0xA4404D,
+        'HUD corners frame the actual photograph without covering it');
 }
+check((imagecolorat($galleryImage, 1155, 20) & 0xFFFFFF) === 0x172030, 'Use a subtle dotted background');
+check((imagecolorat($galleryImage, 60, $galleryLayout['evidence'][0]['y'] - 12) & 0xFFFFFF) === 0xFF4B55,
+    'Separate evidence from text with a compact red accent');
 check(imagesy($galleryImage) === $gallery['imageHeight'], 'Metadata declares the gallery height accurately');
 imagedestroy($galleryImage);
 $tallPhoto = imagecreatetruecolor(1440, 3200);

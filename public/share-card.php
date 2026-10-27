@@ -36,7 +36,8 @@ function mw_share_card_layout($card) {
     $evidence = [];
     $urls = array_slice($card['evidenceImages'] ?? [], 0, 3);
     if ($urls) {
-        $height = max(180, min(260, 610 - $y));
+        $y += 12;
+        $height = max(300, min(360, 610 - $y));
         $width = (int) floor((1090 - (count($urls) - 1) * 16) / count($urls));
         foreach ($urls as $index => $url) {
             $evidence[] = ['url' => $url, 'x' => 55 + $index * ($width + 16), 'y' => $y, 'width' => $width, 'height' => $height];
@@ -50,8 +51,19 @@ function mw_share_card_photo($image, $photo, $x, $y, $boxWidth, $boxHeight) {
     $scale = min($boxWidth / imagesx($photo), $boxHeight / imagesy($photo));
     $width = max(1, (int) round(imagesx($photo) * $scale));
     $height = max(1, (int) round(imagesy($photo) * $scale));
-    imagecopyresampled($image, $photo, $x + (int) (($boxWidth - $width) / 2), $y + (int) (($boxHeight - $height) / 2),
-        0, 0, $width, $height, imagesx($photo), imagesy($photo));
+    $left = $x + (int) (($boxWidth - $width) / 2);
+    $top = $y + (int) (($boxHeight - $height) / 2);
+    imagecopyresampled($image, $photo, $left, $top, 0, 0, $width, $height, imagesx($photo), imagesy($photo));
+    mw_share_card_corners($image, $left - 4, $top - 4, $width + 8, $height + 8, imagecolorallocate($image, 164, 64, 77));
+}
+
+function mw_share_card_corners($image, $x, $y, $width, $height, $color) {
+    $length = min(16, (int) floor(min($width, $height) / 3));
+    foreach ([[$x, $y, 1, 1], [$x + $width - 1, $y, -1, 1],
+        [$x, $y + $height - 1, 1, -1], [$x + $width - 1, $y + $height - 1, -1, -1]] as [$left, $top, $dx, $dy]) {
+        imageline($image, $left, $top, $left + $dx * $length, $top, $color);
+        imageline($image, $left, $top, $left, $top + $dy * $length, $color);
+    }
 }
 
 function mw_share_card_text($image, $text, $x, $y, $width, $scale, $color) {
@@ -79,6 +91,19 @@ function mw_share_card_png($card, $loadImage = null) {
         $white = imagecolorallocate($image, 241, 245, 249);
         $muted = imagecolorallocate($image, 170, 185, 204);
         imagefill($image, 0, 0, $background);
+        $grid = imagecolorallocate($image, 23, 32, 48);
+        $detail = imagecolorallocate($image, 39, 51, 69);
+        for ($x = 35; $x < 1180; $x += 40) {
+            for ($y = 20; $y < $layout['height'] - 15; $y += 40) {
+                imagesetpixel($image, $x, $y, $grid);
+            }
+        }
+        mw_share_card_corners($image, 30, 15, 1140, $layout['height'] - 30, $detail);
+        if ($layout['evidence']) {
+            $separatorY = $layout['evidence'][0]['y'] - 12;
+            imageline($image, 55, $separatorY, 1145, $separatorY, $detail);
+            imageline($image, 55, $separatorY, 135, $separatorY, $red);
+        }
         imagefilledrectangle($image, 0, 0, 15, $layout['height'] - 1, $red);
         if ($loadImage !== null) {
             foreach ($layout['avatars'] as $slot) {
