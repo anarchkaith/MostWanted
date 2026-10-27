@@ -47,6 +47,10 @@ function mw_record_account($identity, $event) {
 }
 
 add_action('rest_api_init', static function () {
+    register_rest_route(MW_NAMESPACE, '/accounts/private', [
+        'methods' => 'GET', 'permission_callback' => 'mw_can_ingest_reports',
+        'callback' => 'mw_rest_private_accounts',
+    ]);
     register_rest_route(MW_NAMESPACE, '/accounts/activity', [
         'methods' => 'POST', 'permission_callback' => 'mw_can_ingest_reports',
         'callback' => static function ($request) {
@@ -58,14 +62,45 @@ add_action('rest_api_init', static function () {
     ]);
 });
 
+function mw_rest_private_accounts($request) {
+    $page = filter_var($request->get_param('page') ?? 1, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+    if ($page === false) return new WP_Error('invalid_page', 'Pagina invalida.', ['status' => 400]);
+    $ids = get_posts(['post_type' => 'mw_account', 'post_status' => 'private', 'numberposts' => 21,
+        'offset' => ($page - 1) * 20, 'fields' => 'ids', 'orderby' => 'ID', 'order' => 'DESC']);
+    $items = [];
+    foreach (array_slice($ids, 0, 20) as $id) {
+        $identity = mw_private_identity(get_post_meta($id, '_mw_identity', true));
+        if (!$identity) continue;
+        $reports = get_posts(['post_type' => 'mw_report', 'post_status' => 'any', 'numberposts' => 50,
+            'fields' => 'ids', 'meta_key' => '_mw_owner_discord_id', 'meta_value' => $identity['id']]);
+        $items[] = ['identity' => $identity,
+            'firstAccess' => get_post_meta($id, '_mw_first_access', true),
+            'lastLogin' => get_post_meta($id, '_mw_last_login', true),
+            'lastAccess' => get_post_meta($id, '_mw_last_access', true),
+            'lastEvent' => get_post_meta($id, '_mw_last_event', true),
+            'reportIds' => array_map('intval', $reports)];
+    }
+    $response = new WP_REST_Response(['ok' => true, 'items' => $items, 'hasMore' => count($ids) > 20], 200);
+    $response->header('Cache-Control', 'private, no-store');
+    return $response;
+}
+
 function mw_render_private_identity($post) {
     if (!current_user_can('manage_options')) return;
     $identity = get_post_meta($post->ID, $post->post_type === 'mw_report' ? '_mw_private_identity' : '_mw_identity', true);
+    $owner = get_post_meta($post->ID, '_mw_owner_discord_id', true);
+    if (!$identity && $owner) {
+        $accounts = get_posts(['post_type' => 'mw_account', 'post_status' => 'private', 'numberposts' => 1,
+            'fields' => 'ids', 'meta_key' => '_mw_discord_id', 'meta_value' => $owner]);
+        if ($accounts) {
+            $identity = get_post_meta($accounts[0], '_mw_identity', true);
+            echo '<p>Identidad actual de la cuenta vinculada; no es una captura historica del envio.</p>';
+        }
+    }
     echo '<p>Datos privados. Solo administradores. No se publican en enlaces ni en Discord.</p><dl>';
     foreach (['id' => 'ID de Discord', 'username' => 'Usuario', 'globalName' => 'Nombre visible', 'email' => 'Correo'] as $key => $label) {
         if (!empty($identity[$key])) echo '<dt>' . esc_html($label) . '</dt><dd>' . esc_html($identity[$key]) . '</dd>';
     }
-    $owner = get_post_meta($post->ID, '_mw_owner_discord_id', true);
     if (empty($identity['id']) && $owner) echo '<dt>ID de Discord</dt><dd>' . esc_html($owner) . '</dd>';
     if (!empty($identity['avatar']) && preg_match('/^[a-zA-Z0-9_]+$/D', $identity['avatar'])) {
         $url = 'https://cdn.discordapp.com/avatars/' . rawurlencode($identity['id']) . '/' . rawurlencode($identity['avatar']) . '.png?size=128';

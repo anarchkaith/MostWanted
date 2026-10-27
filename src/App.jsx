@@ -9,7 +9,6 @@ import PersonSearch from '../components/PersonSearch';
 import ProfileScreen from '../components/screens/ProfileScreen';
 import Skeleton from '../components/ui/Skeleton';
 import AppHeader from '../components/layout/AppHeader';
-import DeskNavigation from '../components/layout/DeskNavigation';
 import SiteFooter from '../components/layout/SiteFooter';
 import SessionActions from '../components/layout/SessionActions';
 import AccessScreen from '../components/screens/AccessScreen';
@@ -17,7 +16,7 @@ import ReportScreen from '../components/screens/ReportScreen';
 import useSession from './hooks/useSession';
 import useAppNavigation from './hooks/useAppNavigation';
 import useReportArchive from './hooks/useReportArchive';
-import { handleInternalLink, isSearchLanding } from './services/appNavigation';
+import { isSearchLanding } from './services/appNavigation';
 import { mapWordpressReportToReporte } from './services/reportViewModel';
 import { resolvePlayerRid } from '../shared/playerIdentity';
 import { playerPath } from './services/playerRoute';
@@ -147,7 +146,6 @@ function App() {
   };
   const returnPath = path === '/denunciar' ? formReturnPath.current
     : path.startsWith('/reporte/') ? detailReturnPath.current : path;
-  const archivePath = returnPath === '/perfil' ? '/' : returnPath;
   const isProfileScreen = path === '/perfil' || (path.startsWith('/reporte/') && detailReturnPath.current === '/perfil');
   const showSearchLanding = canUseReports && isSearchLanding(path, searchPlayer);
   const personSearch = canUseReports && <PersonSearch revision={caseRevision} reports={reportes} knownPlayers={knownPlayers} onSelect={player => {
@@ -165,11 +163,6 @@ function App() {
         search={!showSearchLanding && personSearch}
         actions={<SessionActions user={user} isDemo={isDemo} canUseReports={canUseReports} isProfileScreen={isProfileScreen} onNavigate={navigate} onLogin={handleLogin} onHelp={() => setShowHelp(true)} />}
       />
-      {canUseReports && !showSearchLanding && <DeskNavigation items={[
-        { href: `${archivePath}${isDemo ? '?demo=true' : ''}`, number: '01', label: 'Archivo de investigación', current: path !== '/denunciar' && !isProfileScreen,
-          onClick: event => handleInternalLink(event, nextPath => { if (path !== nextPath) navigate(nextPath); }, archivePath) },
-        ...(path === '/denunciar' ? [{ href: isDemo ? '/denunciar?demo=true' : '/denunciar', number: '02', label: 'Mesa de denuncias', current: true }] : []),
-      ]} />}
       {/* Modal de ayuda */}
       <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />
       {sessionError && <p className="rfm-submit-error" role="alert">{sessionError}</p>}

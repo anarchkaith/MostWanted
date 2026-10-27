@@ -1,9 +1,13 @@
 import assert from 'node:assert/strict';
 import { privateIdentity, publishAccountActivity } from './privateIdentity.js';
 import { buildWordpressReportPayload } from '../../reports/payload.js';
+import { canViewPrivateAccounts } from './accountAdmin.js';
 
 const user = { id: '123', username: 'name', globalName: 'Name', email: 'private@example.test',
   avatar: 'hash', accessToken: 'SECRET', extra: 'SECRET' };
+assert.equal(canViewPrivateAccounts(null), false);
+assert.equal(canViewPrivateAccounts({ id: '123', username: 'camiikilljoy' }), false);
+assert.equal(canViewPrivateAccounts({ id: '343976455400718339' }), true);
 const identity = privateIdentity(user);
 assert.deepEqual(Object.keys(identity), ['id', 'username', 'globalName', 'avatar', 'email']);
 assert.equal(JSON.stringify(identity).includes('SECRET'), false);

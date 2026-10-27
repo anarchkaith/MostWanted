@@ -90,6 +90,13 @@ export async function postWordpressAccountActivity({ config, identity, event, lo
   });
 }
 
+export async function getWordpressAccounts({ config, page, logger = console }) {
+  return requestWordpressApi({
+    config, logger, method: 'GET', path: `/wp-json/mostwanted/v1/accounts/private?page=${page}`,
+    operation: 'Private accounts lookup', useAuth: true,
+  });
+}
+
 export async function postWordpressReport({ config, payload, logger = console }) {
   return requestWordpressApi({
     config,

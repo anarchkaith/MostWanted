@@ -18,6 +18,11 @@ function esc_html($value) { return htmlspecialchars($value, ENT_QUOTES); }
 function esc_url($value) { return esc_html($value); }
 function get_edit_post_link($id) { return 'https://wp.test/edit/' . $id; }
 class WP_Error { function __construct(...$args) {} }
+class WP_REST_Response {
+    public $data; public $headers = [];
+    function __construct($data, $status) { $this->data = $data; }
+    function header($key, $value) { $this->headers[$key] = $value; }
+}
 require __DIR__ . DIRECTORY_SEPARATOR . 'account-activity.php';
 function check($condition, $message) { if (!$condition) throw new RuntimeException($message); }
 ($GLOBALS['actions']['init'])();
@@ -38,4 +43,12 @@ check($hidden === '', 'Deny direct renderer access to non-administrators');
 $GLOBALS['admin'] = true;
 ob_start(); mw_render_private_identity($post); $visible = ob_get_clean();
 check(str_contains($visible, 'private@test') && !str_contains($visible, 'SECRET'), 'Admin sees only private allowlisted identity');
+$request = new class { function get_param($key) { return 1; } };
+$accounts = mw_rest_private_accounts($request);
+check($accounts->data['items'][0]['identity']['email'] === 'private@test', 'Private lookup returns stored account fields');
+check($accounts->headers['Cache-Control'] === 'private, no-store', 'Private lookup is never publicly cacheable');
+$report = (object) ['ID' => 2, 'post_type' => 'mw_report'];
+$GLOBALS['meta'][2]['_mw_owner_discord_id'] = '123';
+ob_start(); mw_render_private_identity($report); $fallback = ob_get_clean();
+check(str_contains($fallback, 'private@test') && str_contains($fallback, 'no es una captura historica'), 'Legacy report displays current linked identity with explicit provenance');
 echo "OK private account persistence, administrative access and token exclusion\n";
