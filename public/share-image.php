@@ -3,14 +3,19 @@
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'share-metadata.php';
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'share-card.php';
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'share-cache.php';
+require_once __DIR__ . DIRECTORY_SEPARATOR . 'share-avatar.php';
 
 try {
     $path = $_GET['path'] ?? '';
     if (!is_string($path) || strlen($path) > 1024) throw new RuntimeException('Invalid preview image path.', 400);
     $metadata = mw_share_metadata($path, 'mw_share_cached_fetch');
-    $key = 'png:' . filemtime(__DIR__ . DIRECTORY_SEPARATOR . 'share-card.php') . ':' . $metadata['url'];
+    $key = 'png:' . filemtime(__DIR__ . DIRECTORY_SEPARATOR . 'share-card.php') . ':'
+        . filemtime(__DIR__ . DIRECTORY_SEPARATOR . 'share-avatar.php') . ':' . $metadata['url'];
     $revision = hash('sha256', json_encode($metadata['card']));
-    $cached = mw_share_cached($key, static fn() => base64_encode(mw_share_card_png($metadata['card'])), $revision);
+    $cached = mw_share_cached($key, static fn() => base64_encode(mw_share_card_png($metadata['card'],
+        static fn($url, $kind) => $kind === 'evidence'
+            ? mw_share_avatar_image(mw_share_avatar_bytes($url, 5 * 1024 * 1024), 4096, 8 * 1024 * 1024)
+            : mw_share_avatar_image(mw_share_avatar_bytes($url)))), $revision);
     $png = base64_decode($cached, true);
     if ($png === false) throw new RuntimeException('Invalid cached preview PNG.', 503);
     header('Content-Type: image/png');

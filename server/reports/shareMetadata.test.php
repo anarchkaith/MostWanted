@@ -1,7 +1,8 @@
 <?php
 
 require dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'share-metadata.php';
-require dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'share-card.php';
+require_once dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'share-card.php';
+require_once dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'share-avatar.php';
 require dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'share-cache.php';
 
 function check($condition, $message) {
@@ -56,7 +57,7 @@ $response = mw_share_response('/reporte/42', $template, static function ($endpoi
 });
 check($response['status'] === 200 && $calls === ['/reports/42'], 'Fetch the requested report only');
 $html = $response['html'];
-check(meta_value($html, 'og:title') === 'Reporte #42 de Player "Uno" & Dos | MostWanted', 'Report-specific title');
+check(meta_value($html, 'og:title') === 'Reporte #42 de Player "Uno" & Dos | Exploit | MostWanted', 'Report title includes the actual type');
 check(str_contains(meta_value($html, 'og:description'), 'Motivo reportado: Motivo con "comillas" & detalles'), 'Report-specific plain text reason');
 check(str_contains(meta_value($html, 'description'), 'Exploit'), 'Include reported categories');
 check(meta_value($html, 'og:url') === MW_SHARE_ORIGIN . '/reporte/42', 'Report-specific URL');
@@ -66,7 +67,7 @@ check(meta_value($html, 'twitter:title') === meta_value($html, 'og:title'), 'Mat
 check(str_contains(meta_value($html, 'description'), '2 evidencias adjuntas.'), 'Report preview includes real evidence count');
 check(!str_contains($html, 'private-owner-id') && !str_contains($html, 'private-ip'), 'Never embed private data');
 check(!str_contains($html, 'discord:component-embed'), 'Remove the generic Discord component metadata');
-check(meta_value($html, 'og:image:width') === '1200' && meta_value($html, 'og:image:height') === '630'
+check(meta_value($html, 'og:image:width') === '1200' && (int) meta_value($html, 'og:image:height') >= 630
     && meta_value($html, 'og:image:type') === 'image/png', 'Declare actual PNG dimensions');
 check(str_contains($html, '<div id="root"><main><h1>') && str_contains($html, '<script type="module"'), 'Preserve the application shell with visible initial content');
 check(substr_count($html, '<h1>') === 1, 'Provide exactly one H1 in initial HTML');
@@ -93,7 +94,7 @@ foreach (['/jugador/Jugador%20con%20espacios', '/usuario/Jugador%20con%20espacio
         return ['ok' => true, 'found' => true, 'player' => $player];
     });
     check($response['status'] === 200, 'Player response succeeds');
-    check(meta_value($response['html'], 'og:title') === 'Perfil de Jugador con espacios | MostWanted', 'Player-specific title');
+    check(meta_value($response['html'], 'og:title') === 'Perfil de Jugador con espacios | MODDER | MostWanted', 'Player title includes latest report types');
     check(meta_value($response['html'], 'og:url') === MW_SHARE_ORIGIN . '/jugador/Jugador%20con%20espacios', 'Canonical player route including legacy alias');
     check(meta_value($response['html'], 'og:type') === 'profile', 'Profile type');
     $description = html_entity_decode(strip_tags($response['html']), ENT_QUOTES | ENT_HTML5, 'UTF-8');
@@ -135,14 +136,19 @@ $metadata = mw_share_metadata('/reporte/42', static fn() => ['ok' => true, 'repo
 ]]);
 $html = mw_share_html($template, $metadata);
 check(!str_contains($html, '<script>alert'), 'Escape untrusted HTML');
-check(mb_strlen(meta_value($html, 'description')) <= 160, 'Bound the description length');
+check(str_contains(meta_value($html, 'description'), trim(str_repeat('Texto largo ', 100))), 'Preserve the complete reason without truncation');
+check($metadata['imageHeight'] > 630, 'Grow the report image instead of truncating the full reason');
+$longLayout = mw_share_card_layout($metadata['card']);
+check(!str_contains(json_encode($longLayout), '...') && str_contains(json_encode($longLayout), trim(str_repeat('Texto largo ', 100))),
+    'Layout retains the entire report text without ellipses');
 check(str_starts_with(meta_value($html, 'og:image'), MW_SHARE_ORIGIN . '/share-image.php?'), 'Generate a data card even without an avatar');
 $playerMetadata = mw_share_metadata('/jugador/Test', static fn() => ['ok' => true, 'found' => true, 'player' => $player]);
 check(str_contains($playerMetadata['card']['reason'], 'Crews: Crew Uno'), 'Image contains registered profile details');
 check(str_contains($playerMetadata['card']['context'], '#42'), 'Image identifies the report summarized');
 $png = mw_share_card_png($playerMetadata['card']);
 $dimensions = getimagesizefromstring($png);
-check($dimensions[0] === 1200 && $dimensions[1] === 630 && $dimensions['mime'] === 'image/png', 'Render a real 1200x630 PNG');
+check($dimensions[0] === 1200 && $dimensions[1] === $playerMetadata['imageHeight'] && $dimensions[1] >= 630
+    && $dimensions['mime'] === 'image/png', 'Render a PNG with the declared full-content dimensions');
 $changedPlayer = $player;
 $changedPlayer['crews'] = [['name' => 'Crew corregida']];
 $changed = mw_share_metadata('/jugador/Test', static fn() => ['ok' => true, 'found' => true, 'player' => $changedPlayer]);
@@ -160,7 +166,7 @@ $aiMetadata = mw_share_metadata('/jugador/Test', static function ($endpoint) use
 check($aiCalls === 1 && str_starts_with($aiMetadata['description'], 'Resumen guardado: patrones'), 'Lead metadata with saved AI text, not counters or labels');
 check(!str_contains($aiMetadata['description'], '**'), 'Convert saved Markdown to plain metadata text');
 check(!str_contains(json_encode($aiMetadata['card']), 'Resumen guardado'), 'Keep AI summary out of the image');
-check($aiMetadata['card']['reasonLabel'] === 'DATOS REGISTRADOS DEL JUGADOR', 'Label complementary image information');
+check($aiMetadata['card']['reasonLabel'] === '', 'Do not spend image space on a redundant details heading');
 check(str_contains($aiMetadata['card']['context'], '#42'), 'Keep latest report identity in the image');
 $changedAi = $withAi;
 $changedAi['aiSummary']['text'] = 'Nuevo resumen actualizado del jugador.';
@@ -170,24 +176,163 @@ check($changedAiMetadata['image'] === $aiMetadata['image'], 'AI text changes do 
 $withAi['aiSummary']['stale'] = true;
 $staleAi = mw_share_metadata('/jugador/Test', static fn() => ['ok' => true, 'found' => true, 'player' => $withAi]);
 check(!str_contains($staleAi['description'], 'Resumen guardado'), 'Never publish an outdated AI summary as current');
-check(str_contains($staleAi['card']['notice'], 'pendiente de actualizar'), 'Explicit fallback when AI is stale');
+check($staleAi['card']['notice'] === '', 'Do not display technical AI status footers in the image');
 check(str_contains($staleAi['description'], 'Expulsa y crashea'), 'Keep real report reason in metadata while AI is pending');
 $noReports = mw_share_metadata('/jugador/Test', static fn() => ['ok' => true, 'found' => true,
     'player' => ['nickname' => 'Test', 'totalReports' => 0, 'reports' => []]]);
-check(str_contains($noReports['description'], '0 reportes registrados.') && str_contains($noReports['description'], 'No hay motivos'), 'Do not invent a reason when no reports are public');
+check($noReports['description'] === '0 reportes registrados.', 'Include the known zero count but no empty reason placeholders');
 check(!str_contains($noReports['description'], 'votos'), 'Do not invent vote totals for an absent report');
 foreach ([$playerMetadata, $aiMetadata, $staleAi, $noReports, $metadata] as $entry) {
-    check(mb_strlen($entry['description']) <= 160, 'Every description fits the SEO limit');
     $rendered = mw_share_html($template, $entry);
     check(meta_value($rendered, 'description') === meta_value($rendered, 'og:description')
-        && meta_value($rendered, 'description') === meta_value($rendered, 'twitter:description'), 'Use the same concise summary across platforms');
+        && meta_value($rendered, 'description') === meta_value($rendered, 'twitter:description'), 'Use the same complete summary across platforms');
 }
 $previousSite = getenv('MOSTWANTED_TWITTER_SITE');
 putenv('MOSTWANTED_TWITTER_SITE=@ExampleBrand');
 check(meta_value(mw_share_html($template, $playerMetadata), 'twitter:site') === '@ExampleBrand', 'Use configured account only');
 if ($previousSite === false) putenv('MOSTWANTED_TWITTER_SITE');
 else putenv('MOSTWANTED_TWITTER_SITE=' . $previousSite);
-check(mw_share_report_summary(['communityVerification' => ['up' => 1]])['verification'] === '1 voto a favor / 0 en contra', 'Use singular vote count');
+check(mw_share_report_summary(['communityVerification' => ['up' => 1, 'down' => 0]])['verification'] === '1 voto a favor / 0 en contra', 'Use singular vote count');
+$emptyCard = $noReports['card'];
+check($emptyCard['reason'] === '' && $emptyCard['reasonLabel'] === '' && $emptyCard['context'] === ''
+    && $emptyCard['stats'] === '' && $emptyCard['avatars'] === [], 'Omit absent RID, crews, categories, labels, dates, votes, evidence and avatar');
+$longAi = $withAi;
+$longText = str_repeat('Resumen completo con datos reales. ', 60);
+$longAi['aiSummary'] = ['text' => $longText, 'stale' => false, 'reportCount' => 3];
+$longMetadata = mw_share_metadata('/jugador/Test', static fn() => ['ok' => true, 'found' => true, 'player' => $longAi]);
+check(str_starts_with($longMetadata['description'], trim($longText)) && !str_contains($longMetadata['description'], '...'), 'Publish the full saved AI summary');
+$avatarCard = $playerMetadata['card'];
+$avatarCard['evidenceImages'] = [];
+$avatarCard['avatars'] = ['https://i.ibb.co/example/avatar.png'];
+$avatarCalls = 0;
+$withAvatarPng = mw_share_card_png($avatarCard, static function ($url) use (&$avatarCalls) {
+    check($url === 'https://i.ibb.co/example/avatar.png', 'Load only the recorded avatar URL');
+    $avatarCalls++;
+    $image = imagecreatetruecolor(20, 20);
+    imagefill($image, 0, 0, imagecolorallocate($image, 0, 255, 0));
+    return $image;
+});
+check($avatarCalls === 1, 'Include available avatar');
+$renderedAvatar = imagecreatefromstring($withAvatarPng);
+check((imagecolorat($renderedAvatar, 1060, 150) & 0xFFFFFF) === 0x00FF00, 'Avatar pixels appear beside the player identity');
+imagedestroy($renderedAvatar);
+foreach (['http://i.ibb.co/a.png', 'https://127.0.0.1/a.png', 'https://example.com/a.png', 'https://i.ibb.co@localhost/a.png'] as $url) {
+    try {
+        mw_share_avatar_bytes($url);
+        throw new LogicException('Expected unsafe avatar URL rejection');
+    } catch (RuntimeException $error) {
+        check(str_contains($error->getMessage(), 'not supported'), 'Reject unapproved avatar downloads before network access');
+    }
+}
+$noAvatarCalls = 0;
+mw_share_card_png($emptyCard, static function () use (&$noAvatarCalls) { $noAvatarCalls++; throw new LogicException('No avatar should be loaded'); });
+check($noAvatarCalls === 0, 'No invented avatar when no URL exists');
+$galleryReport = $report;
+$galleryReport['avatar1'] = '';
+$galleryReport['evidence'] = [
+    ['url' => 'https://i.ibb.co/example/a.png', 'contentType' => 'image/png'],
+    ['url' => 'https://i.ibb.co/example/movie.mp4', 'contentType' => 'video/mp4'],
+    ['url' => 'https://i.ibb.co/example/a.png', 'contentType' => 'image/png'],
+    ['url' => 'https://i.ibb.co/example/b.jpg'],
+    ['url' => 'https://i.ibb.co/example/c.webp', 'contentType' => 'image/webp'],
+    ['url' => 'https://i.ibb.co/example/d.gif', 'contentType' => 'image/gif'],
+    ['url' => 'http://i.ibb.co/example/e.png', 'contentType' => 'image/png'],
+];
+$gallery = mw_share_metadata('/reporte/42', static fn() => ['ok' => true, 'report' => $galleryReport]);
+check(count($gallery['card']['evidenceImages']) === 3, 'Select at most three distinct HTTPS image evidences, not videos');
+$galleryLayout = mw_share_card_layout($gallery['card']);
+$lastBlock = end($galleryLayout['blocks']);
+$lastBottom = $lastBlock['y'] + count(mw_share_card_lines($lastBlock['text'], $lastBlock['width'], $lastBlock['scale'])) * 19 * $lastBlock['scale'];
+check($galleryLayout['evidence'][0]['y'] > $lastBottom, 'Evidence never covers the full report text');
+$galleryCalls = [];
+$galleryPng = mw_share_card_png($gallery['card'], static function ($url, $kind) use (&$galleryCalls) {
+    check($kind === 'evidence', 'Use evidence-specific image download limits');
+    $galleryCalls[] = $url;
+    $photo = imagecreatetruecolor(400, 100);
+    imagefill($photo, 0, 0, imagecolorallocate($photo, 0, 255, 0));
+    return $photo;
+});
+check($galleryCalls === $gallery['card']['evidenceImages'], 'Load the actual evidence URLs');
+$galleryImage = imagecreatefromstring($galleryPng);
+foreach ($galleryLayout['evidence'] as $slot) {
+    check((imagecolorat($galleryImage, $slot['x'] + (int) ($slot['width'] / 2), $slot['y'] + (int) ($slot['height'] / 2)) & 0xFFFFFF) === 0x00FF00,
+        'Each evidence thumbnail is visible');
+    check((imagecolorat($galleryImage, $slot['x'] + 1, $slot['y'] + 1) & 0xFFFFFF) === 0x111827, 'Fit without cropping or stretching the evidence');
+}
+check(imagesy($galleryImage) === $gallery['imageHeight'], 'Metadata declares the gallery height accurately');
+imagedestroy($galleryImage);
+$tallPhoto = imagecreatetruecolor(1440, 3200);
+ob_start();
+imagepng($tallPhoto);
+$tallBytes = ob_get_clean();
+imagedestroy($tallPhoto);
+$decodedEvidence = mw_share_avatar_image($tallBytes, 4096, 8 * 1024 * 1024);
+check(imagesy($decodedEvidence) === 3200, 'Support actual tall evidence screenshots within bounded limits');
+imagedestroy($decodedEvidence);
+try {
+    mw_share_avatar_image($tallBytes);
+    throw new LogicException('Avatar limits must remain unchanged');
+} catch (RuntimeException $error) {
+    check(str_contains($error->getMessage(), 'dimensions'), 'Keep stricter avatar dimensions');
+}
+$galleryPlayer = $player;
+$galleryPlayer['reports'][1]['evidence'] = $galleryReport['evidence'];
+check(mw_share_metadata('/jugador/Test', static fn() => ['ok' => true, 'found' => true, 'player' => $galleryPlayer])['card']['evidenceImages']
+    === $gallery['card']['evidenceImages'], 'Player previews use images from the most recent report');
+$changedEvidence = $galleryReport;
+$changedEvidence['evidence'][0]['url'] = 'https://i.ibb.co/example/replaced.png';
+check(mw_share_metadata('/reporte/42', static fn() => ['ok' => true, 'report' => $changedEvidence])['image'] !== $gallery['image'],
+    'Replacing evidence invalidates the image revision');
+$failedLog = tempnam(sys_get_temp_dir(), 'mw-evidence-');
+$previousLog = ini_set('error_log', $failedLog);
+try {
+    check(getimagesizefromstring(mw_share_card_png($gallery['card'], static function () {
+        throw new RuntimeException('Download unavailable');
+    }))['mime'] === 'image/png', 'Unavailable evidence preserves the rest of the card');
+    check(str_contains(file_get_contents($failedLog), '[share-evidence]'), 'Log unavailable evidence explicitly');
+} finally {
+    ini_set('error_log', $previousLog);
+    unlink($failedLog);
+}
+$profileLayout = mw_share_card_layout($playerMetadata['card']);
+$profileText = implode("\n", array_column($profileLayout['blocks'], 'text'));
+foreach (["KAITH'S REBELS", 'PERFIL DEL JUGADOR', 'DATOS REGISTRADOS DEL JUGADOR', 'Fecha del ultimo reporte', 'Resumen HEX'] as $removed) {
+    check(!str_contains($profileText, $removed), 'Remove nonessential image text: ' . $removed);
+}
+check($profileLayout['blocks'][0]['text'] === 'MOSTWANTED'
+    && $profileLayout['blocks'][1]['text'] === $player['nickname'], 'Prioritize player identity directly after the compact brand');
+check(str_contains($profileText, 'MODDER') && str_contains($profileText, '2 votos a favor / 1 en contra'), 'Keep report categories and community evidence visible');
+check(mw_share_avatars(['avatar1' => '', 'avatar2' => 'https://i.ibb.co/example/second.png']) === ['https://i.ibb.co/example/second.png'], 'Use the secondary recorded avatar when primary is absent');
+check(mw_share_avatars(['avatar1' => 'https://i.ibb.co/a.png', 'avatar2' => 'https://i.ibb.co/a.png']) === ['https://i.ibb.co/a.png'], 'Do not repeat identical avatars');
+$twoAvatarPlayer = $player;
+$twoAvatarPlayer['avatar1'] = 'https://i.ibb.co/first.png';
+$twoAvatarPlayer['avatar2'] = 'https://i.ibb.co/second.png';
+$twoAvatarMetadata = mw_share_metadata('/jugador/Test', static fn() => ['ok' => true, 'found' => true, 'player' => $twoAvatarPlayer]);
+$twoAvatarCard = $twoAvatarMetadata['card'];
+$twoAvatarCard['evidenceImages'] = [];
+$twoAvatarLayout = mw_share_card_layout($twoAvatarCard);
+$loadedAvatars = [];
+$twoAvatarPng = mw_share_card_png($twoAvatarCard, static function ($url, $kind) use (&$loadedAvatars) {
+    check($kind === 'avatar', 'Load both avatars using avatar limits');
+    $loadedAvatars[] = $url;
+    $photo = imagecreatetruecolor(20, 20);
+    imagefill($photo, 0, 0, imagecolorallocate($photo, 0, count($loadedAvatars) === 1 ? 255 : 0, 255));
+    return $photo;
+});
+check($loadedAvatars === $twoAvatarCard['avatars'], 'Load both recorded player avatars');
+$twoAvatarImage = imagecreatefromstring($twoAvatarPng);
+foreach ($twoAvatarLayout['avatars'] as $index => $slot) {
+    check($slot['y'] === 30 && $slot['x'] >= 789, 'Position avatars side by side in the top-right corner');
+    check((imagecolorat($twoAvatarImage, $slot['x'] + 85, $slot['y'] + 85) & 0xFFFFFF) === ($index === 0 ? 0x00FFFF : 0x0000FF),
+        'Both avatars remain visible');
+}
+foreach ($twoAvatarLayout['blocks'] as $block) {
+    check($block['y'] >= 218 || 55 + $block['width'] < $twoAvatarLayout['avatars'][0]['x'], 'Text does not overlap avatars');
+}
+imagedestroy($twoAvatarImage);
+$emptyReport = mw_share_metadata('/reporte/42', static fn() => ['ok' => true, 'report' => ['id' => 42, 'nickname' => 'Player']]);
+check($emptyReport['description'] === '' && $emptyReport['card']['reason'] === '' && $emptyReport['card']['stats'] === ''
+    && $emptyReport['card']['context'] === '', 'Do not invent empty report field values');
 $cacheKey = 'test:' . bin2hex(random_bytes(16));
 $cacheDirectory = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'mostwanted-previews-'
     . substr(hash('sha256', dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'public'), 0, 16);

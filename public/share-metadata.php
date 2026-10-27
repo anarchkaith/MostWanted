@@ -1,13 +1,15 @@
 <?php
 
+require_once __DIR__ . DIRECTORY_SEPARATOR . 'share-card.php';
+
 const MW_SHARE_ORIGIN = 'https://mostwanted.kaithsrebels.com';
 
-function mw_share_text($value, $limit = 300) {
+function mw_share_text($value, $limit = null) {
     if (!is_string($value) && !is_numeric($value)) return '';
     $text = preg_replace('/\s+/u', ' ', strip_tags(html_entity_decode((string) $value, ENT_QUOTES | ENT_HTML5, 'UTF-8')));
     $characters = preg_split('//u', trim($text ?? ''), -1, PREG_SPLIT_NO_EMPTY);
     if ($characters === false) throw new RuntimeException('Invalid metadata text.', 502);
-    return count($characters) > $limit
+    return $limit !== null && count($characters) > $limit
         ? implode('', array_slice($characters, 0, $limit - 3)) . '...'
         : implode('', $characters);
 }
@@ -15,22 +17,22 @@ function mw_share_text($value, $limit = 300) {
 function mw_share_names($values) {
     if (!is_array($values)) return '';
     return implode(', ', array_filter(array_map(static function ($value) {
-        return mw_share_text(is_array($value) ? ($value['name'] ?? $value['nombre'] ?? $value['label'] ?? '') : $value, 80);
+        return mw_share_text(is_array($value) ? ($value['name'] ?? $value['nombre'] ?? $value['label'] ?? '') : $value);
     }, $values)));
 }
 
 function mw_share_report_summary($report) {
-    $reason = mw_share_text($report['reason'] ?? $report['content'] ?? '', 240);
+    $reason = mw_share_text($report['reason'] ?? $report['content'] ?? '');
     $categories = mw_share_names($report['typesOfInfraction'] ?? $report['categories'] ?? []);
     $votes = $report['communityVerification'] ?? [];
     $up = max(0, (int) ($votes['up'] ?? 0));
     $down = max(0, (int) ($votes['down'] ?? 0));
     $evidenceCount = count(is_array($report['evidence'] ?? null) ? $report['evidence'] : []);
     return [
-        'reason' => $reason !== '' ? $reason : 'Sin motivo publicado.',
-        'categories' => $categories !== '' ? $categories : 'Sin infracciones especificadas',
-        'verification' => $up . ($up === 1 ? ' voto a favor' : ' votos a favor') . " / $down en contra",
-        'evidence' => $evidenceCount . ($evidenceCount === 1 ? ' evidencia adjunta' : ' evidencias adjuntas'),
+        'reason' => $reason,
+        'categories' => $categories,
+        'verification' => isset($votes['up'], $votes['down']) ? $up . ($up === 1 ? ' voto a favor' : ' votos a favor') . " / $down en contra" : '',
+        'evidence' => $evidenceCount > 0 ? $evidenceCount . ($evidenceCount === 1 ? ' evidencia adjunta' : ' evidencias adjuntas') : '',
     ];
 }
 
@@ -38,19 +40,57 @@ function mw_share_ai_text($summary) {
     if (!is_array($summary) || ($summary['stale'] ?? true) !== false || !is_string($summary['text'] ?? null)) return '';
     $text = preg_replace('/!?\[([^\]]*)\]\([^)]*\)/u', '$1', $summary['text']);
     $text = preg_replace('/[*_`#~]+/u', '', $text);
-    return mw_share_text($text, 600);
+    return mw_share_text($text);
+}
+
+function mw_share_join($values, $separator = ' ') {
+    return implode($separator, array_filter($values, static fn($value) => $value !== ''));
+}
+
+function mw_share_report_description($summary) {
+    return mw_share_join([
+        $summary['reason'] !== '' ? 'Motivo reportado: ' . $summary['reason'] : '',
+        $summary['categories'] !== '' ? 'Infracciones reportadas: ' . $summary['categories'] . '.' : '',
+        $summary['evidence'] !== '' ? $summary['evidence'] . '.' : '',
+        $summary['verification'] !== '' ? 'Comunidad: ' . $summary['verification'] . '.' : '',
+    ]);
+}
+
+function mw_share_avatars($data) {
+    $avatars = [];
+    foreach (['avatar1', 'avatar2'] as $field) {
+        $url = mw_share_text($data[$field] ?? '');
+        if ($url !== '' && filter_var($url, FILTER_VALIDATE_URL) && parse_url($url, PHP_URL_SCHEME) === 'https'
+            && !in_array($url, $avatars, true)) $avatars[] = $url;
+    }
+    return $avatars;
+}
+
+function mw_share_evidence_images($report) {
+    $images = [];
+    foreach (($report['evidence'] ?? []) as $item) {
+        if (!is_array($item)) continue;
+        $url = mw_share_text($item['url'] ?? '');
+        $type = strtolower(mw_share_text($item['contentType'] ?? ''));
+        if (!filter_var($url, FILTER_VALIDATE_URL) || parse_url($url, PHP_URL_SCHEME) !== 'https') continue;
+        if (!in_array($type, ['image/png', 'image/jpeg', 'image/webp', 'image/gif'], true)
+            && !($type === '' && preg_match('/\.(png|jpe?g|webp|gif)$/i', parse_url($url, PHP_URL_PATH) ?? ''))) continue;
+        if (!in_array($url, $images, true)) $images[] = $url;
+        if (count($images) === 3) break;
+    }
+    return $images;
 }
 
 function mw_share_card_metadata($metadata, $card) {
     $metadata['fullDescription'] = $metadata['description'];
-    $metadata['description'] = mw_share_text($metadata['description'], 160);
+    $metadata['description'] = mw_share_text($metadata['description']);
     $metadata['card'] = $card;
     $metadata['image'] = MW_SHARE_ORIGIN . '/share-image.php?' . http_build_query([
         'path' => substr($metadata['url'], strlen(MW_SHARE_ORIGIN)),
         'v' => substr(hash('sha256', json_encode($card)), 0, 16),
     ], '', '&', PHP_QUERY_RFC3986);
     $metadata['imageWidth'] = 1200;
-    $metadata['imageHeight'] = 630;
+    $metadata['imageHeight'] = mw_share_card_layout($card)['height'];
     $metadata['imageType'] = 'image/png';
     return $metadata;
 }
@@ -65,20 +105,22 @@ function mw_share_metadata($path, callable $fetch) {
             throw new RuntimeException('Invalid report metadata response.', 502);
         }
         $report = $data['report'];
-        $nickname = mw_share_text($report['nickname'] ?? '', 100);
+        $nickname = mw_share_text($report['nickname'] ?? '');
         $summary = mw_share_report_summary($report);
         return mw_share_card_metadata([
             'url' => MW_SHARE_ORIGIN . '/reporte/' . $id,
-            'title' => mw_share_text('Reporte #' . $id . ($nickname !== '' ? ' de ' . $nickname : '') . ' | MostWanted', 180),
-            'description' => mw_share_text('Motivo reportado: ' . $summary['reason'] . ' Infracciones reportadas: '
-                . $summary['categories'] . '. ' . $summary['evidence'] . '. Comunidad: ' . $summary['verification'] . '.', 600),
+            'title' => 'Reporte #' . $id . ($nickname !== '' ? ' de ' . $nickname : '')
+                . ($summary['categories'] !== '' ? ' | ' . $summary['categories'] : '') . ' | MostWanted',
+            'description' => mw_share_report_description($summary),
             'imageAlt' => 'Reporte #' . $id . ($nickname !== '' ? ' de ' . $nickname : ''),
             'type' => 'article',
         ], [
             'heading' => 'REPORTE #' . $id, 'name' => $nickname,
-            'context' => 'Infracciones reportadas: ' . $summary['categories'],
+            'context' => $summary['categories'] !== '' ? 'Infracciones reportadas: ' . $summary['categories'] : '',
             'reason' => $summary['reason'],
-            'stats' => $summary['evidence'] . ' | ' . $summary['verification'],
+            'stats' => mw_share_join([$summary['evidence'], $summary['verification']], ' | '),
+            'avatars' => mw_share_avatars($report),
+            'evidenceImages' => mw_share_evidence_images($report),
             'notice' => 'Contenido reportado por la comunidad. No implica una confirmacion oficial.',
         ]);
     }
@@ -95,9 +137,9 @@ function mw_share_metadata($path, callable $fetch) {
         if (($data['found'] ?? null) === false) throw new RuntimeException('Player not found.', 404);
         if (!is_array($data['player'] ?? null)) throw new RuntimeException('Invalid player metadata response.', 502);
         $player = $data['player'];
-        $nickname = mw_share_text($player['nickname'] ?? '', 100);
+        $nickname = mw_share_text($player['nickname'] ?? '');
         if ($nickname === '') throw new RuntimeException('Missing player name.', 502);
-        $count = max(0, (int) ($player['totalReports'] ?? 0));
+        $count = isset($player['totalReports']) ? max(0, (int) $player['totalReports']) : null;
         $crews = mw_share_names($player['crews'] ?? []);
         if (!is_array($player['reports'] ?? null)) throw new RuntimeException('Missing player reports for preview.', 502);
         $reports = array_values(array_filter($player['reports'], 'is_array'));
@@ -105,32 +147,36 @@ function mw_share_metadata($path, callable $fetch) {
         $latest = $reports[0] ?? null;
         $summary = $latest !== null ? mw_share_report_summary($latest) : null;
         $aiText = mw_share_ai_text($player['aiSummary'] ?? null);
-        $countText = $count . ($count === 1 ? ' reporte registrado' : ' reportes registrados');
+        $countText = $count !== null ? $count . ($count === 1 ? ' reporte registrado' : ' reportes registrados') : '';
         $description = $aiText !== '' ? $aiText : ($summary !== null
-            ? 'Motivo reportado: ' . $summary['reason'] . ' Infracciones reportadas: ' . $summary['categories']
-                . '. ' . $summary['evidence'] . '. Comunidad del ultimo reporte: ' . $summary['verification'] . '.'
-            : 'No hay motivos de reportes publicados disponibles.');
-        $description .= ' ' . $countText . '.';
-        $details = [
-            'RID: ' . (mw_share_text($player['rid'] ?? '', 40) ?: 'No disponible'),
-            'Crews: ' . ($crews !== '' ? $crews : 'Sin crews registradas'),
-            'Conductas reportadas: ' . (mw_share_names($latest['labels'] ?? []) ?: 'Sin conductas especificadas'),
-        ];
-        if ($latest !== null) $details[] = 'Fecha del ultimo reporte: ' . mw_share_text($latest['createdAt'] ?? '', 40);
+            ? mw_share_report_description($summary) : '');
+        if ($countText !== '') $description = mw_share_join([$description, $countText . '.']);
+        $details = [];
+        foreach ([
+            'RID' => mw_share_text($player['rid'] ?? ''),
+            'Crews' => $crews,
+            'Conductas reportadas' => mw_share_names($latest['labels'] ?? []),
+        ] as $label => $value) {
+            if ($value !== '') $details[] = $label . ': ' . $value;
+        }
         return mw_share_card_metadata([
             'url' => MW_SHARE_ORIGIN . '/jugador/' . rawurlencode($identity),
-            'title' => 'Perfil de ' . $nickname . ' | MostWanted',
-            'description' => mw_share_text($description . ($crews !== '' ? ' Crews: ' . $crews . '.' : ''), 650),
+            'title' => 'Perfil de ' . $nickname . (!empty($summary['categories']) ? ' | ' . $summary['categories'] : '') . ' | MostWanted',
+            'description' => mw_share_text($description . ($crews !== '' ? ' Crews: ' . $crews . '.' : '')),
             'imageAlt' => 'Perfil de ' . $nickname,
             'type' => 'profile',
         ], [
-            'heading' => 'PERFIL DEL JUGADOR | ' . $countText, 'name' => $nickname,
-            'context' => $summary !== null ? 'Ultimo reporte #' . ($latest['id'] ?? '') . ' | ' . $summary['categories'] : 'Sin reportes publicados disponibles',
-            'reasonLabel' => 'DATOS REGISTRADOS DEL JUGADOR',
+            'heading' => '', 'name' => $nickname,
+            'context' => mw_share_join([
+                isset($latest['id']) ? 'Ultimo reporte #' . $latest['id'] : '',
+                $summary['categories'] ?? '',
+            ], ' | '),
+            'reasonLabel' => '',
             'reason' => implode("\n", $details),
-            'stats' => $summary !== null ? $summary['evidence'] . ' | ' . $summary['verification'] : $countText,
-            'notice' => $aiText !== '' ? 'Resumen HEX en la descripcion del enlace. Votos y evidencias del ultimo reporte. No confirma culpabilidad.'
-                : 'Resumen HEX no disponible o pendiente de actualizar. Se muestra el ultimo motivo reportado.',
+            'stats' => $summary !== null ? mw_share_join([$summary['evidence'], $summary['verification']], ' | ') : '',
+            'avatars' => mw_share_avatars($player),
+            'evidenceImages' => mw_share_evidence_images($latest ?? []),
+            'notice' => '',
         ]);
     }
 
