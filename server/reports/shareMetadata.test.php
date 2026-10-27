@@ -2,6 +2,7 @@
 
 require dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'share-metadata.php';
 require dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'share-card.php';
+require dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'share-cache.php';
 
 function check($condition, $message) {
     if (!$condition) throw new RuntimeException($message);
@@ -67,7 +68,13 @@ check(!str_contains($html, 'private-owner-id') && !str_contains($html, 'private-
 check(!str_contains($html, 'discord:component-embed'), 'Remove the generic Discord component metadata');
 check(meta_value($html, 'og:image:width') === '1200' && meta_value($html, 'og:image:height') === '630'
     && meta_value($html, 'og:image:type') === 'image/png', 'Declare actual PNG dimensions');
-check(str_contains($html, '<div id="root"></div>') && str_contains($html, '<script type="module"'), 'Preserve the application shell');
+check(str_contains($html, '<div id="root"><main><h1>') && str_contains($html, '<script type="module"'), 'Preserve the application shell with visible initial content');
+check(substr_count($html, '<h1>') === 1, 'Provide exactly one H1 in initial HTML');
+$dom = new DOMDocument();
+@$dom->loadHTML('<?xml encoding="UTF-8">' . $html);
+$schemaNode = (new DOMXPath($dom))->query('//script[@type="application/ld+json"]')->item(0);
+$schema = json_decode($schemaNode->textContent, true, 512, JSON_THROW_ON_ERROR);
+check($schema['url'] === MW_SHARE_ORIGIN . '/reporte/42' && $schema['@type'] === 'WebPage', 'Structured data matches the actual route');
 check(substr_count($html, 'rel="canonical"') === 1 && str_contains($html, 'href="' . MW_SHARE_ORIGIN . '/reporte/42"'), 'Replace the canonical');
 check(substr_count($html, '<title>') === 1, 'Replace the document title');
 $normalized = mw_share_metadata('/reporte/00042/', static fn() => ['ok' => true, 'report' => $report]);
@@ -89,7 +96,7 @@ foreach (['/jugador/Jugador%20con%20espacios', '/usuario/Jugador%20con%20espacio
     check(meta_value($response['html'], 'og:title') === 'Perfil de Jugador con espacios | MostWanted', 'Player-specific title');
     check(meta_value($response['html'], 'og:url') === MW_SHARE_ORIGIN . '/jugador/Jugador%20con%20espacios', 'Canonical player route including legacy alias');
     check(meta_value($response['html'], 'og:type') === 'profile', 'Profile type');
-    $description = meta_value($response['html'], 'description');
+    $description = html_entity_decode(strip_tags($response['html']), ENT_QUOTES | ENT_HTML5, 'UTF-8');
     check(str_contains($description, '3 reportes registrados.') && str_contains($description, 'Crews: Crew Uno.'), 'Player report count and crews');
     check(str_contains($description, 'Expulsa y crashea') && !str_contains($description, 'Motivo antiguo'), 'Summarize the most recent report, not just labels');
     check(str_contains($description, '2 votos a favor / 1 en contra') && str_contains($description, '1 evidencia adjunta'), 'Describe real votes and evidence');
@@ -128,16 +135,16 @@ $metadata = mw_share_metadata('/reporte/42', static fn() => ['ok' => true, 'repo
 ]]);
 $html = mw_share_html($template, $metadata);
 check(!str_contains($html, '<script>alert'), 'Escape untrusted HTML');
-check(mb_strlen(meta_value($html, 'description')) <= 600, 'Bound the description length');
+check(mb_strlen(meta_value($html, 'description')) <= 160, 'Bound the description length');
 check(str_starts_with(meta_value($html, 'og:image'), MW_SHARE_ORIGIN . '/share-image.php?'), 'Generate a data card even without an avatar');
 $playerMetadata = mw_share_metadata('/jugador/Test', static fn() => ['ok' => true, 'found' => true, 'player' => $player]);
-check(str_contains($playerMetadata['card']['reason'], 'Expulsa y crashea'), 'Image contains the real report reason');
+check(str_contains($playerMetadata['card']['reason'], 'Crews: Crew Uno'), 'Image contains registered profile details');
 check(str_contains($playerMetadata['card']['context'], '#42'), 'Image identifies the report summarized');
 $png = mw_share_card_png($playerMetadata['card']);
 $dimensions = getimagesizefromstring($png);
 check($dimensions[0] === 1200 && $dimensions[1] === 630 && $dimensions['mime'] === 'image/png', 'Render a real 1200x630 PNG');
 $changedPlayer = $player;
-$changedPlayer['reports'][1]['reason'] = 'Motivo corregido por el administrador';
+$changedPlayer['crews'] = [['name' => 'Crew corregida']];
 $changed = mw_share_metadata('/jugador/Test', static fn() => ['ok' => true, 'found' => true, 'player' => $changedPlayer]);
 check($changed['image'] !== $playerMetadata['image'], 'Change the image URL when public data changes');
 check(mw_share_card_png($changed['card']) !== $png, 'Image pixels reflect the changed report');
@@ -150,19 +157,59 @@ $aiMetadata = mw_share_metadata('/jugador/Test', static function ($endpoint) use
     check(str_starts_with($endpoint, '/players/lookup?'), 'Previews only read player metadata, never call AI');
     return ['ok' => true, 'found' => true, 'player' => $withAi];
 });
-check($aiCalls === 1 && str_contains($aiMetadata['description'], 'Resumen HEX: Resumen guardado'), 'Prefer saved AI summary over latest report reason');
-check(str_starts_with($aiMetadata['card']['reason'], 'Resumen guardado') && !str_contains($aiMetadata['card']['reason'], '**'), 'Render stored Markdown as plain text in card');
-check($aiMetadata['card']['reasonLabel'] === 'RESUMEN IA GUARDADO / HEX', 'Explicitly label AI source');
-check(str_contains($aiMetadata['card']['context'], '3 reporte(s)'), 'AI summary covers all persisted reports, not only latest');
-check($aiMetadata['image'] !== $playerMetadata['image'], 'Image revision includes saved AI text');
+check($aiCalls === 1 && str_starts_with($aiMetadata['description'], 'Resumen guardado: patrones'), 'Lead metadata with saved AI text, not counters or labels');
+check(!str_contains($aiMetadata['description'], '**'), 'Convert saved Markdown to plain metadata text');
+check(!str_contains(json_encode($aiMetadata['card']), 'Resumen guardado'), 'Keep AI summary out of the image');
+check($aiMetadata['card']['reasonLabel'] === 'DATOS REGISTRADOS DEL JUGADOR', 'Label complementary image information');
+check(str_contains($aiMetadata['card']['context'], '#42'), 'Keep latest report identity in the image');
+$changedAi = $withAi;
+$changedAi['aiSummary']['text'] = 'Nuevo resumen actualizado del jugador.';
+$changedAiMetadata = mw_share_metadata('/jugador/Test', static fn() => ['ok' => true, 'found' => true, 'player' => $changedAi]);
+check($changedAiMetadata['description'] !== $aiMetadata['description'], 'AI updates change metadata text');
+check($changedAiMetadata['image'] === $aiMetadata['image'], 'AI text changes do not needlessly regenerate complementary image');
 $withAi['aiSummary']['stale'] = true;
 $staleAi = mw_share_metadata('/jugador/Test', static fn() => ['ok' => true, 'found' => true, 'player' => $withAi]);
 check(!str_contains($staleAi['description'], 'Resumen guardado'), 'Never publish an outdated AI summary as current');
 check(str_contains($staleAi['card']['notice'], 'pendiente de actualizar'), 'Explicit fallback when AI is stale');
-check(str_contains($staleAi['card']['reason'], 'Expulsa y crashea'), 'Keep real report facts available while AI is pending');
+check(str_contains($staleAi['description'], 'Expulsa y crashea'), 'Keep real report reason in metadata while AI is pending');
 $noReports = mw_share_metadata('/jugador/Test', static fn() => ['ok' => true, 'found' => true,
     'player' => ['nickname' => 'Test', 'totalReports' => 0, 'reports' => []]]);
 check(str_contains($noReports['description'], '0 reportes registrados.') && str_contains($noReports['description'], 'No hay motivos'), 'Do not invent a reason when no reports are public');
 check(!str_contains($noReports['description'], 'votos'), 'Do not invent vote totals for an absent report');
+foreach ([$playerMetadata, $aiMetadata, $staleAi, $noReports, $metadata] as $entry) {
+    check(mb_strlen($entry['description']) <= 160, 'Every description fits the SEO limit');
+    $rendered = mw_share_html($template, $entry);
+    check(meta_value($rendered, 'description') === meta_value($rendered, 'og:description')
+        && meta_value($rendered, 'description') === meta_value($rendered, 'twitter:description'), 'Use the same concise summary across platforms');
+}
+$previousSite = getenv('MOSTWANTED_TWITTER_SITE');
+putenv('MOSTWANTED_TWITTER_SITE=@ExampleBrand');
+check(meta_value(mw_share_html($template, $playerMetadata), 'twitter:site') === '@ExampleBrand', 'Use configured account only');
+if ($previousSite === false) putenv('MOSTWANTED_TWITTER_SITE');
+else putenv('MOSTWANTED_TWITTER_SITE=' . $previousSite);
 check(mw_share_report_summary(['communityVerification' => ['up' => 1]])['verification'] === '1 voto a favor / 0 en contra', 'Use singular vote count');
+$cacheKey = 'test:' . bin2hex(random_bytes(16));
+$cacheDirectory = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'mostwanted-previews-'
+    . substr(hash('sha256', dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'public'), 0, 16);
+$cacheFile = $cacheDirectory . DIRECTORY_SEPARATOR . hash('sha256', $cacheKey) . '.cache';
+$cacheCalls = 0;
+try {
+    $generate = static function () use (&$cacheCalls) { return ['generation' => ++$cacheCalls]; };
+    check(mw_share_cached($cacheKey, $generate, 'one')['generation'] === 1, 'Generate first cached value');
+    check(mw_share_cached($cacheKey, $generate, 'one')['generation'] === 1, 'Warm requests reuse cached value');
+    check(mw_share_cached($cacheKey, $generate, 'two')['generation'] === 2, 'Content revision invalidates cache');
+    $entry = json_decode(file_get_contents($cacheFile), true);
+    $entry['expires'] = time() - 1;
+    file_put_contents($cacheFile, json_encode($entry));
+    check(mw_share_cached($cacheKey, $generate, 'two')['generation'] === 3, 'Expired cache refreshes source');
+    try {
+        mw_share_cached($cacheKey, static function () { throw new RuntimeException('upstream failure'); }, 'failure');
+        throw new LogicException('Expected upstream failure');
+    } catch (RuntimeException $error) {
+        check($error->getMessage() === 'upstream failure', 'Never cache a success-shaped fallback');
+    }
+    check(mw_share_cached($cacheKey, $generate, 'failure')['generation'] === 4, 'Failed generation remains retryable');
+} finally {
+    if (is_file($cacheFile)) unlink($cacheFile);
+}
 echo "OK route-specific report/player HTML, canonical, images, escaping, errors and application shell\n";

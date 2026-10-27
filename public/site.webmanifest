@@ -1,0 +1,15 @@
+{
+  "id": "/",
+  "name": "MostWanted | Kaith's Rebels",
+  "short_name": "MostWanted",
+  "lang": "es",
+  "description": "Registro comunitario de jugadores y reportes de MostWanted.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#111827",
+  "theme_color": "#ff3333",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

@@ -13,7 +13,7 @@ export default function HelpModal({ open, onClose }) {
       zIndex={3000}
       maxWidth={420}
     >
-      <p><b>Most Wanted</b> es el archivo comunitario de jugadores y reportes de <b>Kaith's Rebels</b>.</p>
+      <p><b>Most Wanted</b> es el archivo comunitario de jugadores y reportes.</p>
       <ul className="cyber-ul mw-cyber-list" style={{ margin: '1rem 0 0', fontSize: '0.95em' }}>
         <li>Busca por nombre o RID, con o sin reportes previos.</li>
         <li>Consulta la ficha y aporta nuevos reportes.</li>

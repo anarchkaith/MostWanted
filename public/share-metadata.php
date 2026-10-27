@@ -42,6 +42,8 @@ function mw_share_ai_text($summary) {
 }
 
 function mw_share_card_metadata($metadata, $card) {
+    $metadata['fullDescription'] = $metadata['description'];
+    $metadata['description'] = mw_share_text($metadata['description'], 160);
     $metadata['card'] = $card;
     $metadata['image'] = MW_SHARE_ORIGIN . '/share-image.php?' . http_build_query([
         'path' => substr($metadata['url'], strlen(MW_SHARE_ORIGIN)),
@@ -103,12 +105,18 @@ function mw_share_metadata($path, callable $fetch) {
         $latest = $reports[0] ?? null;
         $summary = $latest !== null ? mw_share_report_summary($latest) : null;
         $aiText = mw_share_ai_text($player['aiSummary'] ?? null);
-        $aiCount = max(0, (int) ($player['aiSummary']['reportCount'] ?? 0));
         $countText = $count . ($count === 1 ? ' reporte registrado' : ' reportes registrados');
-        $description = $countText . '. ' . ($aiText !== '' ? 'Resumen HEX: ' . $aiText : ($summary !== null
-            ? 'Ultimo motivo reportado: ' . $summary['reason'] . ' Infracciones reportadas: ' . $summary['categories']
+        $description = $aiText !== '' ? $aiText : ($summary !== null
+            ? 'Motivo reportado: ' . $summary['reason'] . ' Infracciones reportadas: ' . $summary['categories']
                 . '. ' . $summary['evidence'] . '. Comunidad del ultimo reporte: ' . $summary['verification'] . '.'
-            : 'No hay motivos de reportes publicados disponibles.'));
+            : 'No hay motivos de reportes publicados disponibles.');
+        $description .= ' ' . $countText . '.';
+        $details = [
+            'RID: ' . (mw_share_text($player['rid'] ?? '', 40) ?: 'No disponible'),
+            'Crews: ' . ($crews !== '' ? $crews : 'Sin crews registradas'),
+            'Conductas reportadas: ' . (mw_share_names($latest['labels'] ?? []) ?: 'Sin conductas especificadas'),
+        ];
+        if ($latest !== null) $details[] = 'Fecha del ultimo reporte: ' . mw_share_text($latest['createdAt'] ?? '', 40);
         return mw_share_card_metadata([
             'url' => MW_SHARE_ORIGIN . '/jugador/' . rawurlencode($identity),
             'title' => 'Perfil de ' . $nickname . ' | MostWanted',
@@ -117,12 +125,11 @@ function mw_share_metadata($path, callable $fetch) {
             'type' => 'profile',
         ], [
             'heading' => 'PERFIL DEL JUGADOR | ' . $countText, 'name' => $nickname,
-            'context' => $aiText !== '' ? 'Resumen HEX de ' . $aiCount . ' reporte(s)'
-                : ($summary !== null ? 'Ultimo reporte #' . ($latest['id'] ?? '') . ' | ' . $summary['categories'] : 'Sin reportes publicados disponibles'),
-            'reasonLabel' => $aiText !== '' ? 'RESUMEN IA GUARDADO / HEX' : 'MOTIVO REPORTADO',
-            'reason' => $aiText !== '' ? $aiText : ($summary['reason'] ?? 'No hay motivos de reportes publicados disponibles.'),
+            'context' => $summary !== null ? 'Ultimo reporte #' . ($latest['id'] ?? '') . ' | ' . $summary['categories'] : 'Sin reportes publicados disponibles',
+            'reasonLabel' => 'DATOS REGISTRADOS DEL JUGADOR',
+            'reason' => implode("\n", $details),
             'stats' => $summary !== null ? $summary['evidence'] . ' | ' . $summary['verification'] : $countText,
-            'notice' => $aiText !== '' ? 'Resumen IA persistido. Votos y evidencias del ultimo reporte. No confirma culpabilidad.'
+            'notice' => $aiText !== '' ? 'Resumen HEX en la descripcion del enlace. Votos y evidencias del ultimo reporte. No confirma culpabilidad.'
                 : 'Resumen HEX no disponible o pendiente de actualizar. Se muestra el ultimo motivo reportado.',
         ]);
     }
@@ -153,11 +160,32 @@ function mw_share_html($template, $metadata, $indexable = true) {
         $values['og:image:height'] = (string) $metadata['imageHeight'];
         $values['og:image:type'] = $metadata['imageType'];
     }
+    $twitterSite = trim(getenv('MOSTWANTED_TWITTER_SITE') ?: '');
+    if ($twitterSite !== '') {
+        if (!preg_match('/^@[A-Za-z0-9_]{1,15}$/D', $twitterSite)) throw new RuntimeException('Invalid MOSTWANTED_TWITTER_SITE.', 503);
+        $values['twitter:site'] = $twitterSite;
+    }
     foreach ($values as $name => $value) {
         $tags[] = '<meta ' . (str_starts_with($name, 'og:') ? 'property' : 'name') . '="' . $name . '" content="' . $escape($value) . '" />';
     }
+    if ($indexable) {
+        $schema = [
+            '@context' => 'https://schema.org',
+            '@type' => $metadata['type'] === 'profile' ? 'ProfilePage' : 'WebPage',
+            '@id' => $metadata['url'] . '#webpage', 'url' => $metadata['url'],
+            'name' => $metadata['title'], 'description' => $metadata['description'],
+            'inLanguage' => 'es', 'image' => $metadata['image'],
+            'isPartOf' => ['@type' => 'WebSite', 'name' => 'MostWanted', 'url' => MW_SHARE_ORIGIN . '/'],
+        ];
+        if ($metadata['type'] === 'profile') $schema['mainEntity'] = ['@type' => 'Person', 'name' => $metadata['card']['name']];
+        $tags[] = '<script id="share-structured-data" type="application/ld+json">'
+            . json_encode($schema, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_THROW_ON_ERROR) . '</script>';
+    }
     if (!str_contains($template, '</head>')) throw new RuntimeException('Missing HTML head.', 503);
-    return str_replace('</head>', implode("\n    ", $tags) . "\n  </head>", $template);
+    $template = str_replace('</head>', implode("\n    ", $tags) . "\n  </head>", $template);
+    $content = '<main><h1>' . $escape(str_replace(' | MostWanted', '', $metadata['title'])) . '</h1><p>'
+        . $escape($metadata['fullDescription'] ?? $metadata['description']) . '</p></main>';
+    return str_replace('<div id="root"></div>', '<div id="root">' . $content . '</div>', $template);
 }
 
 function mw_share_decode_response($body, $status) {

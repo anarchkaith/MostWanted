@@ -209,6 +209,7 @@ export function buildDiscordReportPayload({ report = {}, reporter = {}, evidence
   const reportUrl = Number.isInteger(reportId) && reportId > 0
     ? `${MOSTWANTED_WEB_URL}/reporte/${reportId}`
     : MOSTWANTED_WEB_URL;
+  const playerUrl = `${MOSTWANTED_WEB_URL}/jugador/${encodeURIComponent(toTrimmedString(report.nickname))}`;
   const reporterAvatarCandidate = toTrimmedString(reporter.avatarUrl);
   const reporterAvatarUrl = /^https?:\/\//i.test(reporterAvatarCandidate) ? reporterAvatarCandidate : '';
 
@@ -230,7 +231,7 @@ export function buildDiscordReportPayload({ report = {}, reporter = {}, evidence
   }
   fields.push({
     name: '🔗 Enlaces',
-    value: `[Reportar a un jugador](${MOSTWANTED_WEB_URL}/#reportar)\n[Ver lista de reportes](${MOSTWANTED_WEB_URL}/#reportes-lista)`,
+    value: `[Aportar información sobre este jugador](${playerUrl})\n[Reportar a un jugador](${MOSTWANTED_WEB_URL}/denunciar)\n[Ver lista de reportes](${MOSTWANTED_WEB_URL}/#reportes-lista)`,
     inline: false,
   });
 

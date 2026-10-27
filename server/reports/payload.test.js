@@ -219,7 +219,7 @@ runTest('buildDiscordReportPayload enlaza el nombre al perfil y el reporte desde
   assert.equal(embed.url, 'https://socialclub.rockstargames.com/members/Jugador123/');
   assert.equal(embed.description, '**Reporte de jugador**\n[Ver reporte y votar](https://mostwanted.kaithsrebels.com/reporte/5)');
   assert.equal(embed.fields.find(({ name }) => name.includes('Enlaces')).value,
-    '[Reportar a un jugador](https://mostwanted.kaithsrebels.com/#reportar)\n[Ver lista de reportes](https://mostwanted.kaithsrebels.com/#reportes-lista)');
+    '[Aportar información sobre este jugador](https://mostwanted.kaithsrebels.com/jugador/Jugador123)\n[Reportar a un jugador](https://mostwanted.kaithsrebels.com/denunciar)\n[Ver lista de reportes](https://mostwanted.kaithsrebels.com/#reportes-lista)');
   assert.equal(Object.hasOwn(payload, 'components'), false);
   assert.deepEqual(payload.allowed_mentions, { parse: [] });
 });
