@@ -139,7 +139,7 @@ function mw_share_card_metadata($metadata, $card) {
         'v' => substr(hash('sha256', json_encode($card)), 0, 16),
     ], '', '&', PHP_QUERY_RFC3986);
     $metadata['imageWidth'] = 1200;
-    $metadata['imageHeight'] = mw_share_card_layout($card)['height'];
+    $metadata['imageHeight'] = 675;
     $metadata['imageType'] = 'image/png';
     return $metadata;
 }
@@ -161,13 +161,15 @@ function mw_share_metadata($path, callable $fetch) {
             'playerUrl' => $nickname !== '' ? MW_SHARE_ORIGIN . '/jugador/' . rawurlencode($nickname) : null,
             'reportUrl' => MW_SHARE_ORIGIN . '/reporte/' . $id,
             'title' => 'Reporte #' . $id . ($nickname !== '' ? ' de ' . $nickname : '')
-                . ($summary['categories'] !== '' ? ' | ' . $summary['categories'] : '') . ' | MostWanted',
+                . ($summary['categories'] !== '' ? ' | ' . $summary['categories'] : ''),
             'description' => mw_share_report_description($summary),
             'imageAlt' => 'Reporte #' . $id . ($nickname !== '' ? ' de ' . $nickname : ''),
             'type' => 'article',
         ], [
             'heading' => 'REPORTE #' . $id, 'name' => $nickname,
             'risk' => mw_share_risk([$report]),
+            'discordReason' => $summary['reason'],
+            'discordCategories' => $summary['categories'],
             'context' => $summary['categories'] !== '' ? 'Infracciones reportadas: ' . $summary['categories'] : '',
             'reason' => $summary['reason'],
             'stats' => mw_share_join([$summary['evidence'], $summary['verification']], ' | '),
@@ -244,18 +246,25 @@ function mw_share_metadata($path, callable $fetch) {
 
 function mw_share_discord_json($metadata) {
     $markdown = static fn($text) => preg_replace('/([\\\\`*_{}\[\]()<>#+.!|~>])/u', '\\\\$1', $text);
-    $buttons = [];
-    if (!empty($metadata['playerUrl'])) $buttons[] = [
-        'type' => 2, 'style' => 5, 'url' => $metadata['playerUrl'], 'label' => 'Aportar informacion',
-    ];
-    $buttons[] = ['type' => 2, 'style' => 5, 'url' => MW_SHARE_ORIGIN . '/denunciar', 'label' => 'Reportar'];
+    $buttons = [['type' => 2, 'style' => 5, 'url' => MW_SHARE_ORIGIN . '/denunciar', 'label' => 'Aportar información']];
     if (!empty($metadata['reportUrl'])) $buttons[] = [
-        'type' => 2, 'style' => 5, 'url' => $metadata['reportUrl'], 'label' => 'Ver reporte y votar',
+        'type' => 2, 'style' => 5, 'url' => $metadata['reportUrl'], 'label' => 'Votar reporte',
+    ];
+    if (!empty($metadata['playerUrl'])) $buttons[] = [
+        'type' => 2, 'style' => 5, 'url' => $metadata['playerUrl'], 'label' => 'Ver información del jugador',
     ];
     [$r, $g, $b] = mw_share_card_palette($metadata['card']['risk'] ?? 'neutral');
-    $components = [['type' => 10, 'content' => '## ' . $markdown($metadata['title'])
-        . ($metadata['description'] !== '' ? "\n\n" . $markdown($metadata['description']) : '')]];
+    $card = $metadata['card'];
+    $body = $metadata['type'] === 'article'
+        ? mw_share_join([
+            !empty($card['discordCategories']) ? '**Infracciones reportadas** · ' . $markdown($card['discordCategories']) : '',
+            !empty($card['discordReason']) ? "### Descripción del reporte\n" . $markdown($card['discordReason']) : '',
+            $card['stats'] !== '' ? '**Evidencias y comunidad**' . "\n" . $markdown($card['stats']) : '',
+        ], "\n\n")
+        : ($metadata['description'] !== '' ? "### Resumen del jugador\n" . $markdown($metadata['description']) : '');
+    $components = [['type' => 10, 'content' => '## ' . $markdown($metadata['title']) . ($body !== '' ? "\n\n" . $body : '')]];
     $components[] = ['type' => 12, 'items' => [['media' => ['url' => $metadata['image']]]]];
+    $components[] = ['type' => 14, 'divider' => true, 'spacing' => 1];
     $components[] = ['type' => 1, 'components' => $buttons];
     $encode = static fn($items) => json_encode(['component' => [
         'type' => 17, 'accent_color' => ($r << 16) | ($g << 8) | $b, 'components' => $items,

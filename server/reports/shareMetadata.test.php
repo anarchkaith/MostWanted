@@ -57,7 +57,7 @@ $response = mw_share_response('/reporte/42', $template, static function ($endpoi
 });
 check($response['status'] === 200 && $calls === ['/reports/42'], 'Fetch the requested report only');
 $html = $response['html'];
-check(meta_value($html, 'og:title') === 'Reporte #42 de Player "Uno" & Dos | Exploit | MostWanted', 'Report title includes the actual type');
+check(meta_value($html, 'og:title') === 'Reporte #42 de Player "Uno" & Dos | Exploit', 'Report title includes the actual type without redundant branding');
 check(str_contains(meta_value($html, 'og:description'), 'Motivo reportado: Motivo con "comillas" & detalles'), 'Report-specific plain text reason');
 check(str_contains(meta_value($html, 'description'), 'Exploit'), 'Include reported categories');
 check(meta_value($html, 'og:url') === MW_SHARE_ORIGIN . '/reporte/42', 'Report-specific URL');
@@ -136,8 +136,11 @@ $metadata = mw_share_metadata('/reporte/42', static fn() => ['ok' => true, 'repo
 $html = mw_share_html($template, $metadata);
 check(!str_contains($html, '<script>alert'), 'Escape untrusted HTML');
 check(str_contains(meta_value($html, 'description'), trim(str_repeat('Texto largo ', 100))), 'Preserve the complete reason without truncation');
-check($metadata['imageHeight'] > 630, 'Grow the report image instead of truncating the full reason');
+check($metadata['imageHeight'] === 675 && mw_share_card_layout($metadata['card'])['height'] > 675, 'Fit the complete long report canvas into a landscape image');
 $longLayout = mw_share_card_layout($metadata['card']);
+$landscapeSize = getimagesizefromstring(mw_share_card_png($metadata['card']));
+check($landscapeSize[0] === 1200 && $landscapeSize[1] === 675
+    && $landscapeSize[0] * 9 === $landscapeSize[1] * 16, 'Actual PNG is exactly horizontal 16:9 even for long content');
 check(!str_contains(json_encode($longLayout), '...') && str_contains(json_encode($longLayout), trim(str_repeat('Texto largo ', 100))),
     'Layout retains the entire report text without ellipses');
 check(str_starts_with(meta_value($html, 'og:image'), MW_SHARE_ORIGIN . '/share-image.php?'), 'Generate a data card even without an avatar');
@@ -173,15 +176,19 @@ foreach ([$aiMetadata, $playerMetadata, $normalized] as $entry) {
     $children = $component['component']['components'];
     check($children[0]['type'] === 10 && str_contains($children[0]['content'], '## '), 'Provide a readable Discord heading and description');
     check($children[1]['type'] === 12 && $children[1]['items'][0]['media']['url'] === $entry['image'], 'Reuse the real data-driven preview image');
+    check($children[2]['type'] === 14 && $children[2]['divider'] === true, 'Separate the content and action buttons');
+    check(str_contains($children[0]['content'], $entry['type'] === 'article' ? '**Infracciones reportadas**' : '### Resumen del jugador'),
+        'Use intentional Discord Markdown section hierarchy');
     $actions = end($children);
     check($actions['type'] === 1 && count($actions['components']) === 3, 'Provide three appropriate link actions');
     foreach ($actions['components'] as $button) {
         check(array_keys($button) === ['type', 'style', 'url', 'label'] && $button['type'] === 2 && $button['style'] === 5,
             'Use only permitted link button fields, never interactive vote callbacks');
     }
-    check($actions['components'][0]['url'] === $entry['playerUrl'], 'Contribute opens the matching player profile');
-    check($actions['components'][1]['url'] === MW_SHARE_ORIGIN . '/denunciar', 'Report opens the existing reporting flow');
-    check($actions['components'][2]['url'] === $entry['reportUrl'], 'Voting opens the actual report rather than casting a vote automatically');
+    check(array_column($actions['components'], 'label') === ['Aportar información', 'Votar reporte', 'Ver información del jugador'], 'Use the requested button labels and order');
+    check($actions['components'][0]['url'] === MW_SHARE_ORIGIN . '/denunciar', 'Contribute opens the reporting form');
+    check($actions['components'][1]['url'] === $entry['reportUrl'], 'Voting opens the actual report rather than casting a vote automatically');
+    check($actions['components'][2]['url'] === $entry['playerUrl'], 'Player information opens the matching profile');
 }
 $discordHtml = mw_share_html($template, $aiMetadata);
 $discordDom = new DOMDocument();
@@ -266,7 +273,7 @@ $avatarCard = $playerMetadata['card'];
 $avatarCard['evidenceImages'] = [];
 $avatarCard['avatars'] = ['https://i.ibb.co/example/avatar.png'];
 $avatarCalls = 0;
-$withAvatarPng = mw_share_card_png($avatarCard, static function ($url) use (&$avatarCalls) {
+$withAvatarPng = mw_share_card_canvas_png($avatarCard, static function ($url) use (&$avatarCalls) {
     check($url === 'https://i.ibb.co/example/avatar.png', 'Load only the recorded avatar URL');
     $avatarCalls++;
     $image = imagecreatetruecolor(20, 20);
@@ -308,7 +315,7 @@ $lastBottom = $lastBlock['y'] + count(mw_share_card_lines($lastBlock['text'], $l
 check($galleryLayout['evidence'][0]['y'] > $lastBottom, 'Evidence never covers the full report text');
 check($galleryLayout['evidence'][0]['height'] >= 300, 'Give evidence at least 300 pixels of height for larger thumbnails');
 $galleryCalls = [];
-$galleryPng = mw_share_card_png($gallery['card'], static function ($url, $kind) use (&$galleryCalls) {
+$galleryPng = mw_share_card_canvas_png($gallery['card'], static function ($url, $kind) use (&$galleryCalls) {
     check($kind === 'evidence', 'Use evidence-specific image download limits');
     $galleryCalls[] = $url;
     $photo = imagecreatetruecolor(400, 100);
@@ -330,7 +337,7 @@ foreach ($galleryLayout['evidence'] as $slot) {
 check((imagecolorat($galleryImage, 1155, 20) & 0xFFFFFF) === 0x121618, 'Use a subtle dotted background');
 check((imagecolorat($galleryImage, 60, $galleryLayout['evidence'][0]['y'] - 12) & 0xFFFFFF) === 0x4ADE80,
     'Separate evidence from text with a green accent for low severity');
-check(imagesy($galleryImage) === $gallery['imageHeight'], 'Metadata declares the gallery height accurately');
+check(imagesy($galleryImage) === $galleryLayout['height'], 'Render the complete gallery canvas before fitting to landscape');
 imagedestroy($galleryImage);
 $tallPhoto = imagecreatetruecolor(1440, 3200);
 ob_start();
@@ -383,7 +390,7 @@ $twoAvatarCard = $twoAvatarMetadata['card'];
 $twoAvatarCard['evidenceImages'] = [];
 $twoAvatarLayout = mw_share_card_layout($twoAvatarCard);
 $loadedAvatars = [];
-$twoAvatarPng = mw_share_card_png($twoAvatarCard, static function ($url, $kind) use (&$loadedAvatars) {
+$twoAvatarPng = mw_share_card_canvas_png($twoAvatarCard, static function ($url, $kind) use (&$loadedAvatars) {
     check($kind === 'avatar', 'Load both avatars using avatar limits');
     $loadedAvatars[] = $url;
     $photo = imagecreatetruecolor(20, 20);
@@ -416,7 +423,7 @@ foreach ($identityLayout['tags'] as $tag) {
     check($tag['x'] >= 55 && $tag['x'] + $tag['width'] <= 1145, 'Wrap long tags within the image');
     check($tag['y'] + $tag['height'] < $identityLayout['evidence'][0]['y'], 'Keep tags above the evidence gallery');
 }
-$identityPng = imagecreatefromstring(mw_share_card_png($identity['card']));
+$identityPng = imagecreatefromstring(mw_share_card_canvas_png($identity['card']));
 $tag = $identityLayout['tags'][0];
 check((imagecolorat($identityPng, $tag['x'] + 8, $tag['y']) & 0xFFFFFF) === 0xF1EF4F, 'Render medium-severity conduct tags in yellow');
 imagedestroy($identityPng);
@@ -433,7 +440,7 @@ check(mw_share_risk([['severity' => 'baja'], ['severity' => 'alta']]) === 'high'
 foreach (['neutral' => 0xAAB9CC, 'low' => 0x4ADE80, 'medium' => 0xF1EF4F, 'high' => 0xFFA440, 'critical' => 0xFF4B55] as $risk => $expectedColor) {
     $riskCard = $emptyCard;
     $riskCard['risk'] = $risk;
-    $rendered = imagecreatefromstring(mw_share_card_png($riskCard));
+    $rendered = imagecreatefromstring(mw_share_card_canvas_png($riskCard));
     check((imagecolorat($rendered, 35, 25) & 0xFFFFFF) === $expectedColor, 'Render exact palette for ' . $risk);
     imagedestroy($rendered);
 }

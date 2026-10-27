@@ -105,6 +105,34 @@ function mw_share_card_text($image, $text, $x, $y, $width, $scale, $color) {
 }
 
 function mw_share_card_png($card, $loadImage = null) {
+    $canvas = imagecreatefromstring(mw_share_card_canvas_png($card, $loadImage));
+    if ($canvas === false) throw new RuntimeException('Cannot decode preview canvas.', 503);
+    $output = imagecreatetruecolor(1200, 675);
+    if ($output === false) {
+        imagedestroy($canvas);
+        throw new RuntimeException('Cannot create landscape preview.', 503);
+    }
+    try {
+        imagefill($output, 0, 0, imagecolorallocate($output, 8, 10, 12));
+        $scale = min(1, 675 / imagesy($canvas));
+        $width = max(1, (int) round(1200 * $scale));
+        $height = max(1, (int) round(imagesy($canvas) * $scale));
+        imagecopyresampled($output, $canvas, (int) ((1200 - $width) / 2), (int) ((675 - $height) / 2),
+            0, 0, $width, $height, 1200, imagesy($canvas));
+        ob_start();
+        try {
+            if (!imagepng($output)) throw new RuntimeException('Cannot encode landscape preview.', 503);
+            return ob_get_contents();
+        } finally {
+            ob_end_clean();
+        }
+    } finally {
+        imagedestroy($canvas);
+        imagedestroy($output);
+    }
+}
+
+function mw_share_card_canvas_png($card, $loadImage = null) {
     if (!function_exists('imagecreatetruecolor') || !function_exists('iconv')) {
         throw new RuntimeException('PHP GD and iconv are required for preview images.', 503);
     }
