@@ -4,6 +4,7 @@ import DiscordAvatar from '../ui/DiscordAvatar';
 import Skeleton from '../ui/Skeleton';
 import Button from '../ui/Button';
 import PrivateAccountsPanel from '../PrivateAccountsPanel';
+import SpecialText from '../ui/SpecialText';
 
 export default function ProfileScreen({ user, onNavigate, onLogout, onOpenReport, mapReport, onHelp, revision }) {
   const { page, setPage, data, loading, error, retry } = useOwnedReports({ userId: user.id, revision });
@@ -27,7 +28,7 @@ export default function ProfileScreen({ user, onNavigate, onLogout, onOpenReport
       </nav>
       {user.id === '343976455400718339' && <PrivateAccountsPanel onNavigate={onNavigate} />}
       <section className="case-reports" aria-labelledby="my-reports-title" aria-busy={loading}>
-        <header className="case-reports__header"><h2 id="my-reports-title">Mis reportes</h2></header>
+        <header className="case-reports__header"><h2 id="my-reports-title"><SpecialText>Mis reportes</SpecialText></h2></header>
         <p className="case-muted profile-report-note">Solo tú puedes consultar esta lista. Los reportes anteriores sin una vinculación privada con tu cuenta no aparecen aquí; no se asignan por nombre de usuario.</p>
         {loading && <Skeleton label="Cargando mis reportes…" rows={6} />}
         {error && <div className="rfm-submit-error" role="alert"><p>{error}</p><Button variant="secondary" onClick={retry}>Reintentar</Button></div>}

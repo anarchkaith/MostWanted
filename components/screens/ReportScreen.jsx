@@ -1,12 +1,12 @@
 import ReportFormModal from '../ReportFormModal';
-import TerminalText from '../ui/TerminalText';
+import SpecialText from '../ui/SpecialText';
 
 export default function ReportScreen(formProps) {
   return (
     <main id="reportar" className="report-workspace">
       <div className="workspace-intro">
         <div>
-          <h2 className="cyber-h"><TerminalText text="Registrar un reporte" /></h2>
+          <h2 className="cyber-h"><SpecialText>Registrar un reporte</SpecialText></h2>
         </div>
       </div>
       <ReportFormModal {...formProps} />

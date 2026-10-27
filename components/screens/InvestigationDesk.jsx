@@ -3,7 +3,8 @@ import { unwrapMarkdownFence } from '../markdownUtils';
 import PlayerBackgroundPanel from '../PlayerBackgroundPanel';
 import CaseStaffPanel from '../CaseStaffPanel';
 import CyberButtonLabel from '../ui/CyberButtonLabel';
-import TerminalText from '../ui/TerminalText';
+import SpecialText from '../ui/SpecialText';
+import HighlightedText from '../ui/HighlightedText';
 import Skeleton from '../ui/Skeleton';
 import usePlayerCase from '../../src/hooks/usePlayerCase';
 import { PlayerCaseClassification, PlayerCommunityVerification } from '../player/PlayerCaseAssessment';
@@ -77,7 +78,7 @@ export default function InvestigationDesk({ initialPlayer, onPlayerResolved, rep
 
   return (
     <main className="investigation-desk" id="reportes-lista">
-      {!player && !caseId && <header className="desk-intro"><h2>Busca un jugador</h2><p>Usa su nombre o RID para consultar su ficha o registrar un reporte.</p></header>}
+      {!player && !caseId && <header className="desk-intro"><h2><SpecialText>Busca un jugador</SpecialText></h2><p>Usa su nombre o RID para <HighlightedText>consultar su ficha</HighlightedText> o <HighlightedText>registrar un reporte</HighlightedText>.</p></header>}
       {reportsError && <p className="rfm-submit-error" role="alert">{reportsError}</p>}
       {route.error && <p className="rfm-submit-error" role="alert">{route.error}</p>}
       {error && <div className="rfm-submit-error" role="alert"><p>{error}</p>{payload && <p>Los datos anteriores pueden estar desactualizados.</p>}<button type="button" className="cyber-button-small mw-cyber-button mw-cyber-button--secondary" onClick={refresh}>Reintentar consulta</button></div>}
@@ -85,7 +86,7 @@ export default function InvestigationDesk({ initialPlayer, onPlayerResolved, rep
       <div className="desk-columns" aria-busy={loading}>
         <section className="case-file" aria-label="Expediente del jugador">
           <header className="case-file__header">
-            <div><p className="case-file__eyebrow">H.E.X. / Archivo de jugadores</p><h2><TerminalText text="Ficha del jugador" /></h2></div>
+            <div><p className="case-file__eyebrow">H.E.X. / Archivo de jugadores</p><h2><SpecialText>Ficha del jugador</SpecialText></h2></div>
             {dossier && <>
               <dl className="case-file__metadata"><div><dt>Primera denuncia</dt><dd>{formatCaseDate(linkedReports.map(report => report.fecha).filter(Boolean).sort()[0])}</dd></div><div><dt>Última actualización</dt><dd>{formatCaseDate(dossier.updatedAt, true)}</dd></div></dl>
             </>}
