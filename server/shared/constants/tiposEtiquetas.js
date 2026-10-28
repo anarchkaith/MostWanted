@@ -10,6 +10,7 @@
       { nombre: 'Velocidad aumentada (speedhack)', puntaje: 2 },
       { nombre: 'Salir de mapa / Explorar fuera de limites', puntaje: 1 },
       { nombre: 'Invencibilidad temporal (exploit)', puntaje: 2 },
+      { nombre: 'Autocuracion / regeneracion por exploit', puntaje: 3 },
     ],
   },
   {
@@ -41,6 +42,11 @@
       { nombre: 'Manipulacion de datos del juego (cheats avanzados)', puntaje: 4 },
       { nombre: 'Blackscreen', puntaje: 3 },
       { nombre: 'Crash', puntaje: 3 },
+      { nombre: 'Offradar permanente / infinito (hack)', puntaje: 4 },
+      { nombre: 'Mod menu detectado (evidencia confirmada)', puntaje: 5 },
+      { nombre: 'Mod menu sospechoso (sin confirmar)', puntaje: 1 },
+      { nombre: 'Triggerbot', puntaje: 4 },
+      { nombre: 'Movimiento hack (fly / noclip)', puntaje: 4 },
     ],
   },
   {
