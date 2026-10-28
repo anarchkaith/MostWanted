@@ -1,5 +1,7 @@
 ﻿import React, { useMemo, useState } from 'react';
 import useReportVote from '../src/hooks/useReportVote';
+import CyberButtonLabel from './ui/CyberButtonLabel';
+import SpecialTextContent from './ui/SpecialTextContent';
 
 /**
  * VoteSystem - Verificacion comunitaria por reporte.
@@ -98,7 +100,7 @@ const VoteSystem = ({
           title="Es legitimo"
           disabled={isLoading}
         >
-          {isLoading ? '⏳' : '👍'} {Number(votos?.up || 0)}
+          <SpecialTextContent>{isLoading ? '⏳' : '👍'} {Number(votos?.up || 0)}</SpecialTextContent>
         </button>
 
         <button
@@ -111,7 +113,7 @@ const VoteSystem = ({
           title="Es falso"
           disabled={isLoading}
         >
-          {isLoading ? '⏳' : '👎'} {Number(votos?.down || 0)}
+          <SpecialTextContent>{isLoading ? '⏳' : '👎'} {Number(votos?.down || 0)}</SpecialTextContent>
         </button>
 
         {error && <div className="vote-system__error" role="alert">⚠️ {error}</div>}
@@ -184,7 +186,7 @@ const VoteSystem = ({
           disabled={isLoading}
         >
           <span className="vote-btn__icon">{isLoading ? '⏳' : '👍'}</span>
-          <span className="vote-btn__label">SI, ES LEGITIMO</span>
+          <span className="vote-btn__label"><CyberButtonLabel>SI, ES LEGITIMO</CyberButtonLabel></span>
           <span className="vote-btn__count">{Number(votos?.up || 0)}</span>
         </button>
 
@@ -196,7 +198,7 @@ const VoteSystem = ({
           disabled={isLoading}
         >
           <span className="vote-btn__icon">{isLoading ? '⏳' : '👎'}</span>
-          <span className="vote-btn__label">NO, ES FALSO</span>
+          <span className="vote-btn__label"><CyberButtonLabel>NO, ES FALSO</CyberButtonLabel></span>
           <span className="vote-btn__count">{Number(votos?.down || 0)}</span>
         </button>
       </div>

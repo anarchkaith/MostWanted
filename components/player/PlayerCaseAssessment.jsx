@@ -3,13 +3,36 @@ import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import Skeleton from '../ui/Skeleton';
 import { formatCaseDate } from '../../src/services/casePresentation';
+import SpecialTextContent from '../ui/SpecialTextContent';
+
+function withSpecialText(Tag) {
+  return function SpecialTextMarkdownElement({ children, ...props }) {
+    return <Tag {...props}><SpecialTextContent>{children}</SpecialTextContent></Tag>;
+  };
+}
+
+const markdownComponents = {
+  p: withSpecialText('p'),
+  h1: withSpecialText('h1'),
+  h2: withSpecialText('h2'),
+  h3: withSpecialText('h3'),
+  h4: withSpecialText('h4'),
+  h5: withSpecialText('h5'),
+  h6: withSpecialText('h6'),
+  li: withSpecialText('li'),
+  strong: withSpecialText('strong'),
+  em: withSpecialText('em'),
+  blockquote: withSpecialText('blockquote'),
+  td: withSpecialText('td'),
+  th: withSpecialText('th'),
+};
 
 export function PlayerCaseClassification({ classification, text, loading }) {
   return <section className="case-section case-classification">
     <h3>Análisis HEX</h3>
     {loading && !text ? <Skeleton label="Cargando análisis HEX…" rows={6} /> : text ? <>
       <div className="case-classification__text">
-        <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{text}</ReactMarkdown>
+        <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={markdownComponents}>{text}</ReactMarkdown>
       </div>
       <p className="case-muted">Resumen generado por HEX · {classification.reportCount} reporte(s) · {formatCaseDate(classification.updatedAt, true)}</p>
     </> : null}

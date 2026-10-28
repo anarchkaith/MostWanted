@@ -1,3 +1,5 @@
+import SpecialTextContent from './ui/SpecialTextContent';
+
 const TipoInfraccionSelector = ({ value, onChange, options, disabled }) => {
   const selected = Array.isArray(value) ? value : [];
 
@@ -15,7 +17,7 @@ const TipoInfraccionSelector = ({ value, onChange, options, disabled }) => {
             className={`tipo-card cyber-tile mw-cyber-tile${isActive ? ' tipo-card--active' : ''}`}
           >
             <span className="tipo-card__icon" aria-hidden="true">{tipo.emoji}</span>
-            <span className="tipo-card__name">{tipo.nombre}</span>
+            <span className="tipo-card__name"><SpecialTextContent>{tipo.nombre}</SpecialTextContent></span>
             <span className="tipo-card__check" aria-hidden="true">{isActive ? '✓' : '+'}</span>
           </button>
         );

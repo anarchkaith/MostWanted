@@ -1,5 +1,5 @@
 ﻿import VoteSystem from './VoteSystem';
-import { CATEGORY_LABELS, normalizeReportSeverity, SEVERITY_LABELS } from '../src/services/casePresentation';
+import { CATEGORY_LABELS } from '../src/services/casePresentation';
 
 /**
  * ReportCard - Componente para mostrar una ficha individual de reporte
@@ -34,7 +34,6 @@ const ReportCard = ({ reporte, onClick, onVote }) => {
   };
 
   const categoria = reporte.categoria || 'ardido';
-  const severidad = normalizeReportSeverity(reporte.severidad);
   const validationStatus = reporte.validacion || 'pendiente';
   const hasEvidencias = (reporte.evidencias && reporte.evidencias.length > 0) || Boolean(reporte.evidencia);
 
@@ -72,19 +71,12 @@ const ReportCard = ({ reporte, onClick, onVote }) => {
         {reporte.motivo}
       </p>
 
-      {/* Footer con fecha y severidad */}
+      {/* Footer con fecha */}
       <footer className="report-card__footer">
         <span className="report-card__date">
           📅 {formatDate(reporte.fecha)}
           {hasEvidencias && <span title="Tiene evidencias"> 📎</span>}
         </span>
-        {severidad && <span className="report-card__severity">
-          <span
-            className={`severity-indicator severity-indicator--${severidad}`}
-            aria-hidden="true"
-          />
-          {SEVERITY_LABELS[severidad]}
-        </span>}
       </footer>
 
       {/* Votos comunitarios (modo compacto) */}

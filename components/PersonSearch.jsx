@@ -4,6 +4,7 @@ import { playerCandidates } from '../src/services/casePresentation';
 import { mergePlayerMatches } from '../src/services/playerSearch';
 import { lookupCachedPlayer } from './backgroundInvestigation';
 import CyberButtonLabel from './ui/CyberButtonLabel';
+import SpecialTextContent from './ui/SpecialTextContent';
 import Skeleton from './ui/Skeleton';
 
 const SEARCH_SOURCES = ['Reportes registrados', 'Perfiles de jugadores'];
@@ -115,8 +116,8 @@ export default function PersonSearch({ reports, knownPlayers, onSelect, revision
       <div ref={resultsRef} className="person-search__results" hidden={!open || !term}>
         <div id="person-search-results" role="listbox" aria-label="Personas encontradas">
           {matches.slice(0, 12).map((player, index) => <button type="button" role="option" aria-selected={active === index} id={`person-match-${index}`} key={player.key} onMouseDown={event => event.preventDefault()} onClick={() => choose(player)}>
-            <strong translate="no">{player.nickname || `RID ${player.rid}`}</strong>
-            <span>{player.rid ? `RID ${player.rid}` : 'Solo nombre'}{player.count > 0 ? ` · ${player.count} reporte(s)` : ''}</span>
+            <strong translate="no"><SpecialTextContent>{player.nickname || `RID ${player.rid}`}</SpecialTextContent></strong>
+            <span><SpecialTextContent>{player.rid ? `RID ${player.rid}` : 'Solo nombre'}{player.count > 0 ? ` · ${player.count} reporte(s)` : ''}</SpecialTextContent></span>
           </button>)}
         </div>
         {loading && <Skeleton label="Buscando jugadores por nombre o RID…" rows={2} />}

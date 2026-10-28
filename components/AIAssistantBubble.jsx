@@ -7,6 +7,7 @@ import { buildReportesChatContext, readReportesFromLocalStorage } from './chatTo
 import { getIaChatEndpoint, getIaIntentEndpoint } from '../src/services/apiConfig';
 import { requestAssistantReply } from '../src/services/assistantChat';
 import CyberButtonLabel from './ui/CyberButtonLabel';
+import SpecialTextContent from './ui/SpecialTextContent';
 import { useTerminalText } from './ui/useTerminalText';
 
 const HEX_LOGO_RED = '/HEX_LOGO_RED.png';
@@ -333,7 +334,7 @@ export default function AIAssistantBubble({ isAuthenticated = false, onSessionEx
                     onClick={() => copyMessage(message.content, index)}
                     aria-label="Copiar mensaje"
                   >
-                    {copiedIdx === index ? '✓ copiado' : 'copiar'}
+                    <SpecialTextContent>{copiedIdx === index ? '✓ copiado' : 'copiar'}</SpecialTextContent>
                   </button>
                 </article>
               ))}

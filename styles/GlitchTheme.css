@@ -29,6 +29,12 @@
   margin-right: 0.25em;
 }
 
+.mw-special-text {
+  display: inline;
+  font: inherit;
+  line-height: inherit;
+}
+
 :root {
   --hex-accent: var(--color-red-alert);
   --hex-shadow: var(--color-white-dirty);
@@ -66,11 +72,11 @@ body {
   animation: hex-brand-echo 7.3s linear -2.4s infinite reverse;
   text-shadow: -3px 0 var(--hex-accent), 2px 0 var(--color-red-dark);
 }
-.mw-cyber-button .glitchtext {
-  animation: mw-cyber-glitch 2s infinite;
+.mw-cyber-button:is(:hover, :focus-visible) .glitchtext {
+  animation: mw-cyber-glitch 2s ease-out 1 both;
 }
 .mw-cyber-button:is(:hover, :focus-visible) .mw-cyber-label {
-  animation: mw-cyber-label 2s infinite;
+  animation: mw-cyber-label 2s ease-out 1 both;
 }
 @keyframes mw-cyber-label {
   0%, 9%, 13%, 25%, 45%, 60%, 100% { transform: translate(0, 0); text-shadow: none; opacity: 1; }

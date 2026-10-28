@@ -2,12 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { useInView, useReducedMotion } from 'motion/react';
 
 const RANDOM_CHARS = '_!X$0-+*#';
+const MAX_STEPS = 32;
 
-function getRandomChar(prevChar) {
+function getRandomChar(previous) {
   let char;
   do {
     char = RANDOM_CHARS[Math.floor(Math.random() * RANDOM_CHARS.length)];
-  } while (char === prevChar);
+  } while (char === previous);
   return char;
 }
 
@@ -16,154 +17,62 @@ export default function SpecialText({
   speed = 20,
   delay = 0,
   className = '',
-  inView = false,
+  inView = true,
   once = true,
 }) {
+  const text = String(children ?? '');
   const containerRef = useRef(null);
-  const isInView = useInView(containerRef, { once, margin: '-100px' });
+  const isInView = useInView(containerRef, { once, margin: '0px' });
   const reduceMotion = useReducedMotion();
-  const shouldAnimate = inView ? isInView : true;
-  const [hasStarted, setHasStarted] = useState(() => reduceMotion || (!inView && delay <= 0));
-  const text = children;
-  const [displayText, setDisplayText] = useState(() => reduceMotion || (!inView && delay <= 0) ? text : ' '.repeat(text.length));
-  const [currentPhase, setCurrentPhase] = useState('phase1');
-  const [animationStep, setAnimationStep] = useState(0);
-  const intervalRef = useRef(null);
-  const startTimeoutRef = useRef(null);
+  const shouldAnimate = !inView || isInView;
+  const [displayText, setDisplayText] = useState(text);
 
-  function clearStartTimeout() {
-    if (startTimeoutRef.current === null) return;
-    window.clearTimeout(startTimeoutRef.current);
-    startTimeoutRef.current = null;
-  }
-
-  function startAnimation() {
-    setHasStarted(true);
-    setDisplayText(' '.repeat(text.length));
-    setCurrentPhase('phase1');
-    setAnimationStep(0);
-  }
-
-  const runPhase1 = () => {
-    const maxSteps = text.length * 2;
-    const currentLength = Math.min(animationStep + 1, text.length);
-
-    const chars = [];
-    for (let i = 0; i < currentLength; i++) {
-      const prevChar = i > 0 ? chars[i - 1] : undefined;
-      chars.push(getRandomChar(prevChar));
-    }
-
-    for (let i = currentLength; i < text.length; i++) {
-      chars.push('\u00A0');
-    }
-
-    setDisplayText(chars.join(''));
-
-    if (animationStep < maxSteps - 1) {
-      setAnimationStep((prev) => prev + 1);
-    } else {
-      setCurrentPhase('phase2');
-      setAnimationStep(0);
-    }
-  };
-
-  const runPhase2 = () => {
-    const revealedCount = Math.floor(animationStep / 2);
-    const chars = [];
-
-    for (let i = 0; i < revealedCount && i < text.length; i++) {
-      chars.push(text[i]);
-    }
-
-    if (revealedCount < text.length) {
-      if (animationStep % 2 === 0) {
-        chars.push('_');
-      } else {
-        chars.push(getRandomChar());
-      }
-    }
-
-    for (let i = chars.length; i < text.length; i++) {
-      chars.push(getRandomChar());
-    }
-
-    setDisplayText(chars.join(''));
-
-    if (animationStep < text.length * 2 - 1) {
-      setAnimationStep((prev) => prev + 1);
-    } else {
+  useEffect(() => {
+    if (!shouldAnimate || !text.length) {
       setDisplayText(text);
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    }
-  };
-
-  useEffect(() => {
-    if (reduceMotion) {
-      setHasStarted(true);
-      setDisplayText(text);
-      return;
-    }
-    if (shouldAnimate && !hasStarted) {
-      clearStartTimeout();
-      if (delay <= 0) {
-        startAnimation();
-        return;
-      }
-      startTimeoutRef.current = window.setTimeout(() => {
-        startTimeoutRef.current = null;
-        startAnimation();
-      }, delay * 1000);
-    }
-    return () => clearStartTimeout();
-  }, [shouldAnimate, hasStarted, delay, text, reduceMotion]);
-
-  useEffect(() => {
-    if (!hasStarted || reduceMotion) {
-      return;
+      return undefined;
     }
 
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-    }
+    let step = 0;
+    const characters = Array.from(text);
+    const steps = reduceMotion
+      ? Math.min(Math.max(characters.length, 6), 8)
+      : Math.min(Math.max(characters.length, 12), MAX_STEPS);
+    let intervalId;
+    const timeoutId = window.setTimeout(() => {
+      intervalId = window.setInterval(() => {
+        step += 1;
+        const revealed = Math.floor((step / steps) * characters.length);
+        let previousRandomChar;
+        const nextText = characters.map((char, index) => {
+          if (/\s/.test(char) || index < revealed) {
+            previousRandomChar = char;
+            return char;
+          }
+          previousRandomChar = getRandomChar(previousRandomChar);
+          return previousRandomChar;
+        }).join('');
 
-    intervalRef.current = setInterval(() => {
-      if (currentPhase === 'phase1') {
-        runPhase1();
-      } else {
-        runPhase2();
-      }
-    }, speed);
+        if (step >= steps) {
+          setDisplayText(text);
+          window.clearInterval(intervalId);
+          return;
+        }
+        setDisplayText(nextText);
+      }, reduceMotion ? Math.max(speed, 25) : speed);
+    }, delay * 1000);
 
+    setDisplayText(characters.map(char => /\s/.test(char) ? char : '\u00a0').join(''));
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
+      window.clearTimeout(timeoutId);
+      window.clearInterval(intervalId);
     };
-  }, [currentPhase, animationStep, text, speed, hasStarted, reduceMotion]);
-
-  useEffect(() => {
-    if (hasStarted) {
-      setDisplayText(' '.repeat(text.length));
-      setCurrentPhase('phase1');
-      setAnimationStep(0);
-    }
-
-    return () => {
-      clearStartTimeout();
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, [text, hasStarted]);
+  }, [text, speed, delay, shouldAnimate, reduceMotion]);
 
   return (
     <span
       ref={containerRef}
-      className={`h-4.5 leading-5 inline-flex font-mono font-medium ${className}`}
+      className={`mw-special-text ${className}`.trim()}
       aria-label={text}
     >
       <span aria-hidden="true">{displayText}</span>

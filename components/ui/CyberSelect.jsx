@@ -1,5 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import SpecialText from './SpecialText';
 
 export default function CyberSelect({ id, value, options, onChange, disabled = false, 'aria-label': label }) {
   const generatedId = useId();
@@ -89,14 +90,14 @@ export default function CyberSelect({ id, value, options, onChange, disabled = f
             if (index >= 0) { event.preventDefault(); setActive(index); setOpen(true); }
           }
         }}>
-        {options[selected]?.label || 'Seleccionar'}
+        <SpecialText>{options[selected]?.label || 'Seleccionar'}</SpecialText>
       </button>
       {expanded && createPortal(
         <div ref={list} id={listId} className="mw-select-options" role="listbox" aria-label={label} aria-labelledby={label ? undefined : controlId} style={position}>
           {options.map((option, index) => <button key={option.value} id={`${listId}-${index}`} type="button" role="option"
             aria-selected={value === option.value} data-active={active === index} tabIndex={-1}
             onMouseDown={event => event.preventDefault()} onPointerMove={() => setActive(index)} onClick={() => choose(index)}>
-            {option.label}
+            <SpecialText>{option.label}</SpecialText>
           </button>)}
         </div>, trigger.current?.closest('[role="dialog"]') || document.body,
       )}

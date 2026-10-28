@@ -1,4 +1,4 @@
-const PUNTAJE_EMOJI = { 1: '🟢', 2: '🟡', 3: '🟠', 4: '🔴', 5: '☠️' };
+import SpecialTextContent from './ui/SpecialTextContent';
 
 export default function EtiquetasSelector({ categorias, etiquetas, setFieldValue, tiposEtiquetas, disabled }) {
   const grupos = categorias.map((cat) => tiposEtiquetas.find((tipo) => tipo.key === cat)).filter(Boolean);
@@ -19,13 +19,11 @@ export default function EtiquetasSelector({ categorias, etiquetas, setFieldValue
                   key={etiqueta.nombre}
                   disabled={disabled}
                   aria-pressed={isActive}
-                  title={`Severidad: ${etiqueta.puntaje}/5`}
                   onClick={() => setFieldValue('labels', isActive
                     ? etiquetas.filter((item) => item !== etiqueta.nombre)
                     : [...etiquetas, etiqueta.nombre])}
                 >
-                  <span aria-hidden="true">{PUNTAJE_EMOJI[etiqueta.puntaje] || '🟢'}</span>
-                  {etiqueta.nombre}
+                  <SpecialTextContent>{etiqueta.nombre}</SpecialTextContent>
                   {isActive && <span aria-hidden="true">✓</span>}
                 </button>
               );

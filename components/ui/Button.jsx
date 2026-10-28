@@ -1,4 +1,5 @@
 import CyberButtonLabel from './CyberButtonLabel';
+import SpecialTextContent from './SpecialTextContent';
 
 export default function Button({ variant = 'primary', size = 'small', glitch = true, className = '', type = 'button', children, ...props }) {
   const classes = [
@@ -9,7 +10,7 @@ export default function Button({ variant = 'primary', size = 'small', glitch = t
   ].filter(Boolean).join(' ');
   return (
     <button type={type} className={classes} {...props}>
-      {glitch ? <CyberButtonLabel>{children}</CyberButtonLabel> : children}
+      {glitch ? <CyberButtonLabel>{children}</CyberButtonLabel> : <SpecialTextContent>{children}</SpecialTextContent>}
     </button>
   );
 }

@@ -1,5 +1,6 @@
 import { useId, useRef } from 'react';
 import useDialog from '../../src/hooks/useDialog';
+import SpecialTextContent from '../ui/SpecialTextContent';
 
 export default function ReportSubmissionConfirmation({ result, onClose, onAccept, canReturn, returnFocusRef }) {
   const dialog = useRef(null);
@@ -21,9 +22,9 @@ export default function ReportSubmissionConfirmation({ result, onClose, onAccept
         Reportarlo tambien en Rockstar Support
       </a>
       <div className="rfm-confirmation__actions">
-        {canReturn && <button ref={firstButton} type="button" className="cyber-button-small mw-cyber-button mw-cyber-button--secondary" onClick={onAccept}>Volver al expediente</button>}
-        <button ref={canReturn ? undefined : firstButton} type="button" onClick={onClose} className="cyber-button-small mw-cyber-button mw-cyber-button--secondary">✏️ Volver y editar</button>
-        <button type="button" onClick={onAccept} className="cyber-button-small mw-cyber-button">✔ Aceptar</button>
+        {canReturn && <button ref={firstButton} type="button" className="cyber-button-small mw-cyber-button mw-cyber-button--secondary" onClick={onAccept}><SpecialTextContent>Volver al expediente</SpecialTextContent></button>}
+        <button ref={canReturn ? undefined : firstButton} type="button" onClick={onClose} className="cyber-button-small mw-cyber-button mw-cyber-button--secondary"><SpecialTextContent>✏️ Volver y editar</SpecialTextContent></button>
+        <button type="button" onClick={onAccept} className="cyber-button-small mw-cyber-button"><SpecialTextContent>✔ Aceptar</SpecialTextContent></button>
       </div>
     </div>
   </div>;

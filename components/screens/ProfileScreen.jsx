@@ -5,6 +5,7 @@ import Skeleton from '../ui/Skeleton';
 import Button from '../ui/Button';
 import PrivateAccountsPanel from '../PrivateAccountsPanel';
 import SpecialText from '../ui/SpecialText';
+import SpecialTextContent from '../ui/SpecialTextContent';
 
 export default function ProfileScreen({ user, onNavigate, onLogout, onOpenReport, mapReport, onHelp, revision }) {
   const { page, setPage, data, loading, error, retry } = useOwnedReports({ userId: user.id, revision });
@@ -35,13 +36,17 @@ export default function ProfileScreen({ user, onNavigate, onLogout, onOpenReport
         {!loading && !error && data && <>
           {data.items.length ? <ul className="profile-reports">
             {data.items.map(report => <li key={report.id}>
-              <div className="profile-report-heading"><h3 className="notranslate" translate="no">{report.nickname}</h3><span>#{report.id} · {formatCaseDate(report.createdAt, true)}</span></div>
-              <p className="case-muted">{report.categories.join(' · ') || 'Sin infracciones registradas'}</p>
-              <p className="profile-report-reason">{report.reason}</p>
-              <div className="profile-report-actions">
-                <Button variant="secondary" onClick={() => onOpenReport(mapReport(report))}>Ver reporte</Button>
-                <Button variant="secondary" onClick={() => onNavigate(`/jugador/${encodeURIComponent(report.rid || report.nickname)}`)}>Ver ficha del jugador</Button>
-              </div>
+              <SpecialTextContent>
+                <>
+                  <div className="profile-report-heading"><h3 className="notranslate" translate="no">{report.nickname}</h3><span>#{report.id} · {formatCaseDate(report.createdAt, true)}</span></div>
+                  <p className="case-muted">{report.categories.join(' · ') || 'Sin infracciones registradas'}</p>
+                  <p className="profile-report-reason">{report.reason}</p>
+                  <div className="profile-report-actions">
+                    <Button variant="secondary" onClick={() => onOpenReport(mapReport(report))}>Ver reporte</Button>
+                    <Button variant="secondary" onClick={() => onNavigate(`/jugador/${encodeURIComponent(report.rid || report.nickname)}`)}>Ver ficha del jugador</Button>
+                  </div>
+                </>
+              </SpecialTextContent>
             </li>)}
           </ul> : <p className="desk-empty">No tienes reportes vinculados en esta página.</p>}
           {(page > 1 || data.hasMore) && <nav className="case-pagination" aria-label="Páginas de mis reportes">
