@@ -113,7 +113,10 @@ foreach ([
     ['/reporte/42', static fn() => ['ok' => false], 502],
     ['/reporte/42', static function () { throw new RuntimeException('WordPress unavailable', 502); }, 502],
     ['/reporte/42', static function () { throw new RuntimeException('Not found', 404); }, 404],
-    ['/jugador/Missing', static fn() => ['ok' => true, 'found' => false], 404],
+    ['/jugador/Missing', static function ($endpoint) {
+        if (str_starts_with($endpoint, '/social-cache/')) throw new RuntimeException('Social Club player not found.', 404);
+        return ['ok' => true, 'found' => false];
+    }, 404],
     ['/jugador/Missing', static fn() => ['ok' => true, 'found' => true, 'player' => null], 502],
     ['/jugador/Missing', static fn() => ['ok' => true, 'found' => true, 'player' => ['nickname' => 'Missing']], 502],
     ['/reporte/0', static function () { throw new LogicException('Invalid ID must not fetch'); }, 404],
@@ -147,6 +150,52 @@ check(str_starts_with(meta_value($html, 'og:image'), MW_SHARE_ORIGIN . '/share-i
 $playerMetadata = mw_share_metadata('/jugador/Test', static fn() => ['ok' => true, 'found' => true, 'player' => $player]);
 check(str_contains($playerMetadata['card']['reason'], 'Crews: Crew Uno'), 'Image contains registered profile details');
 check(str_contains($playerMetadata['card']['context'], '#42'), 'Image identifies the report summarized');
+$socialOnlyCalls = [];
+$socialOnlyMetadata = mw_share_metadata('/jugador/IlIlIlllIlIllIlx', static function ($endpoint) use (&$socialOnlyCalls) {
+    $socialOnlyCalls[] = $endpoint;
+    if (str_starts_with($endpoint, '/players/lookup?')) return ['ok' => true, 'found' => false, 'player' => null];
+    if ($endpoint === '/social-cache/n/IlIlIlllIlIllIlx') {
+        return ['ok' => true, 'id' => '123456789', 'name' => 'IlIlIlllIlIllIlx'];
+    }
+    if ($endpoint === '/social-cache/r/123456789') {
+        return ['ok' => true, 'names' => [
+            ['name' => 'Nombre actual', 'time' => 200],
+            ['name' => 'Nombre anterior', 'time' => 100],
+        ]];
+    }
+    throw new RuntimeException('Unexpected preview lookup: ' . $endpoint, 502);
+});
+check($socialOnlyCalls === [
+    '/players/lookup?nickname=IlIlIlllIlIllIlx&with_reports=1&reports_limit=5',
+    '/social-cache/n/IlIlIlllIlIllIlx',
+    '/social-cache/r/123456789',
+], 'Resolve a reportless player using Social Club data');
+check($socialOnlyMetadata['card']['name'] === 'IlIlIlllIlIllIlx'
+    && $socialOnlyMetadata['card']['reason'] === "RID: 123456789\nOtros nombres: Nombre actual, Nombre anterior",
+    'Build the reportless card from the Social Club RID and name history');
+check($socialOnlyMetadata['card']['risk'] === 'neutral' && $socialOnlyMetadata['card']['context'] === ''
+    && $socialOnlyMetadata['card']['notice'] === 'Datos de Social Club. Sin reportes publicados.'
+    && $socialOnlyMetadata['reportUrl'] === null,
+    'Do not invent reports or a risk rating for a Social Club-only profile');
+check($socialOnlyMetadata['card']['avatars'] === [
+    'https://prod.cloud.rockstargames.com/members/sc/6266/123456789/publish/gta5/mpchars/0.png',
+    'https://prod.cloud.rockstargames.com/members/sc/6266/123456789/publish/gta5/mpchars/1.png',
+], 'Use the official player avatars identified by RID');
+check(str_starts_with($socialOnlyMetadata['image'], MW_SHARE_ORIGIN . '/share-image.php?path=%2Fjugador%2F')
+    && str_contains($socialOnlyMetadata['description'], 'Sin reportes publicados.'),
+    'Generate a shareable image and clarify the lack of reports');
+$socialOnlyPng = mw_share_card_png($socialOnlyMetadata['card'], static fn() => imagecreatetruecolor(1, 1));
+check(getimagesizefromstring($socialOnlyPng)['mime'] === 'image/png', 'Render a PNG for a Social Club-only profile');
+$ridOnlyMetadata = mw_share_metadata('/jugador/123456789', static function ($endpoint) {
+    if (str_starts_with($endpoint, '/players/lookup?')) return ['ok' => true, 'found' => false, 'player' => null];
+    if ($endpoint === '/social-cache/r/123456789') {
+        return ['ok' => true, 'names' => [['name' => 'Jugador por RID', 'time' => 200]]];
+    }
+    throw new RuntimeException('Unexpected RID-only lookup: ' . $endpoint, 502);
+});
+check($ridOnlyMetadata['card']['name'] === 'Jugador por RID'
+    && $ridOnlyMetadata['card']['reason'] === 'RID: 123456789',
+    'Resolve reportless numeric player links directly by RID');
 $png = mw_share_card_png($playerMetadata['card']);
 $dimensions = getimagesizefromstring($png);
 check($dimensions[0] === 1200 && $dimensions[1] === $playerMetadata['imageHeight'] && $dimensions[1] >= 630

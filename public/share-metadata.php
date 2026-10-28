@@ -146,6 +146,40 @@ function mw_share_card_metadata($metadata, $card) {
     return $metadata;
 }
 
+function mw_share_social_cache_player($identity, callable $fetch) {
+    $resolved = ctype_digit($identity)
+        ? ['ok' => true, 'id' => $identity]
+        : $fetch('/social-cache/n/' . rawurlencode($identity));
+    $rid = mw_share_text($resolved['id'] ?? '');
+    if (($resolved['ok'] ?? null) !== true || !ctype_digit($rid)) {
+        throw new RuntimeException('Invalid Social Club player response.', 502);
+    }
+
+    $history = $fetch('/social-cache/r/' . rawurlencode($rid));
+    if (($history['ok'] ?? null) !== true || !is_array($history['names'] ?? null)) {
+        throw new RuntimeException('Invalid Social Club name history response.', 502);
+    }
+    $names = array_values(array_filter(array_map(static function ($entry) {
+        if (!is_array($entry)) return null;
+        $name = mw_share_text($entry['name'] ?? '');
+        return $name === '' ? null : ['name' => $name, 'time' => max(0, (int) ($entry['time'] ?? 0))];
+    }, $history['names'])));
+    usort($names, static fn($a, $b) => $b['time'] <=> $a['time']);
+    $nickname = mw_share_text($resolved['name'] ?? $resolved['nickname'] ?? $names[0]['name'] ?? $identity);
+
+    return [
+        'nickname' => $nickname,
+        'rid' => $rid,
+        'aliases' => array_map(static fn($entry) => ['alias' => $entry['name']], $names),
+        'crews' => [],
+        'avatar1' => 'https://prod.cloud.rockstargames.com/members/sc/6266/' . rawurlencode($rid) . '/publish/gta5/mpchars/0.png',
+        'avatar2' => 'https://prod.cloud.rockstargames.com/members/sc/6266/' . rawurlencode($rid) . '/publish/gta5/mpchars/1.png',
+        'totalReports' => 0,
+        'reports' => [],
+        'socialClubOnly' => true,
+    ];
+}
+
 function mw_share_metadata($path, callable $fetch) {
     if (preg_match('~^/reporte/(\d+)/?$~D', $path, $match)) {
         $id = ltrim($match[1], '0');
@@ -190,9 +224,13 @@ function mw_share_metadata($path, callable $fetch) {
         $key = ctype_digit($identity) ? 'rid' : 'nickname';
         $data = $fetch('/players/lookup?' . http_build_query([$key => $identity, 'with_reports' => '1', 'reports_limit' => '5'], '', '&', PHP_QUERY_RFC3986));
         if (($data['ok'] ?? null) !== true) throw new RuntimeException('Invalid player metadata response.', 502);
-        if (($data['found'] ?? null) === false) throw new RuntimeException('Player not found.', 404);
-        if (!is_array($data['player'] ?? null)) throw new RuntimeException('Invalid player metadata response.', 502);
-        $player = $data['player'];
+        $socialClubOnly = ($data['found'] ?? null) === false;
+        if ($socialClubOnly) {
+            $player = mw_share_social_cache_player($identity, $fetch);
+        } else {
+            if (!is_array($data['player'] ?? null)) throw new RuntimeException('Invalid player metadata response.', 502);
+            $player = $data['player'];
+        }
         $nickname = mw_share_text($player['nickname'] ?? '');
         if ($nickname === '') throw new RuntimeException('Missing player name.', 502);
         $count = isset($player['totalReports']) ? max(0, (int) $player['totalReports']) : null;
@@ -209,6 +247,7 @@ function mw_share_metadata($path, callable $fetch) {
         $countText = $count !== null ? $count . ($count === 1 ? ' reporte registrado' : ' reportes registrados') : '';
         $description = $aiText !== '' ? $aiText : ($summary['reason'] ?? '');
         if ($description === '' && $countText !== '') $description = $countText . '.';
+        if ($socialClubOnly) $description = 'Perfil de Social Club. Sin reportes publicados.';
         $details = [];
         foreach ([
             'RID' => mw_share_text($player['rid'] ?? ''),
@@ -239,7 +278,7 @@ function mw_share_metadata($path, callable $fetch) {
             'stats' => $summary !== null ? mw_share_join([$summary['evidence'], $summary['verification']], ' | ') : '',
             'avatars' => mw_share_avatars($player),
             'evidenceImages' => mw_share_evidence_images($latest ?? []),
-            'notice' => '',
+            'notice' => $socialClubOnly ? 'Datos de Social Club. Sin reportes publicados.' : '',
             'responsive' => true,
         ]);
     }
@@ -352,6 +391,39 @@ function mw_share_decode_response($body, $status) {
 
 function mw_share_fetch($endpoint) {
     if (!function_exists('curl_init')) throw new RuntimeException('PHP cURL is required for link previews.', 503);
+    if (preg_match('~^/social-cache/(n|r)/([^/?#]+)$~D', $endpoint, $match)) {
+        $kind = $match[1];
+        $identifier = rawurldecode($match[2]);
+        if (preg_match('//u', $identifier) !== 1 || trim($identifier) === ''
+            || preg_match('~[/\\\\\x00-\x1f]~', $identifier)
+            || ($kind === 'r' && !ctype_digit($identifier))) {
+            throw new RuntimeException('Invalid Social Club lookup.', 400);
+        }
+        $handle = curl_init('https://sc-cache.com/' . $kind . '/' . rawurlencode($identifier));
+        curl_setopt_array($handle, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT => 3,
+            CURLOPT_TIMEOUT => 6,
+            CURLOPT_HTTPHEADER => ['Accept: application/json'],
+            CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
+            CURLOPT_FOLLOWLOCATION => false,
+        ]);
+        $body = curl_exec($handle);
+        $status = curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
+        $error = curl_error($handle);
+        curl_close($handle);
+        if ($body === false) throw new RuntimeException('Social Club lookup failed: ' . $error, 502);
+        $payload = mw_share_decode_response($body, $status);
+        if ($kind === 'n') {
+            if (!is_array($payload) || !ctype_digit(mw_share_text($payload['id'] ?? ''))) {
+                throw new RuntimeException('Invalid Social Club player response.', 502);
+            }
+            return ['ok' => true] + $payload;
+        }
+        $entries = is_array($payload) ? $payload : ($payload['value'] ?? null);
+        if (!is_array($entries)) throw new RuntimeException('Invalid Social Club name history response.', 502);
+        return ['ok' => true, 'names' => $entries];
+    }
     $base = rtrim(getenv('WORDPRESS_API_BASE_URL') ?: 'https://kaithsrebels.com', '/');
     $handle = curl_init($base . '/wp-json/mostwanted/v1' . $endpoint);
     curl_setopt_array($handle, [

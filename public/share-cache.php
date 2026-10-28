@@ -34,7 +34,9 @@ function mw_share_cached_fetch($endpoint) {
     return mw_share_cached('source:' . $namespace . ':' . $endpoint, static function () use ($endpoint) {
         $data = mw_share_fetch($endpoint);
         if (($data['ok'] ?? null) !== true) throw new RuntimeException('Invalid WordPress cache source.', 502);
-        if (($data['found'] ?? null) === false) throw new RuntimeException('Shared player not found.', 404);
+        if (($data['found'] ?? null) === false && !str_starts_with($endpoint, '/players/lookup?')) {
+            throw new RuntimeException('Shared resource not found.', 404);
+        }
         return $data;
     });
 }
