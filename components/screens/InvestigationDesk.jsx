@@ -79,7 +79,7 @@ export default function InvestigationDesk({ initialPlayer, onPlayerResolved, rep
 
   return (
     <main className="investigation-desk" id="reportes-lista">
-      {!player && !caseId && <header className="desk-intro"><SpecialTextContent><><h2><SpecialText>Busca un jugador</SpecialText></h2><p>Usa su nombre o RID para <HighlightedText>consultar su ficha</HighlightedText> o <HighlightedText>registrar un reporte</HighlightedText>.</p></></SpecialTextContent></header>}
+      {!player && !caseId && <header className="desk-intro"><SpecialTextContent><><h2><SpecialText>Busca un jugador</SpecialText></h2><p>Usa su nombre o RID para <HighlightedText>consultar su ficha o registrar un reporte</HighlightedText>.</p></></SpecialTextContent></header>}
       {reportsError && <p className="rfm-submit-error" role="alert">{reportsError}</p>}
       {route.error && <p className="rfm-submit-error" role="alert">{route.error}</p>}
       {error && <div className="rfm-submit-error" role="alert"><p>{error}</p>{payload && <p>Los datos anteriores pueden estar desactualizados.</p>}<button type="button" className="cyber-button-small mw-cyber-button mw-cyber-button--secondary" onClick={refresh}><CyberButtonLabel>Reintentar consulta</CyberButtonLabel></button></div>}

@@ -47,6 +47,13 @@ function App() {
   const [showHelp, setShowHelp] = useState(false);
   // Estado para el modal de detalle
   const [reporteSeleccionado, setReporteSeleccionado] = useState(null);
+  const hasReportPlayerName = typeof reportPlayer?.nickname === 'string' && reportPlayer.nickname.trim().length > 0;
+
+  useEffect(() => {
+    if (isAuthChecked && path === '/denunciar' && !hasReportPlayerName) {
+      navigate('/', true);
+    }
+  }, [isAuthChecked, path, hasReportPlayerName, navigate]);
 
   // Estado de modo demo (activar con ?demo=true)
   const [isDemo] = useState(() => {
@@ -178,7 +185,7 @@ function App() {
         </main>
       ) : canUseReports ? (
       <>
-      {isProfileScreen ? user ? <ProfileScreen key={user.id} user={user} onNavigate={navigate} onLogout={handleLogout} onOpenReport={handleCardClick} mapReport={mapWordpressReportToReporte} onHelp={() => setShowHelp(true)} revision={caseRevision} /> : <main className="desk-empty"><h2>Mi perfil</h2><p>Inicia sesión para consultar tu cuenta y tus reportes.</p><button type="button" className="cyber-button-small mw-cyber-button" onClick={handleLogin}>Iniciar sesión con Discord</button></main> : path === '/denunciar' ? <ReportScreen onSubmit={handleNewReport} currentUser={user} isDemo={isDemo} initialPlayer={reportPlayer} onReturnToCase={() => navigate(formReturnPath.current)} /> : <InvestigationDesk key={deskReset} initialPlayer={searchPlayer} onPlayerResolved={rememberPlayer} reportsError={reportsError} path={path} onNavigate={navigate} onOpenReport={handleCardClick} onStartReport={startReport} mapReport={mapWordpressReportToReporte} canManageCases={isAuthChecked && Boolean(user) && capabilities.manageCases} revision={caseRevision} />}
+      {isProfileScreen ? user ? <ProfileScreen key={user.id} user={user} onNavigate={navigate} onLogout={handleLogout} onOpenReport={handleCardClick} mapReport={mapWordpressReportToReporte} revision={caseRevision} /> : <main className="desk-empty"><h2>Mi perfil</h2><p>Inicia sesión para consultar tu cuenta y tus reportes.</p><button type="button" className="cyber-button-small mw-cyber-button" onClick={handleLogin}>Iniciar sesión con Discord</button></main> : path === '/denunciar' ? hasReportPlayerName ? <ReportScreen onSubmit={handleNewReport} currentUser={user} isDemo={isDemo} initialPlayer={reportPlayer} onReturnToCase={() => navigate(formReturnPath.current)} /> : <main className="desk-empty"><p>Primero busca y selecciona un jugador para registrar un reporte.</p></main> : <InvestigationDesk key={deskReset} initialPlayer={searchPlayer} onPlayerResolved={rememberPlayer} reportsError={reportsError} path={path} onNavigate={navigate} onOpenReport={handleCardClick} onStartReport={startReport} mapReport={mapWordpressReportToReporte} canManageCases={isAuthChecked && Boolean(user) && capabilities.manageCases} revision={caseRevision} />}
       </>
       ) : (
         <AccessScreen onLogin={handleLogin} />

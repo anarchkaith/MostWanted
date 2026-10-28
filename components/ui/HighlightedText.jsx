@@ -12,7 +12,7 @@ export default function HighlightedText({
   className = '',
   from = 'bottom',
   delay = 0,
-  inView = false,
+  inView = true,
   once = true,
 }) {
   const reduceMotion = useReducedMotion();
@@ -30,9 +30,9 @@ export default function HighlightedText({
         className="mw-highlighted-text__bar"
         variants={variants}
         transition={reduceMotion ? { duration: 0 } : {
-          type: 'spring',
-          damping: 30,
-          stiffness: 300,
+          type: 'tween',
+          duration: 0.9,
+          ease: [0.22, 1, 0.36, 1],
           delay,
         }}
         aria-hidden="true"

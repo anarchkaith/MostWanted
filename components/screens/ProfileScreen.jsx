@@ -7,7 +7,7 @@ import PrivateAccountsPanel from '../PrivateAccountsPanel';
 import SpecialText from '../ui/SpecialText';
 import SpecialTextContent from '../ui/SpecialTextContent';
 
-export default function ProfileScreen({ user, onNavigate, onLogout, onOpenReport, mapReport, onHelp, revision }) {
+export default function ProfileScreen({ user, onNavigate, onLogout, onOpenReport, mapReport, revision }) {
   const { page, setPage, data, loading, error, retry } = useOwnedReports({ userId: user.id, revision });
 
   return (
@@ -22,9 +22,6 @@ export default function ProfileScreen({ user, onNavigate, onLogout, onOpenReport
         </div>
       </header>
       <nav className="profile-actions" aria-label="Acciones de mi cuenta">
-        <Button variant="secondary" onClick={() => onNavigate('/')}>Buscar jugadores</Button>
-        <Button onClick={() => onNavigate('/denunciar')}>Registrar reporte</Button>
-        <Button variant="secondary" onClick={onHelp}>Ayuda</Button>
         <Button variant="secondary" onClick={onLogout}>Cerrar sesión</Button>
       </nav>
       {user.id === '343976455400718339' && <PrivateAccountsPanel onNavigate={onNavigate} />}

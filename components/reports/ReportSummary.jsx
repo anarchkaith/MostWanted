@@ -6,21 +6,25 @@ export default function ReportSummary({ report }) {
     <>
       <div className="report-detail__field">
         <div className="report-detail__label">Jugador</div>
-        <div className="report-detail__value report-detail__value--user notranslate" translate="no">{report.usuario}</div>
+        <div className="report-detail__value report-detail__value--user notranslate" translate="no">
+          <SpecialTextContent group>{report.usuario}</SpecialTextContent>
+        </div>
       </div>
       <div className="report-detail__field report-detail__classification">
         <div>
           <div className="report-detail__label">Categoría</div>
           <div className="report-detail__value">
             <span className={`report-card__tag report-card__tag--${report.categoria || 'modder'}`}>
-              {CATEGORY_LABELS[report.categoria] || (report.categoria || 'N/A').toUpperCase()}
+              <SpecialTextContent group>
+                {CATEGORY_LABELS[report.categoria] || (report.categoria || 'N/A').toUpperCase()}
+              </SpecialTextContent>
             </span>
           </div>
         </div>
       </div>
       <div className="report-detail__field">
         <div className="report-detail__label">Motivo</div>
-        <div className="report-detail__value">{report.motivo}</div>
+        <div className="report-detail__value"><SpecialTextContent group>{report.motivo}</SpecialTextContent></div>
       </div>
     </>
   </SpecialTextContent>;

@@ -4,12 +4,13 @@ import CyberButtonLabel from '../ui/CyberButtonLabel';
 import ReportAdditionalDetails from './ReportAdditionalDetails';
 import { ReportBehaviorFields, ReportInfractionFields } from './ReportInfractionFields';
 import ReportEvidenceFields from './ReportEvidenceFields';
+import SpecialTextContent from '../ui/SpecialTextContent';
 
 export default function ReportFormFields({ initialPlayer, isDemo, onPaste, imageUploadRef, onImagesChange, submitError, submitErrorRef, submitButtonRef }) {
   const { isSubmitting } = useFormikContext();
   return <Form className="report-form" noValidate onPaste={onPaste} style={{ position: 'relative' }}>
     {isDemo && <div className="cyber-banner-short mw-cyber-banner">
-      <span><strong>Modo de demostración</strong> Datos de prueba. Los envíos son reales.</span>
+      <span><SpecialTextContent><strong>Modo de demostración</strong></SpecialTextContent> Datos de prueba. Los envíos son reales.</span>
     </div>}
     {isSubmitting && <div className="rfm-submitting" role="status" aria-live="polite">
       <div className="rfm-submitting__spinner" aria-hidden="true" />

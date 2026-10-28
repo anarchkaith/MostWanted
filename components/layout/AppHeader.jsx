@@ -1,4 +1,4 @@
-import SpecialText from '../ui/SpecialText';
+import CyberButtonLabel from '../ui/CyberButtonLabel';
 
 export default function AppHeader({ search = null, actions = null }) {
   return (
@@ -7,7 +7,7 @@ export default function AppHeader({ search = null, actions = null }) {
         <img src="/Logo.png" alt="Kaith's Rebels" width="44" height="44" />
         <div>
           <span className="site-brand__eyebrow">KAITH'S REBELS / DIVISIÓN H.E.X.</span>
-          <h1><SpecialText>MOST WANTED</SpecialText><span className="site-brand__glitch" aria-hidden="true">MOST WANTED</span><span className="site-brand__glitch site-brand__glitch--echo" aria-hidden="true">MOST WANTED</span></h1>
+          <h1><CyberButtonLabel>MOST WANTED</CyberButtonLabel></h1>
         </div>
       </div>
       {search}

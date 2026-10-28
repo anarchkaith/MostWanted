@@ -1,6 +1,7 @@
 ﻿import React, { useState } from 'react';
 import './HelpModal.css';
 import Modal from './ui/Modal';
+import SpecialTextContent from './ui/SpecialTextContent';
 
 export default function HelpModal({ open, onClose }) {
   if (!open) return null;
@@ -13,7 +14,7 @@ export default function HelpModal({ open, onClose }) {
       zIndex={3000}
       maxWidth={420}
     >
-      <p><b>Most Wanted</b> es el archivo comunitario de jugadores y reportes.</p>
+      <SpecialTextContent><p><b>Most Wanted</b> es el archivo comunitario de jugadores y reportes.</p></SpecialTextContent>
       <ul className="cyber-ul mw-cyber-list" style={{ margin: '1rem 0 0', fontSize: '0.95em' }}>
         <li>Busca por nombre o RID, con o sin reportes previos.</li>
         <li>Consulta la ficha y aporta nuevos reportes.</li>

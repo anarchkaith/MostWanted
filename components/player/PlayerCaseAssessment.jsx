@@ -1,3 +1,4 @@
+import { Children, cloneElement, isValidElement } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
@@ -7,12 +8,42 @@ import SpecialTextContent from '../ui/SpecialTextContent';
 
 function withSpecialText(Tag) {
   return function SpecialTextMarkdownElement({ children, ...props }) {
-    return <Tag {...props}><SpecialTextContent>{children}</SpecialTextContent></Tag>;
+    const attributes = { ...props };
+    delete attributes.node;
+    return <Tag {...attributes}><SpecialTextContent group>{children}</SpecialTextContent></Tag>;
   };
 }
 
+function SpecialTextMarkdownParagraph({ children, ...props }) {
+  const attributes = { ...props };
+  delete attributes.node;
+  const segments = [];
+  let segment = [];
+
+  Children.toArray(children).forEach(child => {
+    if (isValidElement(child) && child.type === 'br') {
+      segments.push(segment);
+      segments.push(child);
+      segment = [];
+    } else {
+      segment.push(child);
+    }
+  });
+  segments.push(segment);
+
+  return (
+    <p {...attributes}>
+      {segments.map((part, index) => (
+        Array.isArray(part)
+          ? <SpecialTextContent key={`segment-${index}`} group>{part}</SpecialTextContent>
+          : cloneElement(part, { key: `break-${index}` })
+      ))}
+    </p>
+  );
+}
+
 const markdownComponents = {
-  p: withSpecialText('p'),
+  p: SpecialTextMarkdownParagraph,
   h1: withSpecialText('h1'),
   h2: withSpecialText('h2'),
   h3: withSpecialText('h3'),
@@ -20,8 +51,6 @@ const markdownComponents = {
   h5: withSpecialText('h5'),
   h6: withSpecialText('h6'),
   li: withSpecialText('li'),
-  strong: withSpecialText('strong'),
-  em: withSpecialText('em'),
   blockquote: withSpecialText('blockquote'),
   td: withSpecialText('td'),
   th: withSpecialText('th'),

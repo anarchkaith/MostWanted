@@ -1,6 +1,7 @@
 import CyberButtonLabel from '../ui/CyberButtonLabel';
 import SpecialText from '../ui/SpecialText';
 import HighlightedText from '../ui/HighlightedText';
+import SpecialTextContent from '../ui/SpecialTextContent';
 
 export default function AccessScreen({ onLogin }) {
   return (
@@ -15,7 +16,7 @@ export default function AccessScreen({ onLogin }) {
         <h2 id="desk-access-title"><SpecialText>Tu voto cuenta</SpecialText></h2>
         <p className="desk-access__intro">Usamos Discord para ayudar a <HighlightedText>prevenir votos duplicados y fraude</HighlightedText>.</p>
         <button type="button" className="cyber-button mw-cyber-button desk-access__login" onClick={onLogin}><CyberButtonLabel>Continuar con Discord ↗</CyberButtonLabel></button>
-        <p className="desk-access__destination"><span aria-hidden="true">↗ </span>Usamos solo tu nombre de usuario de <strong>discord.com</strong> para evitar reportes falsos.</p>
+        <p className="desk-access__destination"><span aria-hidden="true">↗ </span>Usamos solo tu nombre de usuario de <SpecialTextContent><strong>discord.com</strong></SpecialTextContent> para evitar reportes falsos.</p>
         <div className="desk-access__trust">
           <details>
             <summary>Permisos y privacidad</summary>
@@ -26,7 +27,7 @@ export default function AccessScreen({ onLogin }) {
               <li>Discord muestra la aplicación y los permisos solicitados. Si no reconoces la aplicación o el dominio, cancela.</li>
               <li>Después de aceptar, vuelves a MostWanted con una sesión. MostWanted no recibe tu contraseña de Discord.</li>
             </ol>
-            <p>Puedes retirar el acceso desde <strong>Discord → Ajustes de usuario → Aplicaciones autorizadas</strong>. Retirarlo no borra automáticamente los reportes ni los datos ya guardados.</p>
+            <p>Puedes retirar el acceso desde <SpecialTextContent><strong>Discord → Ajustes de usuario → Aplicaciones autorizadas</strong></SpecialTextContent>. Retirarlo no borra automáticamente los reportes ni los datos ya guardados.</p>
             <a href="https://support.discord.com/hc/es" target="_blank" rel="noopener noreferrer">Centro de ayuda oficial de Discord ↗</a>
           </details>
         </div>
