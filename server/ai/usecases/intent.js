@@ -85,11 +85,13 @@ function sanitizeParams(input) {
     && Number.isFinite(Number(recentDaysRaw))
     ? Math.max(1, Math.min(60, Math.round(recentDaysRaw)))
     : null;
+  const categoria = toSafeText(source.categoria, '').trim();
 
   return {
     usuario: usuario || null,
     reportId: reportId || null,
     recentDays,
+    categoria: categoria || null,
   };
 }
 
@@ -112,8 +114,13 @@ function sanitizeCandidateUsuarios(input) {
   return unique;
 }
 
-function buildFallbackIntent(query, candidateUsuarios = []) {
-  const reportIntent = inferReportIntent(query, candidateUsuarios);
+function sanitizeCandidateCategories(input) {
+  if (!Array.isArray(input)) return [];
+  return [...new Set(input.map(item => toSafeText(item, '').trim()).filter(Boolean))].slice(0, 100);
+}
+
+function buildFallbackIntent(query, candidateUsuarios = [], candidateCategories = []) {
+  const reportIntent = inferReportIntent(query, candidateUsuarios, candidateCategories);
   if (reportIntent) return reportIntent;
 
   return {
@@ -125,6 +132,7 @@ function buildFallbackIntent(query, candidateUsuarios = []) {
       usuario: null,
       reportId: null,
       recentDays: null,
+      categoria: null,
     },
     confidence: 0,
     reason: 'Clasificador HEX no disponible; el usuario debe proporcionarlo directamente o activar el servicio HEX.',
@@ -150,6 +158,7 @@ function sanitizeHistory(input) {
 export async function executeIntentUseCase({ config, body }) {
   const query = toSafeText(body?.query, '');
   const candidateUsuarios = sanitizeCandidateUsuarios(body?.candidateUsuarios);
+  const candidateCategories = sanitizeCandidateCategories(body?.candidateCategories);
   const history = sanitizeHistory(body?.history);
 
   if (!query) {
@@ -165,6 +174,7 @@ export async function executeIntentUseCase({ config, body }) {
           usuario: null,
           reportId: null,
           recentDays: null,
+          categoria: null,
         },
         confidence: 0,
         reason: 'Consulta vacia.',
@@ -172,7 +182,7 @@ export async function executeIntentUseCase({ config, body }) {
     };
   }
 
-  const reportIntent = inferReportIntent(query, candidateUsuarios);
+  const reportIntent = inferReportIntent(query, candidateUsuarios, candidateCategories);
   if (reportIntent) {
     return {
       ok: true,
@@ -200,15 +210,19 @@ export async function executeIntentUseCase({ config, body }) {
     candidateUsuarios.length > 0
       ? `Usuarios reportados en el sistema: ${candidateUsuarios.join(', ')}.`
       : 'No hay usuarios reportados disponibles.',
+    candidateCategories.length > 0
+      ? `Categorías de reporte disponibles: ${candidateCategories.join(', ')}.`
+      : 'No hay categorías de reporte disponibles.',
     '',
     'Responde en JSON con esta estructura exacta:',
-    '{"needsReportContext": boolean, "related": boolean, "intentType": "reportes-query"|"general", "tool": "general_response"|"read_all_reports"|"get_report_detail"|"analyze_recent_similarity", "params": {"usuario": string|null, "reportId": string|null, "recentDays": number|null}, "confidence": number(0-100), "reason": string}',
+    '{"needsReportContext": boolean, "related": boolean, "intentType": "reportes-query"|"general", "tool": "general_response"|"read_all_reports"|"get_report_detail"|"analyze_recent_similarity", "params": {"usuario": string|null, "reportId": string|null, "recentDays": number|null, "categoria": string|null}, "confidence": number(0-100), "reason": string}',
     '',
     'Instrucciones de análisis:',
     '- Analiza semánticamente qué quiere el usuario, no busques palabras clave.',
     '- Si el usuario pregunta sobre algo ajeno a reportes, usa general_response.',
     '- Si menciona un usuario reportado de la lista, usa get_report_detail con ese usuario.',
     '- Si pregunta por resumen, total, conteos, comparativas de reportes → read_all_reports.',
+    '- Si pregunta en inglés quién tiene más reportes de una categoría, usa read_all_reports y establece params.categoria con una categoría disponible.',
     '- Si quiere detectar patrones o similitudes entre reportes → analyze_recent_similarity.',
     '- Si pide detalles de un reporte específico pero no mencionaste usuario, usa read_all_reports.',
     '- Usa null para parámetros que no apliquen.',
@@ -235,7 +249,7 @@ export async function executeIntentUseCase({ config, body }) {
   });
 
   if (!upstreamResult.ok) {
-    const fallback = buildFallbackIntent(query, candidateUsuarios);
+    const fallback = buildFallbackIntent(query, candidateUsuarios, candidateCategories);
     return {
       ok: true,
       status: 200,

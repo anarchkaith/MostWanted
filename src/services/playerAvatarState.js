@@ -2,7 +2,7 @@ export function createPlayerAvatarSlots(avatars = []) {
   return avatars.map(avatar => ({
     index: avatar.index,
     originalUrl: avatar.avatarUrl || '',
-    src: avatar.avatarDataUrl || avatar.avatarUrl || '',
+    src: avatar.avatarDataUrl || avatar.displayUrl || avatar.avatarUrl || '',
     proxyUrl: avatar.proxiedAvatarUrl || '',
     loaded: false,
     triedProxy: false,

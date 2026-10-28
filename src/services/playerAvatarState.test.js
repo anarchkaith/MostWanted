@@ -20,6 +20,17 @@ test('avatar slots preserve original metadata, prefer inline data and sort witho
   assert.equal(needsAvatarProxyPermission([]), false);
 });
 
+test('avatar slots display a refreshed URL while retaining the canonical URL for profile data', () => {
+  const slots = createPlayerAvatarSlots([{
+    index: 0,
+    avatarUrl: 'https://example.com/avatar.png',
+    displayUrl: 'https://example.com/avatar.png?v=123',
+    proxiedAvatarUrl: 'https://proxy.example.com/avatar.png?v=123',
+  }]);
+  assert.equal(slots[0].src, 'https://example.com/avatar.png?v=123');
+  assert.equal(slots[0].originalUrl, 'https://example.com/avatar.png');
+});
+
 test('loading completes only the matching current source and never alters other slots', () => {
   const initial = createPlayerAvatarSlots(avatars);
   const loaded = playerAvatarReducer(initial, { type: 'loaded', index: 0, src: initial[0].src });

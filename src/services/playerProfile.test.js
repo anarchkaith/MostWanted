@@ -33,6 +33,8 @@ test('crew history links use registered URLs ahead of generated name slugs', () 
 test('recognizes Rockstar portrait images without altering evidence or unrelated archived images', () => {
   assert.equal(isRockstarPlayerAvatar(getPlayerAvatarUrl('298932732', 0)), true);
   assert.equal(isRockstarPlayerAvatar(`${getPlayerAvatarUrl('298932732', 1)}?v=2`), true);
+  assert.equal(getPlayerAvatarUrl('298932732', 0, 123), `${getPlayerAvatarUrl('298932732', 0)}?v=123`);
+  assert.equal(getPlayerAvatarUrl('298932732', 0, 'a b'), `${getPlayerAvatarUrl('298932732', 0)}?v=a%20b`);
   for (const url of ['', undefined, 'invalid', 'https://images.test/avatar.png',
     'https://prod.cloud.rockstargames.com.example.com/members/sc/6266/298932732/publish/gta5/mpchars/0.png',
     'https://prod.cloud.rockstargames.com/evidence.png']) {

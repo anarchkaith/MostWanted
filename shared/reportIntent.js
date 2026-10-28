@@ -28,6 +28,11 @@ const REPORT_RANKING_HINTS = [
   'usuarios reportados',
   'usuarios mas reportados',
   'dame el top',
+  'show me the most',
+  'showme the most',
+  'most reported',
+  'most reports',
+  'highest reported',
 ];
 
 function normalizeText(value) {
@@ -64,14 +69,26 @@ function hasHint(text, hints) {
   return hints.some((hint) => text.includes(hint));
 }
 
-export function inferReportIntent(query, candidateUsuarios = []) {
+function findMentionedCategory(text, candidateCategories = []) {
+  for (const rawCategory of candidateCategories) {
+    const category = normalizeText(rawCategory);
+    if (category && new RegExp(`(^|[^\\p{L}\\p{N}])${category.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^\\p{L}\\p{N}]|$)`, 'u').test(text)) {
+      return String(rawCategory).trim();
+    }
+  }
+  return null;
+}
+
+export function inferReportIntent(query, candidateUsuarios = [], candidateCategories = []) {
   const text = normalizeText(query);
   if (!text) return null;
 
   const mentionedUsuario = findMentionedUsuario(text, candidateUsuarios);
+  const mentionedCategory = findMentionedCategory(text, candidateCategories);
   const asksForPatterns = hasHint(text, REPORT_PATTERN_HINTS);
-  const asksForRanking = hasHint(text, REPORT_RANKING_HINTS);
-  const asksAboutReports = /\b(reportes?|reportados?|denuncias|denunciados?|jugadores|usuarios)\b/.test(text);
+  const asksForRanking = hasHint(text, REPORT_RANKING_HINTS)
+    || (mentionedCategory && /\b(most|highest|top)\b/.test(text));
+  const asksAboutReports = /\b(reportes?|reportados?|denuncias|denunciados?|jugadores|usuarios|database|reports?)\b/.test(text);
 
   let tool = null;
   let reason = '';
@@ -101,6 +118,7 @@ export function inferReportIntent(query, candidateUsuarios = []) {
       usuario: tool === TOOL_CATALOG_REPORT_DETAIL ? mentionedUsuario : null,
       reportId: null,
       recentDays: null,
+      categoria: tool === TOOL_CATALOG_READ_ALL_REPORTS ? mentionedCategory : null,
     },
     confidence: 98,
     reason,

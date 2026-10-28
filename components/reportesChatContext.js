@@ -128,6 +128,7 @@ export function buildReportesChatContext(userText, intentData = {}) {
     usuario: targetUsuario,
     reportId: String(intentData?.params?.reportId || '').trim(),
     recentDays: tool === 'analyze_recent_similarity' ? requestedDays : null,
+    categoria: String(intentData?.params?.categoria || '').trim() || null,
   };
 
   if (!relatedToReportes) {

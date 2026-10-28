@@ -1,6 +1,7 @@
-export function getPlayerAvatarUrl(rid, index = 0) {
+export function getPlayerAvatarUrl(rid, index = 0, version = '') {
   if (!rid) throw new Error('RID invalido para obtener avatar');
-  return `https://prod.cloud.rockstargames.com/members/sc/6266/${encodeURIComponent(String(rid))}/publish/gta5/mpchars/${index}.png`;
+  const url = `https://prod.cloud.rockstargames.com/members/sc/6266/${encodeURIComponent(String(rid))}/publish/gta5/mpchars/${index}.png`;
+  return version ? `${url}?v=${encodeURIComponent(String(version))}` : url;
 }
 
 export function isRockstarPlayerAvatar(url) {

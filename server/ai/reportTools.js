@@ -98,8 +98,9 @@ function getCommonTerms(reports) {
     .map(([term, reportsWithTerm]) => ({ term, reportsWithTerm }));
 }
 
-function buildReadAllResult(reports) {
+function buildReadAllResult(reports, params = {}) {
   const byUser = new Map();
+  const byCategoryAndUser = new Map();
   for (const report of reports) {
     const current = byUser.get(report.usuario) || {
       usuario: report.usuario,
@@ -111,7 +112,25 @@ function buildReadAllResult(reports) {
     current.categorias[report.categoria] = (current.categorias[report.categoria] || 0) + 1;
     current.severidades[report.severidad] = (current.severidades[report.severidad] || 0) + 1;
     byUser.set(report.usuario, current);
+
+    const categoryUsers = byCategoryAndUser.get(report.categoria) || new Map();
+    categoryUsers.set(report.usuario, (categoryUsers.get(report.usuario) || 0) + 1);
+    byCategoryAndUser.set(report.categoria, categoryUsers);
   }
+
+  const rankingPorCategoria = Object.fromEntries([...byCategoryAndUser.entries()].map(([categoria, users]) => [
+    categoria,
+    [...users.entries()]
+      .map(([usuario, totalReportes]) => ({ usuario, totalReportes }))
+      .sort((a, b) => b.totalReportes - a.totalReportes || a.usuario.localeCompare(b.usuario))
+      .slice(0, 50),
+  ]));
+
+  const requestedCategory = safeText(params.categoria, 80);
+  const categoryRanking = requestedCategory
+    ? rankingPorCategoria[requestedCategory] || Object.entries(rankingPorCategoria)
+      .find(([category]) => category.toLocaleLowerCase() === requestedCategory.toLocaleLowerCase())?.[1] || []
+    : null;
 
   return {
     herramienta: 'read_all_reports',
@@ -119,6 +138,8 @@ function buildReadAllResult(reports) {
     totalUsuariosUnicos: byUser.size,
     porCategoria: countBy(reports, (report) => report.categoria),
     porSeveridad: countBy(reports, (report) => report.severidad),
+    rankingPorCategoria,
+    ...(requestedCategory ? { categoriaConsultada: requestedCategory, rankingCategoria: categoryRanking } : {}),
     rankingUsuarios: [...byUser.values()]
       .sort((a, b) => b.totalReportes - a.totalReportes || a.usuario.localeCompare(b.usuario))
       .slice(0, 50),
@@ -167,7 +188,7 @@ function buildSimilarityResult(reports, params = {}) {
 export function executeReportTool({ tool, params, reportes }) {
   const reports = sanitizeReports(reportes);
 
-  if (tool === 'read_all_reports') return buildReadAllResult(reports);
+  if (tool === 'read_all_reports') return buildReadAllResult(reports, params);
   if (tool === 'get_report_detail') return buildDetailResult(reports, params);
   if (tool === 'analyze_recent_similarity') return buildSimilarityResult(reports, params);
 

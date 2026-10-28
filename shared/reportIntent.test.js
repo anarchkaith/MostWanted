@@ -15,6 +15,13 @@ assert.equal(
   inferReportIntent('Qué hizo KaithRider?', ['KaithRider'])?.tool,
   'get_report_detail',
 );
+const categoryRanking = inferReportIntent(
+  'Can you showme the most modder in the database?',
+  [],
+  ['modder', 'spam'],
+);
+assert.equal(categoryRanking?.tool, 'read_all_reports');
+assert.equal(categoryRanking?.params?.categoria, 'modder');
 assert.equal(inferReportIntent('Cuéntame un chiste'), null);
 
 console.log('OK report intent checks completed');

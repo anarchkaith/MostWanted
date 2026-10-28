@@ -14,7 +14,7 @@ const reports = [
   },
   {
     id: 13,
-    usuario: 'JugadorDos',
+    usuario: 'JugadorUno',
     categoria: 'griefing',
     severidad: 'alta',
     motivo: 'destruye construcciones en la zona norte',
@@ -23,7 +23,7 @@ const reports = [
   },
   {
     id: 14,
-    usuario: 'JugadorUno',
+    usuario: 'JugadorDos',
     categoria: 'spam',
     severidad: 'baja',
     motivo: 'publica enlaces repetidos',
@@ -35,7 +35,17 @@ const summary = executeReportTool({ tool: 'read_all_reports', reportes: reports 
 assert.equal(summary.totalReportes, 3);
 assert.equal(summary.totalUsuariosUnicos, 2);
 assert.equal(summary.rankingUsuarios[0].usuario, 'JugadorUno');
+assert.equal(summary.rankingPorCategoria.griefing[0].usuario, 'JugadorUno');
+assert.equal(summary.rankingPorCategoria.griefing[0].totalReportes, 2);
 assert.equal(JSON.stringify(summary).includes('private-id'), false);
+
+const categoryRanking = executeReportTool({
+  tool: 'read_all_reports',
+  params: { categoria: 'griefing' },
+  reportes: reports,
+});
+assert.equal(categoryRanking.rankingCategoria[0].usuario, 'JugadorUno');
+assert.equal(categoryRanking.categoriaConsultada, 'griefing');
 
 const details = executeReportTool({
   tool: 'get_report_detail',

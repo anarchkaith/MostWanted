@@ -270,23 +270,25 @@ async function getPlayerProfile(rid, signal) {
   };
 }
 
-function buildRidAvatars(rid) {
+function buildRidAvatars(rid, version = '') {
   if (!rid) return [];
 
   return [0, 1].map((index) => {
     const avatarUrl = getPlayerAvatarUrl(rid, index);
+    const displayUrl = getPlayerAvatarUrl(rid, index, version);
     return {
       index,
       avatarUrl,
-      proxiedAvatarUrl: getCorsProxyUrl(avatarUrl),
+      displayUrl,
+      proxiedAvatarUrl: getCorsProxyUrl(displayUrl),
       available: true,
     };
   });
 }
 
 // Los avatares por RID son actuales; las URLs archivadas se muestran por separado.
-function resolvePanelAvatars(reportInsights, rid) {
-  if (rid || reportInsights?.rid) return buildRidAvatars(rid || reportInsights.rid);
+function resolvePanelAvatars(reportInsights, rid, version) {
+  if (rid || reportInsights?.rid) return buildRidAvatars(rid || reportInsights.rid, version);
   const insightAvatars = extractPanelAvatarsFromInsights(reportInsights);
   if (insightAvatars.length > 0) return insightAvatars;
 
@@ -337,6 +339,7 @@ export async function investigatePlayerBackground(username, knownRid = '') {
   }
 
   const warnings = [];
+  const avatarVersion = Date.now();
   const [insightsResult, ridResult] = await Promise.allSettled([
     getPlayerReportInsights({ username: trimmedUsername, rid: knownRid }),
     knownRid ? Promise.resolve({ rid: knownRid, usedProxy: false }) : getPlayerRid(trimmedUsername),
@@ -368,7 +371,7 @@ export async function investigatePlayerBackground(username, knownRid = '') {
     username: trimmedUsername,
     rid,
     nombre: profile.name,
-    avatares: resolvePanelAvatars(reportInsights, rid).map(avatar => ({
+    avatares: resolvePanelAvatars(reportInsights, rid, avatarVersion).map(avatar => ({
       ...avatar, source: rid ? 'Rockstar / consulta actual' : 'Datos reportados',
     })),
     currentProfile,

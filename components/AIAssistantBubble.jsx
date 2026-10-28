@@ -196,10 +196,14 @@ export default function AIAssistantBubble({ isAuthenticated = false, onSessionEx
         const candidateUsuarios = localReportes
           .map((reporte) => String(reporte?.usuario || '').trim())
           .filter(Boolean);
+        const candidateCategories = localReportes
+          .map((reporte) => String(reporte?.categoria || '').trim())
+          .filter(Boolean);
         const assistantText = await requestAssistantReply({
           userText,
           messages: updatedMessages,
           candidateUsuarios,
+          candidateCategories,
           buildContext: buildReportesChatContext,
           chatEndpoint: IA_ENDPOINT,
           intentEndpoint: INTENT_ENDPOINT,

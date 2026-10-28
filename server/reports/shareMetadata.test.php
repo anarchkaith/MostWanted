@@ -151,6 +151,8 @@ $png = mw_share_card_png($playerMetadata['card']);
 $dimensions = getimagesizefromstring($png);
 check($dimensions[0] === 1200 && $dimensions[1] === $playerMetadata['imageHeight'] && $dimensions[1] >= 630
     && $dimensions['mime'] === 'image/png', 'Render a PNG with the declared full-content dimensions');
+check($playerMetadata['imageHeight'] === mw_share_card_layout($playerMetadata['card'])['height']
+    && !empty($playerMetadata['card']['responsive']), 'Use the full responsive layout dimensions for player images');
 $changedPlayer = $player;
 $changedPlayer['crews'] = [['name' => 'Crew corregida']];
 $changed = mw_share_metadata('/jugador/Test', static fn() => ['ok' => true, 'found' => true, 'player' => $changedPlayer]);
@@ -419,6 +421,7 @@ check(str_contains($identity['card']['reason'], 'Crews: Crew Uno, FastDecendents
 check(!str_contains($identity['card']['reason'], 'Conductas reportadas'), 'Render conduct as tags instead of a prose field');
 $identityLayout = mw_share_card_layout($identity['card']);
 check(count($identityLayout['tags']) === 2 && $identityLayout['tags'][0]['text'] === 'Crash', 'Lay out each reported conduct as an individual tag');
+check($identityLayout['tags'][0]['scale'] === 1 && $identityLayout['tags'][0]['height'] < 38, 'Render conduct tags with compact text and spacing');
 foreach ($identityLayout['tags'] as $tag) {
     check($tag['x'] >= 55 && $tag['x'] + $tag['width'] <= 1145, 'Wrap long tags within the image');
     check($tag['y'] + $tag['height'] < $identityLayout['evidence'][0]['y'], 'Keep tags above the evidence gallery');

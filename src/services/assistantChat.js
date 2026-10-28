@@ -32,7 +32,7 @@ function requireSession(response, onSessionExpired) {
   }
 }
 
-async function resolveIntent({ userText, messages, candidateUsuarios, intentEndpoint, signal, request, logger, onSessionExpired }) {
+async function resolveIntent({ userText, messages, candidateUsuarios, candidateCategories, intentEndpoint, signal, request, logger, onSessionExpired }) {
   let response;
   try {
     response = await request(intentEndpoint, {
@@ -44,6 +44,7 @@ async function resolveIntent({ userText, messages, candidateUsuarios, intentEndp
         query: userText,
         history: normalizeMessages(messages).slice(-6),
         candidateUsuarios: candidateUsuarios.slice(0, 100),
+        candidateCategories: candidateCategories.slice(0, 100),
       }),
     });
     signal.throwIfAborted();
@@ -77,12 +78,12 @@ function buildChatRequest(messages, context) {
 }
 
 export async function requestAssistantReply({
-  userText, messages, candidateUsuarios, buildContext, chatEndpoint, intentEndpoint,
+  userText, messages, candidateUsuarios, candidateCategories = [], buildContext, chatEndpoint, intentEndpoint,
   signal, onSessionExpired, request = fetch, logger = console,
 }) {
   signal.throwIfAborted();
   const intent = await resolveIntent({
-    userText, messages, candidateUsuarios, intentEndpoint, signal, request, logger, onSessionExpired,
+    userText, messages, candidateUsuarios, candidateCategories, intentEndpoint, signal, request, logger, onSessionExpired,
   });
   signal.throwIfAborted();
   const response = await request(chatEndpoint, {

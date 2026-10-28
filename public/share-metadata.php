@@ -139,7 +139,9 @@ function mw_share_card_metadata($metadata, $card) {
         'v' => substr(hash('sha256', json_encode($card)), 0, 16),
     ], '', '&', PHP_QUERY_RFC3986);
     $metadata['imageWidth'] = 1200;
-    $metadata['imageHeight'] = 675;
+    $metadata['imageHeight'] = !empty($card['responsive'])
+        ? mw_share_card_layout($card)['height']
+        : 675;
     $metadata['imageType'] = 'image/png';
     return $metadata;
 }
@@ -238,6 +240,7 @@ function mw_share_metadata($path, callable $fetch) {
             'avatars' => mw_share_avatars($player),
             'evidenceImages' => mw_share_evidence_images($latest ?? []),
             'notice' => '',
+            'responsive' => true,
         ]);
     }
 

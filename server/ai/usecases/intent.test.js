@@ -18,9 +18,13 @@ for (const query of [
 
 const ranking = await executeIntentUseCase({
   config: {},
-  body: { query: 'Dame el top de usuarios más reportados' },
+  body: {
+    query: 'Can you showme the most modder in the database?',
+    candidateCategories: ['modder', 'spam'],
+  },
 });
 assert.equal(ranking.payload.tool, 'read_all_reports');
+assert.equal(ranking.payload.params.categoria, 'modder');
 
 const detail = await executeIntentUseCase({
   config: {},

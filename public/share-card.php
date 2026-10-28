@@ -31,15 +31,15 @@ function mw_share_card_layout($card) {
             $x = 55;
             $rowHeight = 0;
             foreach ($card['tags'] as $tag) {
-                $lines = mw_share_card_lines($tag, 1058, 2);
-                $width = min(1090, max(array_map('strlen', $lines)) * 18 + 32);
-                $height = count($lines) * 38 + 16;
-                if ($x + $width > 1145) { $x = 55; $y += $rowHeight + 10; $rowHeight = 0; }
-                $tags[] = ['text' => $tag, 'x' => $x, 'y' => $y, 'width' => $width, 'height' => $height];
-                $x += $width + 12;
+                $lines = mw_share_card_lines($tag, 1058, 1);
+                $width = min(1090, max(array_map('strlen', $lines)) * 9 + 20);
+                $height = count($lines) * 19 + 10;
+                if ($x + $width > 1145) { $x = 55; $y += $rowHeight + 8; $rowHeight = 0; }
+                $tags[] = ['text' => $tag, 'x' => $x, 'y' => $y, 'width' => $width, 'height' => $height, 'scale' => 1];
+                $x += $width + 8;
                 $rowHeight = max($rowHeight, $height);
             }
-            $y += $rowHeight + 18;
+            $y += $rowHeight + 14;
         }
         if ($index === 4 && $avatars) $y = max($y, 218);
         $width = $avatars && $y < 218 ? $avatarLeft - 55 - 20 : 1090;
@@ -59,7 +59,8 @@ function mw_share_card_layout($card) {
         }
         $y += $height;
     }
-    return ['height' => max(630, $y + 20), 'blocks' => $blocks, 'evidence' => $evidence, 'avatars' => $avatars, 'tags' => $tags];
+    $bottomPadding = !empty($card['responsive']) ? 52 : 20;
+    return ['height' => max(630, $y + $bottomPadding), 'blocks' => $blocks, 'evidence' => $evidence, 'avatars' => $avatars, 'tags' => $tags];
 }
 
 function mw_share_card_photo($image, $photo, $x, $y, $boxWidth, $boxHeight, $accent) {
@@ -107,21 +108,28 @@ function mw_share_card_text($image, $text, $x, $y, $width, $scale, $color) {
 function mw_share_card_png($card, $loadImage = null) {
     $canvas = imagecreatefromstring(mw_share_card_canvas_png($card, $loadImage));
     if ($canvas === false) throw new RuntimeException('Cannot decode preview canvas.', 503);
-    $output = imagecreatetruecolor(1200, 675);
+    $responsive = !empty($card['responsive']);
+    $outputWidth = 1200;
+    $outputHeight = $responsive ? imagesy($canvas) : 675;
+    $output = imagecreatetruecolor($outputWidth, $outputHeight);
     if ($output === false) {
         imagedestroy($canvas);
-        throw new RuntimeException('Cannot create landscape preview.', 503);
+        throw new RuntimeException('Cannot create preview image.', 503);
     }
     try {
         imagefill($output, 0, 0, imagecolorallocate($output, 8, 10, 12));
-        $scale = min(1, 675 / imagesy($canvas));
-        $width = max(1, (int) round(1200 * $scale));
-        $height = max(1, (int) round(imagesy($canvas) * $scale));
-        imagecopyresampled($output, $canvas, (int) ((1200 - $width) / 2), (int) ((675 - $height) / 2),
-            0, 0, $width, $height, 1200, imagesy($canvas));
+        if ($responsive) {
+            imagecopy($output, $canvas, 0, 0, 0, 0, $outputWidth, $outputHeight);
+        } else {
+            $scale = min(1, 675 / imagesy($canvas));
+            $width = max(1, (int) round(1200 * $scale));
+            $height = max(1, (int) round(imagesy($canvas) * $scale));
+            imagecopyresampled($output, $canvas, (int) ((1200 - $width) / 2), (int) ((675 - $height) / 2),
+                0, 0, $width, $height, 1200, imagesy($canvas));
+        }
         ob_start();
         try {
-            if (!imagepng($output)) throw new RuntimeException('Cannot encode landscape preview.', 503);
+            if (!imagepng($output)) throw new RuntimeException('Cannot encode preview image.', 503);
             return ob_get_contents();
         } finally {
             ob_end_clean();
@@ -162,6 +170,14 @@ function mw_share_card_canvas_png($card, $loadImage = null) {
         for ($x = 405; $x < 480; $x += 25) {
             imageline($image, $x, 65, $x + 20, 35, $red);
         }
+        if (!empty($card['responsive'])) {
+            mw_share_card_text($image, '+ [ H.E.X. / DOSSIER ] +', 505, 43, 270, 1, $muted);
+            foreach ([38, 1162] as $x) {
+                imageline($image, $x, 140, $x, $layout['height'] - 45, $detail);
+                imageline($image, $x, 140, $x + ($x === 38 ? 8 : -8), 148, $red);
+            }
+            mw_share_card_text($image, '/ / / END OF FILE / / /', 890, $layout['height'] - 43, 240, 1, $muted);
+        }
         imageline($image, 30, 90, 530, 90, $detail);
         imageline($image, 530, 90, 550, 70, $detail);
         imageline($image, 30, $layout['height'] - 25, 180, $layout['height'] - 25, $red);
@@ -188,7 +204,7 @@ function mw_share_card_canvas_png($card, $loadImage = null) {
         foreach ($layout['tags'] as $tag) {
             $x = $tag['x']; $y = $tag['y']; $right = $x + $tag['width'] - 1; $bottom = $y + $tag['height'] - 1;
             imagepolygon($image, [$x + 8, $y, $right, $y, $right, $bottom - 8, $right - 8, $bottom, $x, $bottom, $x, $y + 8], $red);
-            mw_share_card_text($image, $tag['text'], $x + 16, $y + 8, $tag['width'] - 32, 2, $red);
+            mw_share_card_text($image, $tag['text'], $x + 10, $y + 5, $tag['width'] - 20, $tag['scale'], $red);
         }
         if ($loadImage !== null) {
             foreach ($layout['evidence'] as $slot) {
