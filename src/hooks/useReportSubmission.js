@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { runReportSubmission } from '../services/reportSubmissionWorkflow';
 import { submitWordpressReport, uploadEvidenceImages } from '../services/reportSubmissionService';
 
-export default function useReportSubmission({ user, images, onSaved }) {
+export default function useReportSubmission({ user, images, onSaved, imageUploadRef }) {
   const [error, setError] = useState('');
   const [confirmation, setConfirmation] = useState(null);
   const pending = useRef(false);
@@ -12,8 +12,10 @@ export default function useReportSubmission({ user, images, onSaved }) {
     setError('');
     setConfirmation(null);
     try {
+      const evidenceError = imageUploadRef?.current?.getValidationError();
+      if (evidenceError) throw new Error(evidenceError);
       const result = await runReportSubmission({
-        values, images, user, apiKey: import.meta.env.VITE_API_KEY_IMGBB,
+        values, images: imageUploadRef?.current?.getImages() || images, user, apiKey: import.meta.env.VITE_API_KEY_IMGBB,
         upload: uploadEvidenceImages, save: submitWordpressReport, onSaved,
       });
       setConfirmation(result);

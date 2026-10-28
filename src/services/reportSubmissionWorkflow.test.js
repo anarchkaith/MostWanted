@@ -61,6 +61,48 @@ test('upload or save failures stop the workflow without a success or refresh', a
   }
 });
 
+test('partial or invalid evidence uploads never save or refresh the report', async () => {
+  for (const uploaded of [
+    undefined, [], [null], [{}], [{ url: '' }], [{ url: 'not-a-url' }],
+    [{ url: 'javascript:alert(1)' }], [...evidence, ...evidence],
+  ]) {
+    await assert.rejects(runReportSubmission({
+      values, images,
+      upload: async () => uploaded,
+      save: () => assert.fail('Report saved with incomplete evidence'),
+      onSaved: () => assert.fail('Report refreshed with incomplete evidence'),
+    }), /evidencia/i);
+  }
+});
+
+test('all selected evidence must upload successfully before saving, including after a retry', async () => {
+  const selected = [{ name: 'Uno' }, { name: 'Dos' }];
+  const uploaded = [{ url: 'https://example.test/one.png' }, { url: 'https://example.test/two.png' }];
+  let saves = 0;
+  for (const fails of [true, false]) {
+    const operation = runReportSubmission({
+      values, images: selected,
+      upload: async () => { if (fails) throw new Error('Dos: upload failed'); return uploaded; },
+      save: async ({ evidence: actual }) => {
+        saves += 1;
+        assert.deepEqual(actual, uploaded);
+        return { ok: true };
+      },
+    });
+    if (fails) await assert.rejects(operation, /Dos: upload failed/);
+    else assert.deepEqual((await operation).evidence, uploaded);
+  }
+  assert.equal(saves, 1);
+});
+
+test('reports without selected evidence remain supported', async () => {
+  const result = await runReportSubmission({
+    values, images: [], upload: async () => [],
+    save: async ({ evidence }) => { assert.deepEqual(evidence, []); return { ok: true }; },
+  });
+  assert.deepEqual(result.evidence, []);
+});
+
 test('Discord and refresh warnings retain confirmed save without repeating upload or save', async () => {
   for (const fails of [false, true]) {
     const warnings = [];

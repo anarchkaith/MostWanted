@@ -6,7 +6,7 @@ import { ReportBehaviorFields, ReportInfractionFields } from './ReportInfraction
 import ReportEvidenceFields from './ReportEvidenceFields';
 import SpecialTextContent from '../ui/SpecialTextContent';
 
-export default function ReportFormFields({ initialPlayer, isDemo, onPaste, imageUploadRef, onImagesChange, submitError, submitErrorRef, submitButtonRef }) {
+export default function ReportFormFields({ initialPlayer, isDemo, onPaste, imageUploadRef, onImagesChange, evidenceBlocked, onEvidenceBlockedChange, submitError, submitErrorRef, submitButtonRef }) {
   const { isSubmitting } = useFormikContext();
   return <Form className="report-form" noValidate onPaste={onPaste} style={{ position: 'relative' }}>
     {isDemo && <div className="cyber-banner-short mw-cyber-banner">
@@ -21,11 +21,11 @@ export default function ReportFormFields({ initialPlayer, isDemo, onPaste, image
       <ReportPlayerIdentity initialPlayer={initialPlayer} />
       <ReportAdditionalDetails initialPlayer={initialPlayer} />
       <ReportInfractionFields />
-      <ReportEvidenceFields imageUploadRef={imageUploadRef} onImagesChange={onImagesChange} />
+      <ReportEvidenceFields imageUploadRef={imageUploadRef} onImagesChange={onImagesChange} onBlockedChange={onEvidenceBlockedChange} />
       <ReportBehaviorFields />
       <div className="rfm-submit-wrap">
         <button ref={submitButtonRef} type="submit" className="cyber-button mw-cyber-button notranslate"
-          translate="no" disabled={isSubmitting} style={{ opacity: isSubmitting ? 0.7 : 1, cursor: isSubmitting ? 'wait' : 'pointer' }}>
+          translate="no" disabled={isSubmitting || evidenceBlocked} style={{ opacity: isSubmitting || evidenceBlocked ? 0.7 : 1, cursor: isSubmitting ? 'wait' : 'pointer' }}>
           <CyberButtonLabel>{isSubmitting ? 'Enviando...' : 'Enviar reporte'}</CyberButtonLabel>
         </button>
       </div>

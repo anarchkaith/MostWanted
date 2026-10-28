@@ -1,7 +1,7 @@
 import { ErrorMessage, Field, useFormikContext } from 'formik';
 import ImageUpload from '../ImageUpload';
 
-export default function ReportEvidenceFields({ imageUploadRef, onImagesChange }) {
+export default function ReportEvidenceFields({ imageUploadRef, onImagesChange, onBlockedChange }) {
   const { values, errors, touched, isSubmitting } = useFormikContext();
   return <div className="rfm-motivo-row">
     <div className="rfm-panel mw-cyber-panel" style={{ display: 'flex', flexDirection: 'column' }}>
@@ -24,7 +24,7 @@ export default function ReportEvidenceFields({ imageUploadRef, onImagesChange })
       <div className="cyber-tile mw-cyber-frame" aria-hidden="true" />
       <h3 className="rfm-panel__title cyber-h mw-cyber-heading">Evidencias<span className="rfm-optional">Opcional</span></h3>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <ImageUpload ref={imageUploadRef} onImagesChange={onImagesChange} maxImages={5} globalPaste={false} disabled={isSubmitting} />
+        <ImageUpload ref={imageUploadRef} onImagesChange={onImagesChange} onBlockedChange={onBlockedChange} maxImages={5} globalPaste={false} disabled={isSubmitting} />
       </div>
     </div>
   </div>;

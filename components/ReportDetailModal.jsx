@@ -21,7 +21,7 @@ export default function ReportDetailModal({ reporte, onClose, onVote }) {
         'data-ui-sound': 'reject',
         onClick: event => { if (event.target === event.currentTarget) onClose(); },
       }}>
-      <ReportSummary report={reporte} />
+      <ReportSummary report={reporte} onOpenAvatar={image => setExpandedImage({ ...image, variant: 'avatar' })} />
       <div className="report-detail__field">
         <div className="report-detail__label"><SpecialText>Evidencias</SpecialText></div>
         <ReportEvidenceGallery report={reporte} onOpen={setExpandedImage} />
@@ -29,6 +29,6 @@ export default function ReportDetailModal({ reporte, onClose, onVote }) {
       <ReportValidation report={reporte} />
       <VoteSystem key={reporte.id} reporteId={reporte.id} votos={reporte.votos} userVote={reporte.userVote} onVote={onVote} umbralVerificacion={5} />
     </Modal>
-    {expandedImage && <ImageViewer image={expandedImage} onClose={closeImage} variant="evidence" />}
+    {expandedImage && <ImageViewer image={expandedImage} onClose={closeImage} variant={expandedImage.variant || 'evidence'} />}
   </>;
 }

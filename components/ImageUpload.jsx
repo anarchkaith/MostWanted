@@ -1,9 +1,12 @@
 import React, { useState, useRef, useCallback, useImperativeHandle, forwardRef } from 'react';
 
-const ImageUpload = forwardRef(({ onImagesChange, maxImages = 5, globalPaste = false, disabled = false }, ref) => {
+const ImageUpload = forwardRef(({ onImagesChange, onBlockedChange, maxImages = 5, globalPaste = false, disabled = false }, ref) => {
   const [images, setImages] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const statusRef = useRef({ processing: false, error: '' });
+  const imagesRef = useRef([]);
   const [pasteNotification, setPasteNotification] = useState(false);
   const fileInputRef = useRef(null);
   const dropZoneRef = useRef(null);
@@ -15,27 +18,45 @@ const ImageUpload = forwardRef(({ onImagesChange, maxImages = 5, globalPaste = f
     const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onload = () => resolve(reader.result);
-    reader.onerror = (error) => reject(error);
+    reader.onerror = () => reject(new Error(`No se pudo leer ${file.name}. Vuelve a seleccionar el archivo.`));
+    reader.onabort = () => reject(new Error(`Se interrumpio la lectura de ${file.name}. Vuelve a seleccionar el archivo.`));
   });
 
+  const updateStatus = useCallback((processing, message) => {
+    statusRef.current = { processing, error: message };
+    setIsProcessing(processing);
+    setError(message);
+    onBlockedChange?.(processing || Boolean(message));
+  }, [onBlockedChange]);
+
   const processFiles = useCallback(async (files) => {
-    setError('');
-    const newImages = [];
-    for (const file of files) {
-      if (!allowedTypes.includes(file.type)) { setError(`Tipo no permitido: ${file.type}. Solo JPG, PNG, GIF, WEBP`); continue; }
-      if (file.size > maxSizeBytes) { setError(`${file.name} excede 5MB`); continue; }
-      if (images.length + newImages.length >= maxImages) { setError(`Máximo ${maxImages} imágenes`); break; }
-      try {
+    if (disabled || statusRef.current.processing || !files.length) return false;
+    updateStatus(true, '');
+    try {
+      if (imagesRef.current.length + files.length > maxImages) {
+        throw new Error(`Maximo ${maxImages} imagenes. No se agregaron los archivos seleccionados.`);
+      }
+      const newImages = [];
+      for (const file of files) {
+        if (!allowedTypes.includes(file.type)) throw new Error(`${file.name}: tipo no permitido. Solo JPG, PNG, GIF, WEBP.`);
+        if (file.size > maxSizeBytes) throw new Error(`${file.name} excede 5MB.`);
         const base64 = await fileToBase64(file);
+        if (typeof base64 !== 'string' || !base64.startsWith('data:image/')) {
+          throw new Error(`No se pudo procesar ${file.name}.`);
+        }
         newImages.push({ id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, file, base64, name: file.name, type: file.type, size: file.size, preview: base64 });
-      } catch (err) { setError('Error al procesar imagen'); }
-    }
-    if (newImages.length > 0) {
-      const updatedImages = [...images, ...newImages];
+      }
+      const updatedImages = [...imagesRef.current, ...newImages];
+      imagesRef.current = updatedImages;
       setImages(updatedImages);
       onImagesChange?.(updatedImages);
+      updateStatus(false, '');
+      return true;
+    } catch (cause) {
+      updateStatus(false, `${cause.message} Corrige la seleccion o descarta los archivos rechazados antes de enviar el reporte.`);
+      return false;
     }
-  }, [images, maxImages, onImagesChange]);
+  }, [disabled, maxImages, onImagesChange, updateStatus]);
 
   const handleDragEnter = (e) => { e.preventDefault(); e.stopPropagation(); if (!disabled) setIsDragging(true); };
   const handleDragLeave = (e) => { e.preventDefault(); e.stopPropagation(); if (e.target === dropZoneRef.current) setIsDragging(false); };
@@ -43,7 +64,7 @@ const ImageUpload = forwardRef(({ onImagesChange, maxImages = 5, globalPaste = f
   const handleDrop = (e) => {
     e.preventDefault(); e.stopPropagation(); setIsDragging(false);
     if (disabled) return;
-    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+    const files = Array.from(e.dataTransfer.files);
     if (files.length > 0) processFiles(files);
   };
 
@@ -66,16 +87,25 @@ const ImageUpload = forwardRef(({ onImagesChange, maxImages = 5, globalPaste = f
       const imageItems = Array.from(clipboardItems).filter(item => item.type.startsWith('image/'));
       if (imageItems.length > 0) {
         e.preventDefault();
-        await processFiles(imageItems.map(item => item.getAsFile()).filter(Boolean));
+        const added = await processFiles(imageItems.map(item => item.getAsFile()).filter(Boolean));
+        if (!added) return false;
         setPasteNotification(true);
         setTimeout(() => setPasteNotification(false), 2000);
         return true;
       }
       return false;
     },
-    getImages: () => images,
-    clearImages: () => { setImages([]); onImagesChange?.([]); },
-  }), [processFiles, images, onImagesChange, disabled]);
+    getImages: () => imagesRef.current,
+    getValidationError: () => statusRef.current.processing
+      ? 'Espera a que terminen de procesarse las evidencias.'
+      : statusRef.current.error,
+    clearImages: () => {
+      imagesRef.current = [];
+      setImages([]);
+      onImagesChange?.([]);
+      updateStatus(false, '');
+    },
+  }), [processFiles, onImagesChange, disabled, updateStatus]);
 
   React.useEffect(() => {
     const handleGlobalPaste = (e) => {
@@ -93,8 +123,9 @@ const ImageUpload = forwardRef(({ onImagesChange, maxImages = 5, globalPaste = f
   };
 
   const removeImage = (imageId) => {
-    if (disabled) return;
-    const updatedImages = images.filter(img => img.id !== imageId);
+    if (disabled || statusRef.current.processing) return;
+    const updatedImages = imagesRef.current.filter(img => img.id !== imageId);
+    imagesRef.current = updatedImages;
     setImages(updatedImages);
     onImagesChange?.(updatedImages);
   };
@@ -149,7 +180,13 @@ const ImageUpload = forwardRef(({ onImagesChange, maxImages = 5, globalPaste = f
         )}
       </div>
 
-      {error && <div className="image-upload__error" role="alert">⚠️ {error}</div>}
+      {isProcessing && <p role="status">Procesando evidencias. Espera antes de enviar el reporte.</p>}
+      {error && <div className="image-upload__error" role="alert">
+        ⚠️ {error}
+        <button type="button" disabled={disabled || isProcessing} onClick={() => updateStatus(false, '')}>
+          Descartar archivos rechazados
+        </button>
+      </div>}
 
       {/* Galería — predomina cuando hay imágenes */}
       {images.length > 0 && (
@@ -167,7 +204,7 @@ const ImageUpload = forwardRef(({ onImagesChange, maxImages = 5, globalPaste = f
                 type="button"
                 className="image-upload__preview-remove"
                 onClick={(e) => { e.stopPropagation(); removeImage(image.id); }}
-                disabled={disabled}
+                disabled={disabled || isProcessing}
                 aria-label={`Eliminar ${image.name}`}
               >✕</button>
             </div>

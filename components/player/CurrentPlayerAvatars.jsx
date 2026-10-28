@@ -5,7 +5,7 @@ import Skeleton from '../ui/Skeleton';
 import { isRockstarPlayerAvatar } from '../../src/services/playerAvatars';
 import { createPlayerAvatarSlots, needsAvatarProxyPermission, playerAvatarReducer, visiblePlayerAvatarSlots } from '../../src/services/playerAvatarState';
 
-export default function CurrentPlayerAvatars({ investigation, onOpen }) {
+export default function CurrentPlayerAvatars({ investigation, onOpen, label }) {
   const [slots, dispatch] = useReducer(playerAvatarReducer, investigation.avatares || [], createPlayerAvatarSlots);
   const [permissionDismissed, setPermissionDismissed] = useState(false);
   const visible = visiblePlayerAvatarSlots(slots);
@@ -14,7 +14,7 @@ export default function CurrentPlayerAvatars({ investigation, onOpen }) {
       open={needsAvatarProxyPermission(slots) && !permissionDismissed}
       onClose={() => setPermissionDismissed(true)} />
     <div className="pbp-current-photos">
-      <div className="pbp-current__label">{investigation.rid ? 'Avatares actuales' : 'Avatares archivados'}</div>
+      <div className="pbp-current__label">{label || (investigation.rid ? 'Avatares actuales' : 'Avatares archivados')}</div>
       <div className="pbp-current__avatars">
         {(visible.length ? visible : [{ index: 0, src: '', failed: true }]).map(slot => (
           <button type="button" key={slot.index} className="pbp-current__avatar" aria-label={`Ampliar avatar ${slot.index + 1}`}

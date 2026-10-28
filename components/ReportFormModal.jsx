@@ -39,8 +39,9 @@ const demoValues = {
 export default function ReportFormModal({ onSubmit, currentUser = null, isDemo = false, initialPlayer = null, onReturnToCase = null }) {
   const imageUploadRef = useRef(null);
   const [images, setImages] = useState([]);
+  const [evidenceBlocked, setEvidenceBlocked] = useState(false);
   const { submit, error: submitError, confirmation, closeConfirmation } = useReportSubmission({
-    user: currentUser, images, onSaved: onSubmit,
+    user: currentUser, images, onSaved: onSubmit, imageUploadRef,
   });
   const [playerDraft] = useState(() => initialPlayer ? reportPlayerDraft(initialPlayer) : null);
   const formikRef = useRef(null);
@@ -82,6 +83,7 @@ export default function ReportFormModal({ onSubmit, currentUser = null, isDemo =
       }}>
       <ReportFormFields initialPlayer={initialPlayer} isDemo={isDemo} onPaste={handleGlobalPaste}
         imageUploadRef={imageUploadRef} onImagesChange={setImages} submitError={submitError}
+        evidenceBlocked={evidenceBlocked} onEvidenceBlockedChange={setEvidenceBlocked}
         submitErrorRef={submitErrorRef} submitButtonRef={submitButtonRef} />
     </Formik>
   </div>;

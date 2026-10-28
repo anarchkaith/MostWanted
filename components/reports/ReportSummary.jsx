@@ -3,6 +3,7 @@ import { normalizeReportLabels } from '../../src/services/reportViewModel';
 import { reportEvidence } from '../../src/services/reportEvidence';
 import { resolvePlayerRid } from '../../shared/playerIdentity';
 import { buildCrewLink } from '../../shared/crewLink';
+import CurrentPlayerAvatars from '../player/CurrentPlayerAvatars';
 import SpecialTextContent from '../ui/SpecialTextContent';
 
 const INVESTIGATION_LABELS = {
@@ -19,7 +20,7 @@ function DetailField({ label, children }) {
   </div>;
 }
 
-export default function ReportSummary({ report }) {
+export default function ReportSummary({ report, onOpenAvatar }) {
   const rid = resolvePlayerRid(report);
   const categories = reportCategories(report);
   const labels = normalizeReportLabels(report.labels || report.etiquetas);
@@ -49,9 +50,10 @@ export default function ReportSummary({ report }) {
         </div>
       </div>
       {labels.length > 0 && <DetailField label="Etiquetas">
-        <ul className="report-detail__list">{labels.map((item, index) => <li key={`${item.label}-${index}`}>
-          <strong>{item.label}</strong>{item.detail && <span> — {item.detail}</span>}
-        </li>)}</ul>
+        <div className="threat-labels__options">{labels.map((item, index) => <span className="threat-label threat-label--selected" key={`${item.label}-${index}`}>
+          <span>{item.label}{item.detail && <span> — {item.detail}</span>}</span>
+          <span aria-hidden="true">✓</span>
+        </span>)}</div>
       </DetailField>}
       {SEVERITY_LABELS[report.severidad] && <DetailField label="Severidad">{SEVERITY_LABELS[report.severidad]}</DetailField>}
       {INVESTIGATION_LABELS[report.investigation_status] && <DetailField label="Investigación de identidad">
@@ -68,11 +70,12 @@ export default function ReportSummary({ report }) {
           <a className="notranslate" translate="no" href={crew.url} target="_blank" rel="noopener noreferrer">{crew.name}</a>
         </li>)}</ul>
       </DetailField>}
-      {avatars.length > 0 && <DetailField label="Avatares registrados en el reporte">
-        <ul className="report-detail__list">{avatars.map((avatar, index) => <li key={avatar.id}>
-          <a href={avatar.src} target="_blank" rel="noopener noreferrer">Ver avatar {index + 1}</a>
-        </li>)}</ul>
-      </DetailField>}
+      {avatars.length > 0 && <div className="report-detail__field report-detail__avatars">
+        <CurrentPlayerAvatars key={`${report.id}-${avatars.map(avatar => avatar.src).join('|')}`}
+          label="Avatares registrados en el reporte"
+          investigation={{ nombre: report.usuario, avatares: avatars.map((avatar, index) => ({ index, avatarUrl: avatar.src })) }}
+          onOpen={onOpenAvatar} />
+      </div>}
       <div className="report-detail__field">
         <div className="report-detail__label">Motivo</div>
         <div className="report-detail__value"><SpecialTextContent group>{report.motivo}</SpecialTextContent></div>

@@ -54,7 +54,13 @@ export async function uploadEvidenceImages(images = [], apiKey = '') {
     throw new Error('Falta configurar VITE_API_KEY_IMGBB para publicar evidencias.');
   }
 
-  return Promise.all(images.map((image) => uploadImageToImgbb(image, apiKey)));
+  const results = await Promise.allSettled(images.map((image) => uploadImageToImgbb(image, apiKey)));
+  const failed = results.flatMap((result, index) => result.status === 'rejected'
+    ? [`${images[index]?.name || `Evidencia ${index + 1}`}: ${result.reason?.message || 'Error de subida'}`] : []);
+  if (failed.length) {
+    throw new Error(`No se creo el reporte porque fallaron evidencias: ${failed.join('; ')}. Corrige los archivos o vuelve a intentar.`);
+  }
+  return results.map(result => result.value);
 }
 
 async function postReportToBackend(path, { report, reporter, evidence }) {

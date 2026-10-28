@@ -405,7 +405,9 @@ a { color: var(--color-cream); text-underline-offset: 3px; }
   overflow-wrap: anywhere;
 }
 .threat-label:hover { border-color: var(--color-cream-dark); }
-.threat-label[aria-pressed='true'] { border-color: var(--color-red-alert); background: #382121; }
+.threat-label[aria-pressed='true'], .threat-label--selected { border-color: var(--color-red-alert); background: #382121; }
+.threat-label--selected { cursor: default; }
+.threat-label--selected:hover { border-color: var(--color-red-alert); }
 .threat-label:disabled { opacity: 0.5; }
 .threat-labels__summary { font-size: 0.875rem; color: var(--color-text-muted); }
 
@@ -501,6 +503,8 @@ a { color: var(--color-cream); text-underline-offset: 3px; }
 .report-detail__label { font: 0.8125rem/1.5 var(--font-mono); }
 .report-detail__list { margin: 0; padding-left: 20px; }
 .report-detail__list li + li { margin-top: 8px; }
+.report-detail__avatars .pbp-current-photos { margin: 0; padding: 0; border: 0; }
+.report-detail__avatars .pbp-current__avatars { grid-template-columns: repeat(2, minmax(0, 128px)); gap: 12px; margin-top: 12px; }
 .report-detail__value:not(.report-detail__value--user) { font: 1.125rem/1.6 var(--font-typewriter); }
 .app-container--access { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; }
 .app-container--access > .site-header { grid-template-columns: minmax(0, 1fr); }
