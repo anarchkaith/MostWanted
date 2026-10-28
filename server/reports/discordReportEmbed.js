@@ -113,7 +113,7 @@ function buildCrewFieldValue(crews = []) {
     })
     .map((crew) => (crew.url ? `[${crew.name}](${crew.url})` : crew.name));
 
-  return lines.length > 0 ? truncateText(lines.join('\n'), 1024) : 'N/A';
+  return lines.length > 0 ? truncateText(lines.join('\n'), 1024) : '';
 }
 
 function buildVideoEvidenceField(evidence = []) {
@@ -212,16 +212,20 @@ export function buildDiscordReportPayload({ report = {}, reporter = {}, evidence
   const playerUrl = `${MOSTWANTED_WEB_URL}/jugador/${encodeURIComponent(toTrimmedString(report.nickname))}`;
   const reporterAvatarCandidate = toTrimmedString(reporter.avatarUrl);
   const reporterAvatarUrl = /^https?:\/\//i.test(reporterAvatarCandidate) ? reporterAvatarCandidate : '';
+  const crewValue = buildCrewFieldValue(crews);
+  const rid = toDisplayText(report.rid);
 
-  const fields = [
-    { name: '👥 Crews', value: buildCrewFieldValue(crews), inline: true },
-    { name: '🗒 Motivo', value: buildReasonQuote(reasonText), inline: false },
-  ];
+  const fields = [];
+  if (rid) fields.push({ name: 'RID', value: truncateText(rid, 1024), inline: true });
+  if (crewValue) fields.push({ name: '👥 Crews', value: crewValue, inline: true });
+  if (infractions.length > 0) {
+    fields.push({ name: '🚥 Tipos de infraccion', value: truncateText(infractions.join(', '), 1024), inline: true });
+  }
+  fields.push({ name: '🗒 Motivo', value: buildReasonQuote(reasonText), inline: false });
   if (aliases.length > 0) {
     fields.push({ name: '🎭 Aliases', value: truncateText(aliases.join(', '), 1024), inline: true });
   }
   fields.push(
-    { name: '🚥 Tipos de infraccion', value: truncateText(infractions.join(', ') || 'NO ESPECIFICADO', 1024), inline: false },
     { name: '🏷 Etiquetas', value: truncateText(`-# ${labels.join(', ') || '#Sin etiquetas de amenaza'}`, 1024), inline: false },
   );
   const videoValue = buildVideoEvidenceField(evidence);

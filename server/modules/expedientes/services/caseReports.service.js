@@ -38,6 +38,7 @@ export function publicReport(raw) {
     reason: text(raw.reason || raw.content || raw.motivo),
     createdAt,
     time: typeof raw.time === 'number' || typeof raw.time === 'string' ? raw.time : null,
+    investigation_status: text(raw.investigation_status),
     anonymous: Boolean(raw.anonymous),
     aliases: strings(raw.aliases),
     crews: list(raw.crews).map((item) => typeof item === 'object'

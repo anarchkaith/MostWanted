@@ -24,6 +24,14 @@ export function normalizeComentariosFromCommunityVerification(communityVerificat
     }));
 }
 
+export function normalizeReportLabels(labels) {
+  if (!Array.isArray(labels)) return [];
+  return labels.map(item => ({
+    label: typeof item === 'string' ? item.trim() : String(item?.label || item?.name || '').trim(),
+    detail: typeof item?.detail === 'string' ? item.detail.trim() : '',
+  })).filter(item => item.label);
+}
+
 export function mapWordpressReportToReporte(report = {}) {
   const evidence = Array.isArray(report?.evidence) ? report.evidence : [];
   const usuario = String(report?.nickname || report?.title || '').trim();
@@ -31,10 +39,12 @@ export function mapWordpressReportToReporte(report = {}) {
   return {
     id: Number(report?.id) || Date.now(),
     usuario: usuario || 'USUARIO_SIN_NOMBRE',
-    motivo: report?.content || 'Reporte registrado en MostWanted.',
+    motivo: report?.content || report?.reason || 'Reporte registrado en MostWanted.',
     reportadoPor: 'ANONIMO',
-    categoria: mapCategoriaFromWordpressType(report?.categories || []),
+    categoria: mapCategoriaFromWordpressType(report.categories?.length ? report.categories : report.typesOfInfraction || []),
     fecha: report?.createdAt || report?.date || '',
+    time: report.time ?? null,
+    investigation_status: report.investigation_status || '',
     evidencia: evidence[0]?.url || '',
     evidencias: evidence.map((item, index) => ({
       id: `${report?.id || 'report'}-evidence-${index}`,
@@ -43,7 +53,7 @@ export function mapWordpressReportToReporte(report = {}) {
       tipo: item?.contentType || 'image/png',
     })).filter(item => item.preview),
     estado: 'activo',
-    severidad: normalizeReportSeverity(report?.severidad || report?.severity),
+    severidad: normalizeReportSeverity(report?.severidad || report?.severity || report.analysis?.severity || report.analysis?.severidad),
     validacion: normalizeReportValidation(report?.validacion || report?.validation),
     votos: {
       up: Number(communityVerification?.up) || 0,
@@ -55,7 +65,9 @@ export function mapWordpressReportToReporte(report = {}) {
     crews: Array.isArray(report.crews) ? report.crews : [],
     avatar1: report.avatar1 || '',
     avatar2: report.avatar2 || '',
-    categories: Array.isArray(report?.categories) ? report.categories : [],
+    categories: Array.isArray(report.categories) && report.categories.length
+      ? report.categories : Array.isArray(report.typesOfInfraction) ? report.typesOfInfraction : [],
+    labels: normalizeReportLabels(report.labels || report.etiquetas),
   };
 }
 
@@ -66,6 +78,7 @@ export function normalizeReporte(reporte = {}) {
     usuario: reporte.usuario || 'USUARIO_SIN_NOMBRE',
     categoria: mapCategoriaLegacy(reporte.categorias, reporte.categoria),
     severidad: normalizeReportSeverity(reporte.severidad),
+    labels: normalizeReportLabels(reporte.labels || reporte.etiquetas),
     fecha: reporte.fecha ?? new Date().toISOString().slice(0, 10),
     reportadoPor: 'ANONIMO',
     validacion: reporte.validacion ?? 'pendiente',

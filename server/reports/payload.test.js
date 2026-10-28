@@ -179,7 +179,7 @@ runTest('buildDiscordReportPayload usa el avatar del autor como icono y omite el
   assert.equal(Object.prototype.hasOwnProperty.call(anonymous.embeds[0].author, 'icon_url'), false);
 });
 
-runTest('buildDiscordReportPayload omite RID y Estado del embed', () => {
+runTest('buildDiscordReportPayload agrupa RID, crews e infracciones como campos inline', () => {
   const payload = buildDiscordReportPayload({
     report: {
       id: 5,
@@ -187,14 +187,33 @@ runTest('buildDiscordReportPayload omite RID y Estado del embed', () => {
       rid: '123',
       reason: 'Motivo',
       investigation_status: 'resolved',
-      typesOfInfraction: [],
+      crews: ['Crew Uno'],
+      typesOfInfraction: ['MODDER'],
       labels: [],
       time: Date.now(),
     },
     reporter: { name: 'Kaith' },
   });
 
-  assert.equal(payload.embeds[0].fields.some(({ name }) => name === 'RID'), false);
+  const fields = payload.embeds[0].fields;
+  assert.deepEqual(fields.slice(0, 3), [
+    { name: 'RID', value: '123', inline: true },
+    { name: '👥 Crews', value: '[Crew Uno](https://socialclub.rockstargames.com/crew/crew_uno)', inline: true },
+    { name: '🚥 Tipos de infraccion', value: 'Modder', inline: true },
+  ]);
+  assert.equal(fields.some(({ name }) => name.includes('Estado')), false);
+  assert.equal(payload.embeds[0].footer.text, 'MostWanted • Sistema de reportes');
+});
+
+runTest('buildDiscordReportPayload omite campos inline sin información', () => {
+  const payload = buildDiscordReportPayload({
+    report: { id: 5, nickname: 'Jugador123', rid: '', crews: [], typesOfInfraction: [], reason: 'Motivo' },
+  });
+  const fields = payload.embeds[0].fields;
+
+  assert.equal(fields.some(({ name }) => name === 'RID'), false);
+  assert.equal(fields.some(({ name }) => name.includes('Crews')), false);
+  assert.equal(fields.some(({ name }) => name.includes('Tipos de infraccion')), false);
   assert.equal(payload.embeds[0].fields.some(({ name }) => name.includes('Estado')), false);
 });
 
@@ -208,6 +227,7 @@ runTest('crews conserva la URL de Social Club en WordPress y Discord', () => {
   const payload = buildDiscordReportPayload(submission.value);
   assert.equal(payload.embeds[0].fields.find(field => field.name.includes('Crews')).value,
     `[${crew.name}](${crew.url})`);
+  assert.equal(payload.embeds[0].fields.find(field => field.name.includes('Crews')).inline, true);
 });
 
 runTest('buildDiscordReportPayload enlaza el nombre al perfil y el reporte desde el embed sin componentes', () => {
