@@ -214,7 +214,6 @@ export function buildDiscordReportPayload({ report = {}, reporter = {}, evidence
   const reporterAvatarUrl = /^https?:\/\//i.test(reporterAvatarCandidate) ? reporterAvatarCandidate : '';
 
   const fields = [
-    { name: 'RID', value: `||${truncateText(String(report.rid || 'N/A'), 1018)}||`, inline: true },
     { name: '👥 Crews', value: buildCrewFieldValue(crews), inline: true },
     { name: '🗒 Motivo', value: buildReasonQuote(reasonText), inline: false },
   ];

@@ -60,7 +60,7 @@ async function sendTestReport() {
             fields: [
               {
                 name: '👤 JUGADOR REPORTADO',
-                value: `**Nickname:** \`${testReport.report.nickname}\`\n**Crews:** \`${testReport.report.crews}\`\n**RID:** \`${testReport.report.rid}\`\n**IP:** \`${testReport.report.ip}\`\n**Aliases:** \`${testReport.report.aliases}\``,
+                value: `**Nickname:** \`${testReport.report.nickname}\`\n**Crews:** \`${testReport.report.crews}\`\n**IP:** \`${testReport.report.ip}\`\n**Aliases:** \`${testReport.report.aliases}\``,
                 inline: false,
               },
               {

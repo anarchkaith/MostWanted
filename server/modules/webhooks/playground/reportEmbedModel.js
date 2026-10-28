@@ -157,12 +157,10 @@ export function buildReportEmbedPayload(input = {}) {
 
   const caseId = report.caseId || 'SIN-CASE-ID';
   const nickname = report.nickname || 'Desconocido';
-  const rid = report.rid || 'N/A';
   const firstAvatarUrl = avatars.length > 0 ? String(avatars[0]) : visuals.thumbnailUrl;
 
   const mainEmbedFields = [
     { name: 'Case ID', value: String(caseId), inline: true },
-    { name: 'RID', value: String(rid), inline: true },
     { name: 'Estado', value: String(report.status || 'N/A'), inline: true },
     { name: 'Crew', value: toInlineList(report.crews), inline: true },
     { name: 'Etiquetas', value: toInlineList(report.labels), inline: false },

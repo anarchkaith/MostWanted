@@ -179,7 +179,7 @@ runTest('buildDiscordReportPayload usa el avatar del autor como icono y omite el
   assert.equal(Object.prototype.hasOwnProperty.call(anonymous.embeds[0].author, 'icon_url'), false);
 });
 
-runTest('buildDiscordReportPayload omite el campo Estado del embed', () => {
+runTest('buildDiscordReportPayload omite RID y Estado del embed', () => {
   const payload = buildDiscordReportPayload({
     report: {
       id: 5,
@@ -194,6 +194,7 @@ runTest('buildDiscordReportPayload omite el campo Estado del embed', () => {
     reporter: { name: 'Kaith' },
   });
 
+  assert.equal(payload.embeds[0].fields.some(({ name }) => name === 'RID'), false);
   assert.equal(payload.embeds[0].fields.some(({ name }) => name.includes('Estado')), false);
 });
 

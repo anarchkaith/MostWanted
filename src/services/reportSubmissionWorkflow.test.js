@@ -2,9 +2,25 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { runReportSubmission } from './reportSubmissionWorkflow.js';
 
-const values = { nickname: '  Player  ', reason: 'Motivo', evidence: ['FORM_ONLY'], rid: '123' };
+const values = {
+  investigation_status: 'resolved',
+  nickname: '  Player  ',
+  crews: 'Crew One',
+  avatar1: 'https://example.test/avatar.png',
+  avatar2: '',
+  rid: '123',
+  ip: '192.0.2.1',
+  aliases: 'OtherName',
+  time: '1760000000',
+  typesOfInfraction: ['MODDER'],
+  reason: 'Motivo completo del reporte',
+  evidence: ['FORM_ONLY'],
+  labels: ['Aimbot'],
+};
 const images = [{ name: 'Captura' }];
 const evidence = [{ url: 'https://example.test/image.png' }];
+const expectedReport = { ...values, nickname: 'Player' };
+delete expectedReport.evidence;
 
 test('submission uploads before saving and refreshing, trims identity and never submits form evidence', async () => {
   const order = [];
@@ -14,13 +30,23 @@ test('submission uploads before saving and refreshing, trims identity and never 
     upload: async (files, key) => { order.push('upload'); assert.equal(files, images); assert.equal(key, 'fixture-key'); return evidence; },
     save: async input => {
       order.push('save');
-      assert.deepEqual(input, { report: { nickname: 'Player', reason: 'Motivo', rid: '123' }, reporter: { id: '123', name: 'User', email: '' }, evidence });
+      assert.deepEqual(input, {
+        report: expectedReport,
+        reporter: { id: '123', name: 'User', email: '' },
+        evidence,
+      });
       return saved;
     },
     onSaved: async (report, response) => { order.push('refresh'); assert.equal(report.nickname, 'Player'); assert.equal(response, saved); },
   });
   assert.deepEqual(order, ['upload', 'save', 'refresh']);
-  assert.deepEqual(result, { nickname: 'Player', discordDelivery: { ok: true }, warning: '' });
+  assert.deepEqual(result, {
+    nickname: 'Player',
+    report: expectedReport,
+    evidence,
+    discordDelivery: { ok: true },
+    warning: '',
+  });
   assert.equal(values.nickname, '  Player  ');
 });
 

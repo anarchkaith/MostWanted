@@ -12,5 +12,11 @@ export async function runReportSubmission({ values, images, apiKey, user, upload
     logger.warn('[MostWanted] No se pudo actualizar la ficha después de guardar el reporte.', error);
     warning = [warning, 'El reporte se guardó, pero no se pudo refrescar la ficha. Vuelve a buscar al jugador para actualizarla.'].filter(Boolean).join(' ');
   }
-  return { nickname: report.nickname, discordDelivery: result.discordDelivery || null, warning };
+  return {
+    nickname: report.nickname,
+    report,
+    evidence,
+    discordDelivery: result.discordDelivery || null,
+    warning,
+  };
 }
