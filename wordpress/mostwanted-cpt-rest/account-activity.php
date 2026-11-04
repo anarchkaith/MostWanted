@@ -37,7 +37,10 @@ function mw_record_account($identity, $event) {
     $previous = get_post_meta($id, '_mw_identity', true);
     if (is_array($previous) && $identity['email'] === '') $identity['email'] = $previous['email'] ?? '';
     $values = ['_mw_identity' => $identity, '_mw_last_access' => gmdate('c'), '_mw_last_event' => $event];
-    if ($event === 'login') $values['_mw_last_login'] = gmdate('c');
+    if ($event === 'login') {
+        $values['_mw_last_login'] = gmdate('c');
+        $values['_mw_login_count'] = (int) get_post_meta($id, '_mw_login_count', true) + 1;
+    }
     foreach ($values as $key => $value) {
         if (update_post_meta($id, $key, wp_slash($value)) === false && get_post_meta($id, $key, true) !== $value) {
             return new WP_Error('account_storage_failed', 'No se pudo guardar la actividad.', ['status' => 500]);
@@ -73,11 +76,15 @@ function mw_rest_private_accounts($request) {
         if (!$identity) continue;
         $reports = get_posts(['post_type' => 'mw_report', 'post_status' => 'any', 'numberposts' => 50,
             'fields' => 'ids', 'meta_key' => '_mw_owner_discord_id', 'meta_value' => $identity['id']]);
+        $report_query = new WP_Query(['post_type' => 'mw_report', 'post_status' => 'any', 'posts_per_page' => 1,
+            'fields' => 'ids', 'meta_key' => '_mw_owner_discord_id', 'meta_value' => $identity['id']]);
         $items[] = ['identity' => $identity,
             'firstAccess' => get_post_meta($id, '_mw_first_access', true),
             'lastLogin' => get_post_meta($id, '_mw_last_login', true),
             'lastAccess' => get_post_meta($id, '_mw_last_access', true),
             'lastEvent' => get_post_meta($id, '_mw_last_event', true),
+            'loginCount' => (int) get_post_meta($id, '_mw_login_count', true),
+            'reportCount' => (int) $report_query->found_posts,
             'reportIds' => array_map('intval', $reports)];
     }
     $response = new WP_REST_Response(['ok' => true, 'items' => $items, 'hasMore' => count($ids) > 20], 200);

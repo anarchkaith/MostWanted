@@ -1,0 +1,526 @@
+{
+  "info": {
+    "_postman_id": "87d945ec-dc51-4b72-bdc8-31e19f5070cd",
+    "name": "MostWanted API",
+    "description": "API testing collection for MostWanted backend",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "53353157",
+    "_collection_link": "https://go.postman.co/collection/53353157-87d945ec-dc51-4b72-bdc8-31e19f5070cd?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Health & Config",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/health",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "health"
+              ]
+            },
+            "description": "Verifica que el servidor está respondiendo"
+          },
+          "response": []
+        },
+        {
+          "name": "Chat Config (Debug)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/ia-chat",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "ia-chat"
+              ]
+            },
+            "description": "Obtiene configuración actual (requiere ?debug=1)"
+          },
+          "response": []
+        },
+        {
+          "name": "Chat Auth Probe",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/ia-chat?debug=auth",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "ia-chat"
+              ],
+              "query": [
+                {
+                  "key": "debug",
+                  "value": "auth"
+                }
+              ]
+            },
+            "description": "Prueba autenticación con el backend upstream (api.kaithsrebels.com)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Reportes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/reportes",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "reportes"
+              ]
+            },
+            "description": "Lista todos los reportes almacenados"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "IA Endpoints",
+      "item": [
+        {
+          "name": "Chat (Simple)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"¿Cuál es la capital de México?\",\n  \"reportes\": []\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/ia-chat",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "ia-chat"
+              ]
+            },
+            "description": "Endpoint de chat de IA con contexto de reportes"
+          },
+          "response": []
+        },
+        {
+          "name": "Chat (con Reportes)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"messages\": [\n        {\n            \"role\": \"assistant\",\n            \"content\": \"Soy H.E.X. la IA de apoyo de Most Wanted. Preguntame lo que necesites.\"\n        },\n        {\n            \"role\": \"user\",\n            \"content\": \"Dame el top 5 de usuario reportados y sus nombres\"\n        }\n    ],\n    \"useReportesDb\": true,\n    \"reportQuery\": {\n        \"tool\": \"read_all_reports\",\n        \"usuario\": \"\",\n        \"reportId\": \"\",\n        \"recentDays\": null\n    },\n    \"reportesContext\": {\n        \"source\": \"localStorage\",\n        \"reportes\": [\n            {\n                \"id\": 1774404300316,\n                \"usuario\": \"HELLORD_YT\",\n                \"categoria\": \"modder\",\n                \"severidad\": \"media\",\n                \"motivo\": \"Jugador excesivamente toxico\\nHola, equipo de soporte de Rockstar.\\n\\nQuiero reportar al jugador [HeLLord_YT de Pc/Social Club] por el uso de menús de mods en una sesión pública de GTA Online.\\n\\nDetalles del incidente:\\n\\nGod Mode: El jugador no recibía daño de explosivos ni disparos a la cabeza.\\nTeleporting: El jugador se teletransportaba instantáneamente a lugares estrategicos para matar jugadores (Griefing).\",\n                \"fecha\": \"2026-03-25\",\n                \"validacion\": \"pendiente\",\n                \"etiquetas\": [\n                    \"Abusar de vehículos/objetos explotables\"\n                ]\n            },\n            {\n                \"id\": 1774397240757,\n                \"usuario\": \"HELLORD_YT\",\n                \"categoria\": \"modder\",\n                \"severidad\": \"media\",\n                \"motivo\": \"Jugador excesivamente toxico\\nHola, equipo de soporte de Rockstar.\\n\\nQuiero reportar al jugador [HeLLord_YT de Pc/Social Club] por el uso de menús de mods en una sesión pública de GTA Online.\\n\\nDetalles del incidente:\\n\\nGod Mode: El jugador no recibía daño de explosivos ni disparos a la cabeza.\\nTeleporting: El jugador se teletransportaba instantáneamente a lugares estrategicos para matar jugadores (Griefing).\",\n                \"fecha\": \"2026-03-25\",\n                \"validacion\": \"pendiente\",\n                \"etiquetas\": [\n                    \"Abusar de vehículos/objetos explotables\"\n                ]\n            },\n            {\n                \"id\": 1774396681288,\n                \"usuario\": \"TEST\",\n                \"categoria\": \"modder\",\n                \"severidad\": \"media\",\n                \"motivo\": \"Testestest\",\n                \"fecha\": \"2026-03-24\",\n                \"validacion\": \"pendiente\",\n                \"etiquetas\": [\n                    \"Teleport (hack)\",\n                    \"Explosiones invisibles / efectos no autorizados\",\n                    \"Congelar jugadores (modding)\",\n                    \"Blackscreen\"\n                ]\n            },\n            {\n                \"id\": 1774396237141,\n                \"usuario\": \"USUARIOPRUEBA10\",\n                \"categoria\": \"modder\",\n                \"severidad\": \"media\",\n                \"motivo\": \"Ataca a quien sea sin importar nada\",\n                \"fecha\": \"2026-03-24\",\n                \"validacion\": \"pendiente\",\n                \"etiquetas\": [\n                    \"Spawnear objetos (manipulación de economía)\",\n                    \"Explosiones invisibles / efectos no autorizados\",\n                    \"Crash\",\n                    \"Blackscreen\",\n                    \"Wallhack / ESP\",\n                    \"Teleport (hack)\",\n                    \"Aimbot\"\n                ]\n            },\n            {\n                \"id\": 1774395923017,\n                \"usuario\": \"USUARIOPRUEBA10\",\n                \"categoria\": \"modder\",\n                \"severidad\": \"media\",\n                \"motivo\": \"Ataca a quien sea sin importar nada\",\n                \"fecha\": \"2026-03-24\",\n                \"validacion\": \"pendiente\",\n                \"etiquetas\": [\n                    \"Spawnear objetos (manipulación de economía)\",\n                    \"Explosiones invisibles / efectos no autorizados\",\n                    \"Crash\",\n                    \"Blackscreen\",\n                    \"Wallhack / ESP\",\n                    \"Teleport (hack)\",\n                    \"Aimbot\"\n                ]\n            },\n            {\n                \"id\": 1774395716713,\n                \"usuario\": \"USUARIO DE PRUEBAS\",\n                \"categoria\": \"griffer\",\n                \"severidad\": \"media\",\n                \"motivo\": \"Reporte de pruebas con IA\",\n                \"fecha\": \"2026-03-24\",\n                \"validacion\": \"pendiente\",\n                \"etiquetas\": [\n                    \"Abusar de vehículos/objetos explotables\",\n                    \"Spameo de bots / automatización maliciosa\",\n                    \"Raideo de servidor / invasión coordinada\",\n                    \"Trolleo masivo (interrupción de partidas)\"\n                ]\n            },\n            {\n                \"id\": 1774395546230,\n                \"usuario\": \"USUARIO DE PRUEBAS\",\n                \"categoria\": \"griffer\",\n                \"severidad\": \"media\",\n                \"motivo\": \"Reporte de pruebas con IA\",\n                \"fecha\": \"2026-03-24\",\n                \"validacion\": \"pendiente\",\n                \"etiquetas\": [\n                    \"Abusar de vehículos/objetos explotables\",\n                    \"Spameo de bots / automatización maliciosa\",\n                    \"Raideo de servidor / invasión coordinada\",\n                    \"Trolleo masivo (interrupción de partidas)\"\n                ]\n            },\n            {\n                \"id\": 1774395452360,\n                \"usuario\": \"USUARIO DE PRUEBAS\",\n                \"categoria\": \"griffer\",\n                \"severidad\": \"media\",\n                \"motivo\": \"Reporte de pruebas con IA\",\n                \"fecha\": \"2026-03-24\",\n                \"validacion\": \"pendiente\",\n                \"etiquetas\": [\n                    \"Abusar de vehículos/objetos explotables\",\n                    \"Spameo de bots / automatización maliciosa\",\n                    \"Raideo de servidor / invasión coordinada\",\n                    \"Trolleo masivo (interrupción de partidas)\"\n                ]\n            },\n            {\n                \"id\": 1774394544604,\n                \"usuario\": \"USUARIO DE PRUEBA\",\n                \"categoria\": \"modder\",\n                \"severidad\": \"media\",\n                \"motivo\": \"Reporte de prueba\",\n                \"fecha\": \"2026-03-24\",\n                \"validacion\": \"pendiente\",\n                \"etiquetas\": [\n                    \"Godmode (hack)\",\n                    \"Spawnear objetos (manipulación de economía)\",\n                    \"Aimbot\",\n                    \"Flood de mensajes / spam técnico\",\n                    \"Manipulación de datos del juego (cheats avanzados)\",\n                    \"Crash\",\n                    \"Blackscreen\"\n                ]\n            },\n            {\n                \"id\": 1774391764170,\n                \"usuario\": \"TESTEST\",\n                \"categoria\": \"griffer\",\n                \"severidad\": \"media\",\n                \"motivo\": \"testestesttas\",\n                \"fecha\": \"2026-03-24\",\n                \"validacion\": \"pendiente\",\n                \"etiquetas\": [\n                    \"Abusar de vehículos/objetos explotables\",\n                    \"Trolleo masivo (interrupción de partidas)\",\n                    \"Raideo de servidor / invasión coordinada\",\n                    \"Ataque DDoS / daño a infraestructura\"\n                ]\n            },\n            {\n                \"id\": 1774391489627,\n                \"usuario\": \"TESTEST\",\n                \"categoria\": \"griffer\",\n                \"severidad\": \"media\",\n                \"motivo\": \"testestesttas\",\n                \"fecha\": \"2026-03-24\",\n                \"validacion\": \"pendiente\",\n                \"etiquetas\": [\n                    \"Abusar de vehículos/objetos explotables\",\n                    \"Trolleo masivo (interrupción de partidas)\",\n                    \"Raideo de servidor / invasión coordinada\",\n                    \"Ataque DDoS / daño a infraestructura\"\n                ]\n            },\n            {\n                \"id\": 1774391483844,\n                \"usuario\": \"TESTEST\",\n                \"categoria\": \"griffer\",\n                \"severidad\": \"media\",\n                \"motivo\": \"testestesttas\",\n                \"fecha\": \"2026-03-24\",\n                \"validacion\": \"pendiente\",\n                \"etiquetas\": [\n                    \"Abusar de vehículos/objetos explotables\",\n                    \"Trolleo masivo (interrupción de partidas)\",\n                    \"Raideo de servidor / invasión coordinada\",\n                    \"Ataque DDoS / daño a infraestructura\"\n                ]\n            },\n            {\n                \"id\": 1774391470521,\n                \"usuario\": \"TESTEST\",\n                \"categoria\": \"griffer\",\n                \"severidad\": \"media\",\n                \"motivo\": \"testestesttas\",\n                \"fecha\": \"2026-03-24\",\n                \"validacion\": \"pendiente\",\n                \"etiquetas\": [\n                    \"Abusar de vehículos/objetos explotables\",\n                    \"Trolleo masivo (interrupción de partidas)\",\n                    \"Raideo de servidor / invasión coordinada\",\n                    \"Ataque DDoS / daño a infraestructura\"\n                ]\n            },\n            {\n                \"id\": 1774391176015,\n                \"usuario\": \"TESTEST\",\n                \"categoria\": \"griffer\",\n                \"severidad\": \"media\",\n                \"motivo\": \"testestesttas\",\n                \"fecha\": \"2026-03-24\",\n                \"validacion\": \"pendiente\",\n                \"etiquetas\": [\n                    \"Abusar de vehículos/objetos explotables\",\n                    \"Trolleo masivo (interrupción de partidas)\",\n                    \"Raideo de servidor / invasión coordinada\",\n                    \"Ataque DDoS / daño a infraestructura\"\n                ]\n            },\n            {\n                \"id\": 1774040111224,\n                \"usuario\": \"3VILRICK\",\n                \"categoria\": \"modder\",\n                \"severidad\": \"media\",\n                \"motivo\": \"La verdad es que yo lo estaba matando primero y luego fue como... él me mató 9 veces y yo solo 3.\\nDijo algo sobre la memoria o algo así y de repente se me cerró todo el juego 😭\\nLuego alguien me invitó a su departamento, pero la pantalla se quedó en negro y se me congeló 😔\",\n                \"fecha\": \"2026-03-20\",\n                \"validacion\": \"pendiente\",\n                \"etiquetas\": [\n                    \"Blackscreen\",\n                    \"Crash\",\n                    \"Kickear de la sesión (modding)\"\n                ]\n            },\n            {\n                \"id\": 1773956082609,\n                \"usuario\": \"TEST\",\n                \"categoria\": \"griffer\",\n                \"severidad\": \"media\",\n                \"motivo\": \"testestesteste\",\n                \"fecha\": \"2026-03-19\",\n                \"validacion\": \"pendiente\",\n                \"etiquetas\": [\n                    \"Spawnkill\",\n                    \"Abusar de vehículos/objetos explotables\",\n                    \"Trolleo masivo (interrupción de partidas)\",\n                    \"Spameo de bots / automatización maliciosa\",\n                    \"Ataque DDoS / daño a infraestructura\",\n                    \"Sabotaje de partidas\",\n                    \"Raideo de servidor / invasión coordinada\"\n                ]\n            },\n            {\n                \"id\": 1773955267941,\n                \"usuario\": \"TES\",\n                \"categoria\": \"griffer\",\n                \"severidad\": \"media\",\n                \"motivo\": \"testestestes\",\n                \"fecha\": \"2026-03-19\",\n                \"validacion\": \"pendiente\",\n                \"etiquetas\": [\n                    \"Abusar de vehículos/objetos explotables\",\n                    \"Spawnkill\",\n                    \"Sabotaje de partidas\",\n                    \"Ataque DDoS / daño a infraestructura\",\n                    \"Raideo de servidor / invasión coordinada\",\n                    \"Spameo de bots / automatización maliciosa\",\n                    \"Trolleo masivo (interrupción de partidas)\"\n                ]\n            },\n            {\n                \"id\": 1773955267941,\n                \"usuario\": \"TEST\",\n                \"categoria\": \"griffer\",\n                \"severidad\": \"media\",\n                \"motivo\": \"Testestest\",\n                \"fecha\": \"2026-03-19\",\n                \"validacion\": \"pendiente\",\n                \"etiquetas\": [\n                    \"Raideo de servidor / invasión coordinada\",\n                    \"Abusar de vehículos/objetos explotables\",\n                    \"Trolleo masivo (interrupción de partidas)\",\n                    \"Spawnkill\",\n                    \"Sabotaje de partidas\",\n                    \"Ataque DDoS / daño a infraestructura\",\n                    \"Spameo de bots / automatización maliciosa\"\n                ]\n            }\n        ]\n    }\n}"
+            },
+            "url": {
+              "raw": "http://localhost:5173/api/ia-chat",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5173",
+              "path": [
+                "api",
+                "ia-chat"
+              ]
+            },
+            "description": "Chat con contexto de reportes para análisis"
+          },
+          "response": []
+        },
+        {
+          "name": "Intent Classification",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"Quiero reportar un robo en la avenida principal hace dos horas\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/ia-intent",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "ia-intent"
+              ]
+            },
+            "description": "Clasifica la intención del usuario (reporte, consulta, etc.)"
+          },
+          "response": []
+        },
+        {
+          "name": "Report Analysis",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reporte\": {\n    \"titulo\": \"Auto sospechoso\",\n    \"descripcion\": \"Vehículo color gris sin placas, ocupantes encubiertos\",\n    \"ubicacion\": \"Zona Centro\",\n    \"tipo_infraccion\": \"Vehículo Sospechoso\",\n    \"etiquetas\": [\"urgente\", \"investigación\"]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/ia-report-analysis",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "ia-report-analysis"
+              ]
+            },
+            "description": "Análisis profundo de un reporte individual"
+          },
+          "response": []
+        },
+        {
+          "name": "Report Correlation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reporte_actual\": {\n    \"id\": \"new\",\n    \"titulo\": \"Persona sospechosa\",\n    \"ubicacion\": \"Parque Central\"\n  },\n  \"reportes_existentes\": [\n    {\n      \"id\": \"1\",\n      \"titulo\": \"Persona sospechosa\",\n      \"ubicacion\": \"Parque Central\"\n    },\n    {\n      \"id\": \"2\",\n      \"titulo\": \"Auto sospechoso\",\n      \"ubicacion\": \"Centro\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/ia-report-correlation",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "ia-report-correlation"
+              ]
+            },
+            "description": "Encuentra correlaciones entre reportes nuevos y existentes"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Reportes CRUD",
+      "item": [
+        {
+          "name": "Create Reporte",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Vehículo reportado\",\n  \"descripcion\": \"Auto rojo, posiblemente involucrado\",\n  \"ubicacion\": \"AV. Principal y 5ta\",\n  \"tipo_infraccion\": \"Vehículo Sospechoso\",\n  \"etiquetas\": [\"urgente\"],\n  \"usuario\": \"usuario_test\",\n  \"fecha\": \"2026-03-26T10:30:00Z\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/reportes",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "reportes"
+              ]
+            },
+            "description": "Crea un nuevo reporte"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Reporte",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Vehículo reportado - ACTUALIZAADO\",\n  \"descripcion\": \"Se confirma: auto rojo con ocupantes\",\n  \"etiquetas\": [\"urgente\", \"confirmado\"]\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/reportes/rep-1",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "rep-1"
+              ]
+            },
+            "description": "Actualiza un reporte existente (reemplaza el ID por uno real)"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Reporte",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/reportes/rep-1",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "rep-1"
+              ]
+            },
+            "description": "Elimina un reporte (reemplaza el ID por uno real)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Evidencias",
+      "item": [
+        {
+          "name": "Create Evidencia",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"imagen\": \"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==\",\n  \"descripcion\": \"Foto del vehículo\",\n  \"tipo\": \"foto\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/evidencias",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "evidencias"
+              ]
+            },
+            "description": "Crea una nueva evidencia (imagen en base64)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Evidencia",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/evidencias/ev-1",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "evidencias",
+                "ev-1"
+              ]
+            },
+            "description": "Obtiene una evidencia por ID (reemplaza el ID por uno real)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Discord Webhook",
+      "item": [
+        {
+          "name": "Send Webhook",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"🚨 ALERTA: Nuevo reporte de MostWanted\",\n  \"embeds\": [\n    {\n      \"title\": \"Vehículo Sospechoso\",\n      \"description\": \"Auto rojo sin placas visibles\",\n      \"color\": 16711680,\n      \"fields\": [\n        {\n          \"name\": \"Ubicación\",\n          \"value\": \"Calle Principal y 5ta\"\n        },\n        {\n          \"name\": \"Fecha\",\n          \"value\": \"2026-03-26 10:30\"\n        }\n      ]\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/discord-webhook",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "discord-webhook"
+              ]
+            },
+            "description": "Envía un mensaje al webhook de Discord configurado"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Get RID SOCIAL CLUB",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const data = pm.response.json();",
+              "pm.collectionVariables.set(\"rid\", data.id);",
+              "pm.execution.setNextRequest(\"Get names SOCIAL CLUB\");"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://sc-cache.com/n/{{username}}",
+          "protocol": "https",
+          "host": [
+            "sc-cache",
+            "com"
+          ],
+          "path": [
+            "n",
+            "{{username}}"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get names SOCIAL CLUB",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://sc-cache.com/r/{{rid}}",
+          "protocol": "https",
+          "host": [
+            "sc-cache",
+            "com"
+          ],
+          "path": [
+            "r",
+            "{{rid}}"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get avatars",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {\n    pm.response.to.have.status(200);\n});\n\npm.test(\"Content-Type is image/png\", function () {\n    pm.response.to.have.header(\"Content-Type\", \"image/png\");\n});\n\npm.test(\"Response time is less than 1000ms\", function () {\n    pm.expect(pm.response.responseTime).to.be.below(1000);\n});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://prod.cloud.rockstargames.com/members/sc/6266/{{rid}}/publish/gta5/mpchars/1.png",
+          "protocol": "https",
+          "host": [
+            "prod",
+            "cloud",
+            "rockstargames",
+            "com"
+          ],
+          "path": [
+            "members",
+            "sc",
+            "6266",
+            "{{rid}}",
+            "publish",
+            "gta5",
+            "mpchars",
+            "1.png"
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "BASE_URL",
+      "value": "http://localhost:3000",
+      "description": "URL base del servidor. En VPS: https://mostwanted.kaithsrebels.com"
+    },
+    {
+      "key": "rid",
+      "value": ""
+    },
+    {
+      "key": "username",
+      "value": ""
+    }
+  ]
+}

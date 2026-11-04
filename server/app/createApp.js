@@ -97,6 +97,7 @@ export function createApp({ rootDir, isProduction }) {
   const discordWebhookUrl = String(process.env.DISCORD_WEBHOOK_URL || '').trim();
 
   const distDir = path.join(rootDir, 'dist');
+  const sessionStore = new session.MemoryStore();
 
   app.set('trust proxy', 1);
   app.use('/api', cors({
@@ -104,6 +105,7 @@ export function createApp({ rootDir, isProduction }) {
     credentials: true,
   }));
   app.use(session({
+    store: sessionStore,
     name: 'mw.sid',
     secret: String(process.env.SESSION_SECRET || 'mostwanted-dev-session-secret-change-me'),
     resave: false,
@@ -116,6 +118,10 @@ export function createApp({ rootDir, isProduction }) {
     },
   }));
   app.use(express.json({ limit: '1mb' }));
+  app.use('/api', (req, res, next) => {
+    if (req.session?.authUser?.id) req.session.lastActivityAt = Date.now();
+    next();
+  });
 
   const requireNonEmptyBody = requireObjectBody({
     allowEmpty: false,
@@ -132,6 +138,7 @@ export function createApp({ rootDir, isProduction }) {
   });
 
   registerRoutes(app, {
+    sessionStore,
     rootDir,
     aiConfig,
     wordpressReportsConfig,

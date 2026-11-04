@@ -1,18 +1,20 @@
 import { useCallback, useEffect, useState } from 'react';
 import { buildApiUrl } from '../services/apiConfig.js';
-import { fetchSession, logoutSession } from '../services/sessionService.js';
+import { fetchSession, heartbeatSession, logoutSession } from '../services/sessionService.js';
 import { RETURN_PATH_STORAGE_KEY } from '../services/appNavigation.js';
 
-const EMPTY_CAPABILITIES = { manageCases: false };
+const EMPTY_CAPABILITIES = { manageCases: false, viewAccounts: false };
 
 export default function useSession({ isAuthCallback }) {
   const [user, setUser] = useState(null);
   const [capabilities, setCapabilities] = useState(EMPTY_CAPABILITIES);
   const [sessionError, setSessionError] = useState('');
+  const [activityError, setActivityError] = useState('');
   const [isAuthChecked, setIsAuthChecked] = useState(false);
   const expireSession = useCallback(() => {
     setUser(null);
     setCapabilities(EMPTY_CAPABILITIES);
+    setActivityError('');
     localStorage.removeItem('discord_user');
   }, []);
 
@@ -49,6 +51,40 @@ export default function useSession({ isAuthCallback }) {
     return () => controller.abort();
   }, [isAuthCallback, expireSession]);
 
+  useEffect(() => {
+    if (!user?.id || isAuthCallback) return;
+    const controller = new AbortController();
+    let pending = false;
+    const heartbeat = async () => {
+      if (document.visibilityState !== 'visible' || pending) return;
+      pending = true;
+      try {
+        const authenticated = await heartbeatSession({ signal: controller.signal });
+        if (controller.signal.aborted) return;
+        if (!authenticated) {
+          expireSession();
+          setSessionError('Tu sesión ha caducado. Inicia sesión de nuevo.');
+        } else {
+          setActivityError('');
+        }
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        console.error('[auth] No se pudo actualizar la actividad.', error);
+        setActivityError('No se pudo actualizar la actividad de la sesión. Se reintentará automáticamente.');
+      } finally {
+        pending = false;
+      }
+    };
+    heartbeat();
+    const interval = window.setInterval(heartbeat, 60 * 1000);
+    document.addEventListener('visibilitychange', heartbeat);
+    return () => {
+      controller.abort();
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', heartbeat);
+    };
+  }, [user?.id, isAuthCallback, expireSession]);
+
   const login = useCallback(() => {
     const currentPath = `${window.location.pathname}${window.location.search}`;
     if (currentPath !== '/') sessionStorage.setItem(RETURN_PATH_STORAGE_KEY, currentPath);
@@ -66,5 +102,5 @@ export default function useSession({ isAuthCallback }) {
       return false;
     }
   }, [expireSession]);
-  return { user, capabilities, sessionError, isAuthChecked, login, logout, expireSession };
+  return { user, capabilities, sessionError: sessionError || activityError, isAuthChecked, login, logout, expireSession };
 }
