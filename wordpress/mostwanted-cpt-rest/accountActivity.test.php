@@ -18,6 +18,14 @@ function esc_html($value) { return htmlspecialchars($value, ENT_QUOTES); }
 function esc_url($value) { return esc_html($value); }
 function get_edit_post_link($id) { return 'https://wp.test/edit/' . $id; }
 class WP_Error { function __construct(...$args) {} }
+class WP_Query {
+    public $found_posts = 72;
+    function __construct($args) {
+        if ($args['meta_key'] !== '_mw_owner_discord_id' || $args['meta_value'] !== '123') {
+            throw new RuntimeException('Counts must use verified private ownership');
+        }
+    }
+}
 class WP_REST_Response {
     public $data; public $headers = [];
     function __construct($data, $status) { $this->data = $data; }
@@ -32,10 +40,12 @@ $identity = ['id' => '123', 'username' => '<b>Name</b>', 'email' => 'private@tes
 check(mw_record_account($identity, 'login') === 1, 'Persist verified account');
 check($GLOBALS['post']['post_status'] === 'private', 'Private post status');
 check(!empty($GLOBALS['meta'][1]['_mw_last_login']), 'Persist login separately from general activity');
+check($GLOBALS['meta'][1]['_mw_login_count'] === 1, 'Count recorded logins');
 check(!isset($GLOBALS['meta'][1]['_mw_identity']['token']), 'Never store tokens');
 check($GLOBALS['meta'][1]['_mw_identity']['username'] === 'Name', 'Sanitize profile fields');
 $identity['email'] = '';
 mw_record_account($identity, 'active');
+check($GLOBALS['meta'][1]['_mw_login_count'] === 1, 'Activity must not increment logins');
 check($GLOBALS['meta'][1]['_mw_identity']['email'] === 'private@test', 'Do not erase a previously available email');
 $post = (object) ['ID' => 1, 'post_type' => 'mw_account'];
 ob_start(); mw_render_private_identity($post); $hidden = ob_get_clean();
@@ -46,6 +56,8 @@ check(str_contains($visible, 'private@test') && !str_contains($visible, 'SECRET'
 $request = new class { function get_param($key) { return 1; } };
 $accounts = mw_rest_private_accounts($request);
 check($accounts->data['items'][0]['identity']['email'] === 'private@test', 'Private lookup returns stored account fields');
+check($accounts->data['items'][0]['reportCount'] === 72, 'Exact report count is independent from the limited report links');
+check($accounts->data['items'][0]['loginCount'] === 1, 'Expose only recorded login counts');
 check($accounts->headers['Cache-Control'] === 'private, no-store', 'Private lookup is never publicly cacheable');
 $report = (object) ['ID' => 2, 'post_type' => 'mw_report'];
 $GLOBALS['meta'][2]['_mw_owner_discord_id'] = '123';

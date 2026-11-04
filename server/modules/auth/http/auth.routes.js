@@ -1,5 +1,6 @@
 ﻿import crypto from 'node:crypto';
-import { getSessionUser } from '../../../shared/auth/sessionAuth.js';
+import { getSessionUser, requireSessionAuth } from '../../../shared/auth/sessionAuth.js';
+import { canViewPrivateAccounts } from '../../../shared/auth/accountAdmin.js';
 import { publishAccountActivity } from '../../../shared/auth/privateIdentity.js';
 
 /**
@@ -172,6 +173,7 @@ export function registerAuthRoutes(app, deps) {
         premiumType: Number(me?.premium_type || 0),
         loggedAt: new Date().toISOString(),
       };
+      req.session.lastActivityAt = Date.now();
       if (wordpressReportsConfig) {
         const saved = await publishAccountActivity({ config: wordpressReportsConfig, user: req.session.authUser, event: 'login' });
         if (saved) req.session.activityRecordedAt = Date.now();
@@ -190,7 +192,7 @@ export function registerAuthRoutes(app, deps) {
     res.set('Cache-Control', 'private, no-store');
     const user = getSessionUser(req);
     if (!user) {
-      return res.status(401).json({ authenticated: false, user: null, capabilities: { manageCases: false } });
+      return res.status(401).json({ authenticated: false, user: null, capabilities: { manageCases: false, viewAccounts: false } });
     }
     if (wordpressReportsConfig && Date.now() - (req.session.activityRecordedAt || 0) > 15 * 60 * 1000) {
       const saved = await publishAccountActivity({ config: wordpressReportsConfig, user, event: 'active' });
@@ -199,15 +201,29 @@ export function registerAuthRoutes(app, deps) {
 
     try {
       const capabilities = await verifyCaseStaff(req);
-      return res.status(200).json({ authenticated: true, user, capabilities });
+      return res.status(200).json({ authenticated: true, user, capabilities: { ...capabilities, viewAccounts: canViewPrivateAccounts(user) } });
     } catch (error) {
-      return res.status(200).json({ authenticated: true, user, capabilities: { manageCases: false },
+      return res.status(200).json({ authenticated: true, user, capabilities: { manageCases: false, viewAccounts: canViewPrivateAccounts(user) },
         capabilityError: { code: error.code || 'discord_unavailable', status: error.status || 503 } });
     }
   });
 
+  app.post('/api/auth/heartbeat', requireSessionAuth, async (req, res) => {
+    res.set('Cache-Control', 'private, no-store');
+    if (wordpressReportsConfig && Date.now() - (req.session.activityRecordedAt || 0) >= 60 * 1000) {
+      const saved = await publishAccountActivity({ config: wordpressReportsConfig, user: getSessionUser(req), event: 'active' });
+      if (!saved) return res.status(502).json({ ok: false, error: 'No se pudo sincronizar la actividad de la cuenta.' });
+      req.session.activityRecordedAt = Date.now();
+    }
+    return res.status(200).json({ ok: true });
+  });
+
   app.post('/api/auth/logout', (req, res) => {
-    req.session.destroy(() => {
+    req.session.destroy((error) => {
+      if (error) {
+        console.error('[auth] No se pudo cerrar la sesion', error);
+        return res.status(500).json({ ok: false, error: 'No se pudo cerrar la sesion.' });
+      }
       res.clearCookie('mw.sid');
       return res.status(200).json({ ok: true });
     });

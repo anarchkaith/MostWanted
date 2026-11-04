@@ -53,6 +53,12 @@ export default defineConfig(({ mode }) => {
           timeout: 30000,
           proxyTimeout: 30000,
         },
+        '/api/admin': {
+          target: backendTarget,
+          changeOrigin: true,
+          timeout: 180000,
+          proxyTimeout: 180000,
+        },
         '/auth': {
           target: backendTarget,
           changeOrigin: true,

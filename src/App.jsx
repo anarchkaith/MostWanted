@@ -7,6 +7,7 @@ import TerminalText from '../components/ui/TerminalText';
 import InterfaceSounds from '../components/InterfaceSounds';
 import PersonSearch from '../components/PersonSearch';
 import ProfileScreen from '../components/screens/ProfileScreen';
+import PrivateAccountsPanel from '../components/PrivateAccountsPanel';
 import Skeleton from '../components/ui/Skeleton';
 import AppHeader from '../components/layout/AppHeader';
 import SiteFooter from '../components/layout/SiteFooter';
@@ -154,6 +155,15 @@ function App() {
   const returnPath = path === '/denunciar' ? formReturnPath.current
     : path.startsWith('/reporte/') ? detailReturnPath.current : path;
   const isProfileScreen = path === '/perfil' || (path.startsWith('/reporte/') && detailReturnPath.current === '/perfil');
+  const isAdminScreen = path === '/admin' || (path.startsWith('/reporte/') && detailReturnPath.current === '/admin');
+  const openAdminReport = nextPath => {
+    const match = /^\/reporte\/(\d+)$/.exec(nextPath);
+    if (match) {
+      detailReturnPath.current = '/admin';
+      setReporteSeleccionado(null);
+    }
+    navigate(nextPath);
+  };
   const showSearchLanding = canUseReports && isSearchLanding(path, searchPlayer);
   const personSearch = canUseReports && <PersonSearch revision={caseRevision} reports={reportes} knownPlayers={knownPlayers} onSelect={player => {
     setSearchPlayer(player);
@@ -167,12 +177,13 @@ function App() {
 
       {/* ============ HEADER ============ */}
       <AppHeader
-        search={!showSearchLanding && personSearch}
-        actions={<SessionActions user={user} isDemo={isDemo} canUseReports={canUseReports} isProfileScreen={isProfileScreen} onNavigate={navigate} onLogin={handleLogin} onHelp={() => setShowHelp(true)} />}
+        search={!showSearchLanding && !isAdminScreen && personSearch}
+        actions={<SessionActions user={user} canViewAccounts={capabilities.viewAccounts} isAdminScreen={isAdminScreen} isDemo={isDemo} canUseReports={canUseReports} isProfileScreen={isProfileScreen} onNavigate={navigate} onLogin={handleLogin} onHelp={() => setShowHelp(true)} />}
       />
       {/* Modal de ayuda */}
       <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />
       {sessionError && <p className="rfm-submit-error" role="alert">{sessionError}</p>}
+      {isAdminScreen && user && capabilities.viewAccounts && reportId && !reporteSeleccionado && <p className="rfm-submit-error" role="alert">Este reporte no está disponible en el archivo público. Puede estar sin publicar o haberse retirado. <a href="/admin" onClick={event => { event.preventDefault(); navigate('/admin'); }}>Volver al panel</a></p>}
 
       {showSearchLanding ? (
         <main className="search-landing" aria-labelledby="search-landing-title">
@@ -185,7 +196,7 @@ function App() {
         </main>
       ) : canUseReports ? (
       <>
-      {isProfileScreen ? user ? <ProfileScreen key={user.id} user={user} onNavigate={navigate} onLogout={handleLogout} onOpenReport={handleCardClick} mapReport={mapWordpressReportToReporte} revision={caseRevision} /> : <main className="desk-empty"><h2>Mi perfil</h2><p>Inicia sesión para consultar tu cuenta y tus reportes.</p><button type="button" className="cyber-button-small mw-cyber-button" onClick={handleLogin}>Iniciar sesión con Discord</button></main> : path === '/denunciar' ? hasReportPlayerName ? <ReportScreen onSubmit={handleNewReport} currentUser={user} isDemo={isDemo} initialPlayer={reportPlayer} onReturnToCase={() => navigate(formReturnPath.current)} /> : <main className="desk-empty"><p>Primero busca y selecciona un jugador para registrar un reporte.</p></main> : <InvestigationDesk key={deskReset} initialPlayer={searchPlayer} onPlayerResolved={rememberPlayer} reportsError={reportsError} path={path} onNavigate={navigate} onOpenReport={handleCardClick} onStartReport={startReport} mapReport={mapWordpressReportToReporte} canManageCases={isAuthChecked && Boolean(user) && capabilities.manageCases} revision={caseRevision} />}
+      {isAdminScreen ? user && capabilities.viewAccounts ? <PrivateAccountsPanel key={user.id} onNavigate={openAdminReport} /> : <main className="desk-empty"><h2>Acceso restringido</h2><p>Solo el administrador autorizado puede consultar este panel.</p></main> : isProfileScreen ? user ? <ProfileScreen key={user.id} user={user} canViewAccounts={capabilities.viewAccounts} onNavigate={navigate} onLogout={handleLogout} onOpenReport={handleCardClick} mapReport={mapWordpressReportToReporte} revision={caseRevision} /> : <main className="desk-empty"><h2>Mi perfil</h2><p>Inicia sesión para consultar tu cuenta y tus reportes.</p><button type="button" className="cyber-button-small mw-cyber-button" onClick={handleLogin}>Iniciar sesión con Discord</button></main> : path === '/denunciar' ? hasReportPlayerName ? <ReportScreen onSubmit={handleNewReport} currentUser={user} isDemo={isDemo} initialPlayer={reportPlayer} onReturnToCase={() => navigate(formReturnPath.current)} /> : <main className="desk-empty"><p>Primero busca y selecciona un jugador para registrar un reporte.</p></main> : <InvestigationDesk key={deskReset} initialPlayer={searchPlayer} onPlayerResolved={rememberPlayer} reportsError={reportsError} path={path} onNavigate={navigate} onOpenReport={handleCardClick} onStartReport={startReport} mapReport={mapWordpressReportToReporte} canManageCases={isAuthChecked && Boolean(user) && capabilities.manageCases} revision={caseRevision} />}
       </>
       ) : (
         <AccessScreen onLogin={handleLogin} />

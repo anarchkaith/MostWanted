@@ -1,70 +1,163 @@
 import { useEffect, useState } from 'react';
 import { buildApiUrl } from '../src/services/apiConfig';
 import { readApiResponse } from '../src/services/jsonResponse';
+import { validateAccountDashboard } from '../src/services/accountDashboard';
 import { formatCaseDate } from '../src/services/casePresentation';
+import { handleInternalLink } from '../src/services/appNavigation';
 import DiscordAvatar from './ui/DiscordAvatar';
 import Button from './ui/Button';
 import Skeleton from './ui/Skeleton';
+import '../styles/AdminDashboard.css';
+
+const INITIAL_FILTERS = { search: '', status: 'all', minReports: '', maxReports: '', sort: 'lastAccess' };
+const displayDate = value => value ? formatCaseDate(value, true) : 'Sin registro';
 
 export default function PrivateAccountsPanel({ onNavigate }) {
   const [page, setPage] = useState(1);
+  const [draft, setDraft] = useState(INITIAL_FILTERS);
+  const [filters, setFilters] = useState(INITIAL_FILTERS);
   const [revision, setRevision] = useState(0);
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => { setData(null); }, [page, filters]);
+
   useEffect(() => {
     const controller = new AbortController();
-    setLoading(true);
-    setError('');
-    setData(null);
+    let pending = false;
     async function load() {
+      if (pending) return;
+      pending = true;
+      setLoading(true);
+      setError('');
       try {
-        const response = await fetch(`${buildApiUrl('/admin/accounts')}?page=${page}`, {
+        const params = new URLSearchParams({ page: String(page) });
+        Object.entries(filters).forEach(([key, value]) => { if (value !== '') params.set(key, value); });
+        const response = await fetch(`${buildApiUrl('/admin/accounts')}?${params}`, {
           credentials: 'include', cache: 'no-store', signal: controller.signal,
         });
-        const payload = await readApiResponse(response, 'No se pudieron consultar las cuentas privadas.');
-        if (payload.ok !== true || !Array.isArray(payload.items) || typeof payload.hasMore !== 'boolean'
-            || payload.items.some(item => !item?.identity?.id || !Array.isArray(item.reportIds))) {
-          throw new Error('Formato de cuentas privadas inválido.');
-        }
+        if (!controller.signal.aborted && (response.status === 401 || response.status === 403)) setData(null);
+        const payload = validateAccountDashboard(await readApiResponse(response, 'No se pudo consultar el panel privado.'));
         if (!controller.signal.aborted) setData(payload);
       } catch (cause) {
         if (!controller.signal.aborted) setError(cause.message);
       } finally {
+        pending = false;
         if (!controller.signal.aborted) setLoading(false);
       }
     }
+    const refreshVisible = () => { if (document.visibilityState === 'visible') load(); };
     load();
-    return () => controller.abort();
-  }, [page, revision]);
-  return <section className="case-reports" aria-busy={loading}>
-    <h2>Administración privada / Usuarios MostWanted</h2>
-    <p className="case-muted">Identidades actuales verificadas de Discord. La actividad no representa cada clic. Los datos históricos ausentes no se reconstruyen.</p>
-    {loading && <Skeleton label="Cargando cuentas privadas…" rows={4} />}
-    {error && <div role="alert" className="rfm-submit-error"><p>{error}</p><Button onClick={() => setRevision(value => value + 1)}>Reintentar</Button></div>}
-    {data && <>
-      <ul className="profile-reports">{data.items.map(item => <li key={item.identity.id}>
-        <div className="profile-identity"><DiscordAvatar user={item.identity} /><div>
-          <h3>{item.identity.globalName || item.identity.username || item.identity.id}</h3>
-          {item.identity.username && <p>@{item.identity.username}</p>}
-        </div></div>
-        <dl>
-          <dt>ID de Discord</dt><dd>{item.identity.id}</dd>
-          {item.identity.email && <><dt>Correo</dt><dd>{item.identity.email}</dd></>}
-          {[[item.firstAccess, 'Primer acceso registrado'], [item.lastLogin, 'Último login'], [item.lastAccess, 'Última actividad']].map(([value, label]) =>
-            value ? <div key={label}><dt>{label}</dt><dd>{formatCaseDate(value, true)}</dd></div> : null)}
-          {item.lastEvent && <><dt>Último evento</dt><dd>{item.lastEvent}</dd></>}
-        </dl>
-        <h4>Reportes vinculados (hasta 50)</h4>
-        <div className="profile-report-actions">{item.reportIds.map(id =>
-          <Button key={id} variant="secondary" onClick={() => onNavigate(`/reporte/${id}`)}>Reporte #{id}</Button>)}</div>
-      </li>)}</ul>
-      {!data.items.length && <p>No hay cuentas registradas en esta página. Se necesita el backend y plugin actualizados, y un nuevo acceso autenticado.</p>}
-      {(page > 1 || data.hasMore) && <nav className="case-pagination" aria-label="Páginas de cuentas privadas">
-        <Button disabled={page === 1} onClick={() => setPage(value => value - 1)}>Anterior</Button>
-        <span>Página {page}</span>
-        <Button disabled={!data.hasMore} onClick={() => setPage(value => value + 1)}>Siguiente</Button>
-      </nav>}
-    </>}
-  </section>;
+    const interval = window.setInterval(refreshVisible, 60 * 1000);
+    document.addEventListener('visibilitychange', refreshVisible);
+    return () => {
+      controller.abort();
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', refreshVisible);
+    };
+  }, [page, filters, revision]);
+
+  const field = key => ({ value: draft[key], onChange: event => setDraft(current => ({ ...current, [key]: event.target.value })) });
+  const applyFilters = event => {
+    event.preventDefault();
+    setPage(1);
+    setFilters({ ...draft });
+  };
+  const clearFilters = () => {
+    setDraft(INITIAL_FILTERS);
+    setFilters(INITIAL_FILTERS);
+    setPage(1);
+  };
+
+  return <main className="admin-dashboard" aria-labelledby="admin-title">
+    <header className="admin-heading">
+      <div>
+        <p className="workspace-eyebrow">H.E.X. / Control de plataforma / Acceso restringido</p>
+        <h1 id="admin-title">Centro de <span>administración</span></h1>
+        <p>Usuarios, presencia y contribuciones. Datos privados de cuentas verificadas.</p>
+      </div>
+      <Button variant="secondary" disabled={loading} onClick={() => setRevision(value => value + 1)}>Actualizar datos</Button>
+    </header>
+    <p className="admin-sync" role="status">{loading ? 'Consultando registros…' : data ? `Última consulta: ${displayDate(data.generatedAt)} · Actualización cada 60 s con esta pestaña visible` : 'Sin datos disponibles'}</p>
+    {error && <div role="alert" className="rfm-submit-error"><p>{error}</p>
+      {data && <p>Los datos mostrados corresponden a la última consulta correcta; pueden estar desactualizados.</p>}
+      <Button onClick={() => setRevision(value => value + 1)}>Reintentar</Button>
+    </div>}
+    {loading && !data && <Skeleton label="Cargando estadísticas y usuarios…" rows={6} />}
+    {data && <section className="admin-metrics" aria-label="Estadísticas globales, sin filtros">
+      {[
+        ['01', 'Usuarios registrados', data.summary.users, 'Identidades sincronizadas'],
+        ['02', 'Actividad reciente', data.summary.recentlyActive, 'Usuarios · últimos 5 minutos'],
+        ['03', 'Con sesión vigente', data.summary.usersWithSession, `Sesiones abiertas: ${data.summary.sessions}`],
+        ['04', 'Reportes vinculados', data.summary.reports, 'Total exacto · sin límite de 50'],
+      ].map(([index, label, value, note]) => <article className="admin-metric" key={index}>
+        <span className="admin-metric__index">{index} /</span><h2>{label}</h2><strong>{value.toLocaleString('es')}</strong><p>{note}</p>
+      </article>)}
+    </section>}
+    <aside className="admin-notice">
+      <strong>Sesión vigente ≠ persona conectada.</strong> Actividad reciente significa una petición autenticada o una pestaña visible en los últimos 5 minutos.
+      Las sesiones caducadas o cerradas no cuentan. Los reportes históricos sin propietario no se atribuyen por nombre.
+      {data?.summary.unsyncedUsers > 0 && <p role="alert">Hay {data.summary.unsyncedUsers} usuarios con sesión cuya ficha privada no se ha sincronizado. Se incluyen en los indicadores de presencia, pero aún no en el listado.</p>}
+    </aside>
+    <section className="admin-directory" aria-labelledby="admin-users-title" aria-busy={loading}>
+      <header className="admin-directory__heading"><h2 id="admin-users-title">Registro de usuarios</h2><span>{data ? `Coincidencias: ${data.total}` : 'Consulta privada'}</span></header>
+      <form className="admin-filters" onSubmit={applyFilters}>
+        <label className="admin-filters__search">Buscar usuario
+          <input type="search" maxLength={200} placeholder="Nombre, usuario, correo o ID de Discord" {...field('search')} />
+        </label>
+        <label>Presencia<select {...field('status')}>
+          <option value="all">Todos los usuarios</option><option value="recent">Actividad reciente</option>
+          <option value="session">Con sesión vigente</option><option value="offline">Sin sesión vigente</option>
+        </select></label>
+        <label>Reportes desde<input type="number" min="0" step="1" placeholder="0" {...field('minReports')} /></label>
+        <label>Reportes hasta<input type="number" min={draft.minReports || '0'} step="1" placeholder="Sin límite" {...field('maxReports')} /></label>
+        <label>Ordenar<select {...field('sort')}>
+          <option value="lastAccess">Última actividad</option><option value="reports">Más reportes</option>
+          <option value="name">Nombre A–Z</option><option value="firstAccess">Registro más reciente</option>
+        </select></label>
+        <div className="admin-filters__actions"><Button type="submit" disabled={loading}>Aplicar filtros</Button><Button variant="secondary" onClick={clearFilters}>Limpiar</Button></div>
+      </form>
+      {data && <>
+        <div className="admin-table-scroll" tabIndex={0} role="region" aria-label="Tabla de usuarios, desplazable horizontalmente">
+          <table className="admin-table">
+            <thead><tr><th scope="col">Identidad verificada</th><th scope="col">Presencia</th><th scope="col">Reportes</th><th scope="col">Último acceso registrado</th><th scope="col">Detalle privado</th></tr></thead>
+            <tbody>{data.items.map(item => <tr key={item.identity.id}>
+              <td><div className="admin-user"><DiscordAvatar user={item.identity} /><div>
+                <strong className="notranslate" translate="no">{item.identity.globalName || item.identity.username || item.identity.id}</strong>
+                <small className="notranslate" translate="no">@{item.identity.username || 'Sin usuario'}</small><small>{item.identity.id}</small>
+              </div></div></td>
+              <td><span className={`admin-presence${item.recentlyActive ? ' admin-presence--recent' : ''}`}>
+                {item.recentlyActive ? 'Actividad reciente' : item.sessionCount ? 'Sesión vigente' : 'Sin sesión'}</span>
+                <small>Sesiones vigentes: {item.sessionCount}</small></td>
+              <td><strong className="admin-report-count">{item.reportCount.toLocaleString('es')}</strong></td>
+              <td>{displayDate(item.lastAccess)}<small>Último login: {displayDate(item.lastLogin)}</small></td>
+              <td><details className="admin-user-detail"><summary>Ver ficha privada</summary>
+                <dl>
+                  <dt>Correo de Discord</dt><dd>{item.identity.email || 'Discord no lo proporcionó'}</dd>
+                  <dt>Primer acceso registrado</dt><dd>{displayDate(item.firstAccess)}</dd>
+                  <dt>Último evento</dt><dd>{{ login: 'Inicio de sesión', active: 'Actividad', report: 'Envío de reporte' }[item.lastEvent] || item.lastEvent || 'Sin registro'}</dd>
+                  <dt>Inicios de sesión contabilizados desde actualización 0.6.15</dt><dd>{item.loginCount}</dd>
+                </dl>
+                {item.sessions.length > 0 && <><h3>Sesiones vigentes</h3><ul>{item.sessions.map((session, index) => <li key={index}>
+                  Inicio: {displayDate(session.loggedAt)}<br />Actividad: {displayDate(session.lastActivity)}<br />Caduca: {displayDate(session.expiresAt)}
+                </li>)}</ul></>}
+                <h3>Reportes vinculados ({item.reportCount})</h3>
+                {item.reportCount > item.reportIds.length && <p>Se enlazan hasta 50 reportes recientes. El contador y los filtros incluyen todos.</p>}
+                {item.reportIds.length ? <div className="admin-report-links">{item.reportIds.map(id =>
+                  <a key={id} href={`/reporte/${id}`} onClick={event => handleInternalLink(event, onNavigate, `/reporte/${id}`)}>#{id}</a>)}</div> : <p>Sin reportes vinculados.</p>}
+              </details></td>
+            </tr>)}</tbody>
+          </table>
+        </div>
+        {!data.items.length && <div className="desk-empty"><h3>No hay usuarios para esta consulta</h3><p>Prueba otros filtros. Solo aparecen cuentas sincronizadas con el backend actualizado.</p></div>}
+        <nav className="case-pagination" aria-label="Páginas de usuarios">
+          <Button variant="secondary" disabled={page === 1 || loading} onClick={() => setPage(value => value - 1)}>Anterior</Button>
+          <span>Página {page} de {Math.max(page, Math.ceil(data.total / 20))}</span>
+          <Button variant="secondary" disabled={!data.hasMore || loading} onClick={() => setPage(value => value + 1)}>Siguiente</Button>
+        </nav>
+      </>}
+    </section>
+    <p className="admin-privacy">Información privada de administración. No se muestran tokens, cookies, contraseñas ni identificadores de sesión. El historial anterior al registro no puede reconstruirse.</p>
+  </main>;
 }

@@ -9,7 +9,7 @@ export function readAppRoute(path) {
   const report = /^\/reporte\/(\d+)$/.exec(path);
   return {
     isAuthCallback: path === '/auth-callback',
-    isValidPath: path === '/' || path === '/denunciar' || path === '/perfil'
+    isValidPath: path === '/' || path === '/denunciar' || path === '/perfil' || path === '/admin'
       || /^\/(usuario\/.+|expediente\/\d+|reporte\/\d+|jugador\/[^/]+)$/.test(path),
     expedienteId: expediente ? Number(expediente[1]) : null,
     reportId: report ? Number(report[1]) : null,

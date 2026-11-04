@@ -3,10 +3,14 @@ import { registerAuthRoutes } from './auth.routes.js';
 import { StaffAuthError } from '../../../shared/auth/discordStaff.js';
 
 const handlers = new Map();
+let heartbeatGuard;
 let roleError = null;
 registerAuthRoutes({
   get(path, handler) { handlers.set(path, handler); },
-  post(path, handler) { handlers.set(path, handler); },
+  post(path, ...routeHandlers) {
+    handlers.set(path, routeHandlers.at(-1));
+    if (path === '/api/auth/heartbeat') heartbeatGuard = routeHandlers[0];
+  },
 }, {
   discordAuth: { clientId: 'client', clientSecret: 'secret', callbackUrl: 'http://localhost/callback',
     apiUrl: 'https://discord.test', oauthScopes: 'identify email guilds.members.read' },
@@ -22,12 +26,13 @@ function response() {
     status(code) { this.statusCode = code; return this; },
     json(payload) { this.payload = payload; return this; },
     redirect(url) { this.redirectUrl = url; return this; },
+    clearCookie(name) { this.clearedCookie = name; return this; },
   };
 }
 const req = { session: { authUser: { id: 'user', username: 'User' }, discordToken: { accessToken: 'PRIVATE_TOKEN' } } };
 let res = response();
 await handlers.get('/api/auth/me')(req, res);
-assert.deepEqual(res.payload.capabilities, { manageCases: true });
+assert.deepEqual(res.payload.capabilities, { manageCases: true, viewAccounts: false });
 assert.equal(JSON.stringify(res.payload).includes('PRIVATE_TOKEN'), false);
 assert.equal(res.headers['Cache-Control'], 'private, no-store');
 for (const [status, code] of [[403, 'staff_role_required'], [503, 'discord_unavailable'], [401, 'discord_session_expired']]) {
@@ -35,13 +40,31 @@ for (const [status, code] of [[403, 'staff_role_required'], [503, 'discord_unava
   res = response();
   await handlers.get('/api/auth/me')(req, res);
   assert.equal(res.statusCode, 200, 'staff failure must not silently log out a regular application user');
-  assert.deepEqual(res.payload.capabilities, { manageCases: false });
+  assert.deepEqual(res.payload.capabilities, { manageCases: false, viewAccounts: false });
   assert.deepEqual(res.payload.capabilityError, { status, code });
 }
 res = response();
 await handlers.get('/api/auth/me')({}, res);
 assert.equal(res.statusCode, 401);
 assert.equal(res.payload.capabilities.manageCases, false);
+res = response();
+await handlers.get('/api/auth/me')({ session: { authUser: { id: '343976455400718339' } } }, res);
+assert.equal(res.payload.capabilities.viewAccounts, true, 'Account admin permission does not depend on Discord staff availability');
+res = response();
+heartbeatGuard({}, res, () => assert.fail('Anonymous heartbeat must not proceed'));
+assert.equal(res.statusCode, 401);
+res = response();
+await handlers.get('/api/auth/heartbeat')(req, res);
+assert.equal(res.statusCode, 200);
+assert.equal(res.payload.ok, true);
+res = response();
+handlers.get('/api/auth/logout')({ session: { destroy(callback) { callback(new Error('store_failed')); } } }, res);
+assert.equal(res.statusCode, 500, 'Logout storage failures must not look successful');
+assert.equal(res.clearedCookie, undefined);
+res = response();
+handlers.get('/api/auth/logout')({ session: { destroy(callback) { callback(); } } }, res);
+assert.equal(res.statusCode, 200);
+assert.equal(res.clearedCookie, 'mw.sid');
 
 const oauthReq = { session: {} };
 res = response();

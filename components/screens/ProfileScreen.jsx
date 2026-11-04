@@ -3,11 +3,10 @@ import { formatCaseDate } from '../../src/services/casePresentation';
 import DiscordAvatar from '../ui/DiscordAvatar';
 import Skeleton from '../ui/Skeleton';
 import Button from '../ui/Button';
-import PrivateAccountsPanel from '../PrivateAccountsPanel';
 import SpecialText from '../ui/SpecialText';
 import SpecialTextContent from '../ui/SpecialTextContent';
 
-export default function ProfileScreen({ user, onNavigate, onLogout, onOpenReport, mapReport, revision }) {
+export default function ProfileScreen({ user, canViewAccounts, onNavigate, onLogout, onOpenReport, mapReport, revision }) {
   const { page, setPage, data, loading, error, retry } = useOwnedReports({ userId: user.id, revision });
 
   return (
@@ -23,8 +22,8 @@ export default function ProfileScreen({ user, onNavigate, onLogout, onOpenReport
       </header>
       <nav className="profile-actions" aria-label="Acciones de mi cuenta">
         <Button variant="secondary" onClick={onLogout}>Cerrar sesión</Button>
+        {canViewAccounts && <Button variant="secondary" onClick={() => onNavigate('/admin')}>Panel de administración</Button>}
       </nav>
-      {user.id === '343976455400718339' && <PrivateAccountsPanel onNavigate={onNavigate} />}
       <section className="case-reports" aria-labelledby="my-reports-title" aria-busy={loading}>
         <header className="case-reports__header"><h2 id="my-reports-title"><SpecialText>Mis reportes</SpecialText></h2></header>
         <p className="case-muted profile-report-note">Solo tú puedes consultar esta lista. Los reportes anteriores sin una vinculación privada con tu cuenta no aparecen aquí; no se asignan por nombre de usuario.</p>
