@@ -2,7 +2,7 @@
 /**
  * Plugin Name: MostWanted CPT + REST
  * Description: CPT de jugadores/reportes y API REST para ingesta y consulta desde MostWanted.
- * Version: 0.6.15
+ * Version: 0.6.16
  * Author: KaithHacks
  */
 
@@ -16,6 +16,7 @@ const MW_SECRET_OPTION_KEY = 'mostwanted_api_secret';
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'report-admin.php';
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'player-summary.php';
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'account-activity.php';
+require_once __DIR__ . DIRECTORY_SEPARATOR . 'search.php';
 
 function mw_register_post_types() {
     register_post_type('mw_player', [
@@ -1549,6 +1550,11 @@ function mw_register_rest_routes() {
     register_rest_route(MW_NAMESPACE, '/reports/owned', [
         'methods' => 'GET',
         'callback' => 'mw_rest_owned_reports',
+        'permission_callback' => 'mw_can_ingest_reports',
+    ]);
+    register_rest_route(MW_NAMESPACE, '/search', [
+        'methods' => WP_REST_Server::READABLE,
+        'callback' => 'mw_rest_search',
         'permission_callback' => 'mw_can_ingest_reports',
     ]);
     register_rest_route(MW_NAMESPACE, '/health', [
