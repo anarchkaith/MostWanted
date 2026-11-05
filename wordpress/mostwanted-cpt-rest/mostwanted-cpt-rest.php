@@ -1420,34 +1420,50 @@ function mw_rest_reports_list($request) {
     $query_args = [
         'post_type' => 'mw_report',
         'post_status' => 'publish',
-        'numberposts' => $per_page,
-        'offset' => $offset,
+        'numberposts' => $per_page + 100,
+        'offset' => 0,
         'orderby' => 'date',
         'order' => 'DESC',
         'fields' => 'ids',
     ];
 
-    if ($rid !== '') {
-        $query_args['meta_key'] = '_mw_rid';
-        $query_args['meta_value'] = $rid;
-    } elseif ($nickname !== '') {
-        $query_args['meta_key'] = '_mw_nickname';
-        $query_args['meta_value'] = $nickname;
-    }
+    $all_posts = get_posts($query_args);
+    $filtered_posts = [];
 
-    $posts = get_posts($query_args);
-
-    $items = [];
-    foreach ($posts as $post_id) {
+    foreach ($all_posts as $post_id) {
         $item = mw_map_report_item(intval($post_id));
-        $items[] = $item;
+        $match = false;
+
+        if ($rid !== '') {
+            $item_rid = mw_str($item['rid'] ?? '');
+            if ($item_rid === $rid) {
+                $match = true;
+            }
+        } elseif ($nickname !== '') {
+            $item_nickname = mw_str($item['nickname'] ?? '');
+            if (mw_search_normalize($item_nickname) === mw_search_normalize($nickname)) {
+                $match = true;
+            }
+        } else {
+            $match = true;
+        }
+
+        if ($match) {
+            $filtered_posts[] = $item;
+        }
+
+        if (count($filtered_posts) >= $per_page) {
+            break;
+        }
     }
+
+    $filtered_posts = array_slice($filtered_posts, $offset, $per_page);
 
     return new WP_REST_Response([
         'ok' => true,
         'page' => $page,
         'perPage' => $per_page,
-        'items' => $items,
+        'items' => $filtered_posts,
     ], 200);
 }
 
