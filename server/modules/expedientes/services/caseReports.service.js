@@ -21,11 +21,29 @@ export function publicReport(raw) {
     const date = new Date(Number(raw.time) * (Number(raw.time) < 1e12 ? 1000 : 1));
     createdAt = Number.isNaN(date.getTime()) ? null : date.toISOString();
   }
+  
+  // Fallback: parse nickname and rid from title if not provided
+  let nickname = text(raw.nickname || raw.usuario || raw.username);
+  let rid = resolvePlayerRid(raw);
+  
+  if (!nickname || !rid) {
+    const title = text(raw.title);
+    if (title) {
+      const ridMatch = title.match(/\[RID\s+(\d+)\]/i);
+      if (ridMatch && !rid) {
+        rid = ridMatch[1];
+      }
+      if (!nickname) {
+        nickname = title.replace(/\s*\[RID\s+\d+\]\s*$/i, '');
+      }
+    }
+  }
+  
   return {
     id: raw.id,
     title: text(raw.title),
-    nickname: text(raw.nickname || raw.usuario || raw.username),
-    rid: resolvePlayerRid(raw) || null,
+    nickname,
+    rid: rid || null,
     categories: strings(raw.categories || raw.typesOfInfraction || raw.categoria),
     typesOfInfraction: strings(raw.typesOfInfraction || raw.categories || raw.categoria),
     labels: list(raw.labels || raw.etiquetas).map((item) => typeof item === 'object'
