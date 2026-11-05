@@ -850,6 +850,20 @@ function mw_community_verification_public($community_data, $voter_id = '') {
     ];
 }
 
+function mw_parse_report_title($title) {
+    $title = mw_str($title);
+    if ($title === '') return ['nickname' => '', 'rid' => ''];
+    
+    $rid_match = null;
+    if (preg_match('/\[RID\s+(\d+)\]/i', $title, $matches)) {
+        $rid_match = $matches[1];
+    }
+    
+    $nickname = preg_replace('/\s*\[RID\s+\d+\]\s*$/i', '', $title);
+    
+    return ['nickname' => mw_str($nickname), 'rid' => $rid_match ? mw_str($rid_match) : ''];
+}
+
 function mw_map_report_item($report_post_id) {
     $payload = get_post_meta($report_post_id, '_mw_report_payload', true);
     $safe_payload = is_array($payload) ? $payload : [];
@@ -857,6 +871,13 @@ function mw_map_report_item($report_post_id) {
     $nickname = mw_str($safe_payload['nickname'] ?? get_post_meta($report_post_id, '_mw_nickname', true));
     $rid = mw_resolve_player_rid($safe_payload, get_post_meta($report_post_id, '_mw_rid', true));
     $rid = $rid !== null ? strval($rid) : '';
+    
+    // Fallback: extract from post_title if nickname/rid are empty
+    if ($nickname === '' || $rid === '') {
+        $title_data = mw_parse_report_title(get_the_title($report_post_id));
+        if ($nickname === '') $nickname = $title_data['nickname'];
+        if ($rid === '') $rid = $title_data['rid'];
+    }
     $reason = mw_str($safe_payload['reason'] ?? get_post_meta($report_post_id, '_mw_reason', true));
     $types = is_array($safe_payload['typesOfInfraction'] ?? null)
         ? $safe_payload['typesOfInfraction']
