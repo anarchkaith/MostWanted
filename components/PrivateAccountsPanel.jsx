@@ -7,6 +7,7 @@ import { handleInternalLink } from '../src/services/appNavigation';
 import DiscordAvatar from './ui/DiscordAvatar';
 import Button from './ui/Button';
 import Skeleton from './ui/Skeleton';
+import Modal from './ui/Modal';
 import '../styles/AdminDashboard.css';
 
 const INITIAL_FILTERS = { search: '', status: 'all', minReports: '', maxReports: '', sort: 'lastAccess' };
@@ -20,8 +21,10 @@ export default function PrivateAccountsPanel({ onNavigate }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [selectedId, setSelectedId] = useState(null);
+  const selectedAccount = data?.items.find(item => item.identity.id === selectedId);
 
-  useEffect(() => { setData(null); }, [page, filters]);
+  useEffect(() => { setData(null); setSelectedId(null); }, [page, filters]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -132,21 +135,9 @@ export default function PrivateAccountsPanel({ onNavigate }) {
                 <small>Sesiones vigentes: {item.sessionCount}</small></td>
               <td><strong className="admin-report-count">{item.reportCount.toLocaleString('es')}</strong></td>
               <td>{displayDate(item.lastAccess)}<small>Último login: {displayDate(item.lastLogin)}</small></td>
-              <td><details className="admin-user-detail"><summary>Ver ficha privada</summary>
-                <dl>
-                  <dt>Correo de Discord</dt><dd>{item.identity.email || 'Discord no lo proporcionó'}</dd>
-                  <dt>Primer acceso registrado</dt><dd>{displayDate(item.firstAccess)}</dd>
-                  <dt>Último evento</dt><dd>{{ login: 'Inicio de sesión', active: 'Actividad', report: 'Envío de reporte' }[item.lastEvent] || item.lastEvent || 'Sin registro'}</dd>
-                  <dt>Inicios de sesión contabilizados desde actualización 0.6.15</dt><dd>{item.loginCount}</dd>
-                </dl>
-                {item.sessions.length > 0 && <><h3>Sesiones vigentes</h3><ul>{item.sessions.map((session, index) => <li key={index}>
-                  Inicio: {displayDate(session.loggedAt)}<br />Actividad: {displayDate(session.lastActivity)}<br />Caduca: {displayDate(session.expiresAt)}
-                </li>)}</ul></>}
-                <h3>Reportes vinculados ({item.reportCount})</h3>
-                {item.reportCount > item.reportIds.length && <p>Se enlazan hasta 50 reportes recientes. El contador y los filtros incluyen todos.</p>}
-                {item.reportIds.length ? <div className="admin-report-links">{item.reportIds.map(id =>
-                  <a key={id} href={`/reporte/${id}`} onClick={event => handleInternalLink(event, onNavigate, `/reporte/${id}`)}>#{id}</a>)}</div> : <p>Sin reportes vinculados.</p>}
-              </details></td>
+              <td><Button variant="secondary" aria-haspopup="dialog"
+                aria-label={`Ver ficha privada de ${item.identity.globalName || item.identity.username || item.identity.id}`}
+                onClick={() => setSelectedId(item.identity.id)}>Ver ficha privada</Button></td>
             </tr>)}</tbody>
           </table>
         </div>
@@ -158,6 +149,37 @@ export default function PrivateAccountsPanel({ onNavigate }) {
         </nav>
       </>}
     </section>
+    {selectedAccount && <Modal title="Ficha privada de usuario" maxWidth="800px" onClose={() => setSelectedId(null)}
+      dialogProps={{ className: 'modal admin-account-modal' }}>
+      <div className="admin-user">
+        <DiscordAvatar user={selectedAccount.identity} />
+        <div><strong className="notranslate" translate="no">{selectedAccount.identity.globalName || selectedAccount.identity.username || selectedAccount.identity.id}</strong>
+          <span className="notranslate" translate="no">@{selectedAccount.identity.username || 'Sin usuario'}</span></div>
+      </div>
+      {error && <p role="alert" className="rfm-submit-error">No se pudo actualizar la consulta. Esta ficha puede estar desactualizada.</p>}
+      <dl className="admin-account-fields">
+        <div><dt>ID de Discord</dt><dd>{selectedAccount.identity.id}</dd></div>
+        <div><dt>Correo de Discord</dt><dd>{selectedAccount.identity.email || 'Discord no lo proporcionó'}</dd></div>
+        <div><dt>Primer acceso registrado</dt><dd>{displayDate(selectedAccount.firstAccess)}</dd></div>
+        <div><dt>Última actividad registrada</dt><dd>{displayDate(selectedAccount.lastAccess)}</dd></div>
+        <div><dt>Último inicio de sesión</dt><dd>{displayDate(selectedAccount.lastLogin)}</dd></div>
+        <div><dt>Último evento</dt><dd>{{ login: 'Inicio de sesión', active: 'Actividad', report: 'Envío de reporte' }[selectedAccount.lastEvent] || selectedAccount.lastEvent || 'Sin registro'}</dd></div>
+        <div><dt>Presencia</dt><dd>{selectedAccount.recentlyActive ? 'Actividad reciente' : selectedAccount.sessionCount ? 'Sesión vigente' : 'Sin sesión'}</dd></div>
+        <div><dt>Inicios contabilizados desde 0.6.15</dt><dd>{selectedAccount.loginCount}</dd></div>
+      </dl>
+      <h3>Sesiones vigentes ({selectedAccount.sessionCount})</h3>
+      {selectedAccount.sessions.length ? <ul className="admin-account-sessions">{selectedAccount.sessions.map((session, index) => <li key={index}>
+        <strong>Sesión {index + 1}</strong>
+        <dl><div><dt>Inicio</dt><dd>{displayDate(session.loggedAt)}</dd></div>
+          <div><dt>Actividad</dt><dd>{displayDate(session.lastActivity)}</dd></div>
+          <div><dt>Caduca</dt><dd>{displayDate(session.expiresAt)}</dd></div></dl>
+      </li>)}</ul> : <p>Sin sesiones vigentes.</p>}
+      <h3>Reportes vinculados ({selectedAccount.reportCount})</h3>
+      {selectedAccount.reportCount > selectedAccount.reportIds.length && <p>Se enlazan hasta 50 reportes recientes. El contador y los filtros incluyen todos.</p>}
+      {selectedAccount.reportIds.length ? <div className="admin-report-links">{selectedAccount.reportIds.map(id =>
+        <a key={id} href={`/reporte/${id}`} onClick={event => handleInternalLink(event, onNavigate, `/reporte/${id}`)}>#{id}</a>)}</div> : <p>Sin reportes vinculados.</p>}
+      <p className="admin-privacy">Información privada. Sesión vigente no significa persona conectada.</p>
+    </Modal>}
     <p className="admin-privacy">Información privada de administración. No se muestran tokens, cookies, contraseñas ni identificadores de sesión. El historial anterior al registro no puede reconstruirse.</p>
   </main>;
 }

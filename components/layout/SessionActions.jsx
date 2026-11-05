@@ -8,7 +8,7 @@ export default function SessionActions({ user, canViewAccounts, isAdminScreen, i
       <DiscordAvatar user={user} />
       <span><strong className="notranslate" translate="no">{user.globalName || user.username}</strong><small>Mi perfil</small></span>
     </a> : isDemo ? <Button variant="secondary" onClick={onLogin}>Iniciar sesión con Discord</Button> : null}
-    {user && canViewAccounts && <a className="site-user-profile" href="/admin" aria-current={isAdminScreen ? 'page' : undefined} onClick={event => handleInternalLink(event, onNavigate, '/admin')}>Administración</a>}
+    {user && canViewAccounts === true && <a className="site-user-profile" href="/admin" aria-current={isAdminScreen ? 'page' : undefined} onClick={event => handleInternalLink(event, onNavigate, '/admin')}>Administración</a>}
     {canUseReports && <Button variant="secondary" onClick={onHelp} aria-label="Ayuda sobre la herramienta">Ayuda</Button>}
   </>;
 }
