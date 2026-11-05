@@ -1,4 +1,5 @@
 import { resolvePlayerRid } from '../../shared/playerIdentity.js';
+import { publicSearchFields, searchFieldMatches } from './playerSearch.js';
 
 export const CASE_STATUSES = { open: 'Abierto', investigating: 'En investigación', closed: 'Cerrado' };
 export const VALIDATION_LABELS = { pendiente: 'Pendiente', investigando: 'En investigación', verificado: 'Verificado', rechazado: 'Rechazado' };
@@ -39,11 +40,13 @@ export function playerCandidates(reports, query) {
     const rid = resolvePlayerRid(report);
     const names = [nickname, ...(Array.isArray(report.aliases) ? report.aliases : [])]
       .map(name => String(name || '').trim()).filter(Boolean);
-    if (!names.some(name => name.toLocaleLowerCase().includes(normalized)) && !rid.includes(normalized)) continue;
+    const searchMatches = searchFieldMatches(publicSearchFields(report), query);
+    if (!searchMatches.length) continue;
     const key = rid ? `rid:${rid}` : `name:${nickname.toLocaleLowerCase()}`;
-    if (!players.has(key)) players.set(key, { nickname, rid, key, names: [], count: 0 });
+    if (!players.has(key)) players.set(key, { nickname, rid, key, names: [], count: 0, searchMatches: [] });
     players.get(key).names = [...new Set([...players.get(key).names, ...names])];
     players.get(key).count += 1;
+    players.get(key).searchMatches.push(...searchMatches.map(item => ({ ...item, reportId: report.id })));
   }
   return [...players.values()];
 }
@@ -56,7 +59,7 @@ export function filterCaseReports(reports, { category = '', validation = '', fro
       && (!validation || report.validacion === validation)
       && (!from || (date && date >= from))
       && (!to || (date && date <= to))
-      && (!text || [report.usuario, report.motivo, report.id].join(' ').toLocaleLowerCase().includes(text));
+      && (!text || searchFieldMatches([...publicSearchFields(report), { field: 'Reporte', text: String(report.id || '') }], query).length > 0);
   }).sort((a, b) => {
     const left = Date.parse(a.fecha);
     const right = Date.parse(b.fecha);

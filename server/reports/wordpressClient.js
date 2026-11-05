@@ -142,6 +142,14 @@ export async function getWordpressOwnedReports({ config, ownerDiscordId, page, p
   });
 }
 
+export async function searchWordpressArchive({ config, query, page, logger = console }) {
+  const params = new URLSearchParams({ q: query, page: String(page), per_page: '50' });
+  return requestWordpressApi({
+    config, logger, method: 'GET', path: `/wp-json/mostwanted/v1/search?${params}`,
+    operation: 'Archive search', useAuth: true,
+  });
+}
+
 export async function getWordpressSummarySource({ config, nickname, rid, logger = console }) {
   const query = new URLSearchParams({ nickname, rid });
   return requestWordpressApi({

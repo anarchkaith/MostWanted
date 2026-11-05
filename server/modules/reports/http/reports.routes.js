@@ -5,6 +5,7 @@ import { getSessionUser, requireSessionAuth } from '../../../shared/auth/session
 import { getOwnedReports } from '../services/ownedReports.service.js';
 import { canViewPrivateAccounts } from '../../../shared/auth/accountAdmin.js';
 import { getAccountDashboard, parseDashboardQuery } from '../services/accountDashboard.service.js';
+import { searchArchive } from '../services/archiveSearch.service.js';
 
 /**
  * Registra endpoints de salud, alta de reporte y antecedentes por jugador.
@@ -21,6 +22,14 @@ export function registerReportsRoutes(app, deps) {
     buildPlayerInsightsWithScCache,
     refreshPlayerCase,
   } = deps;
+
+  app.get('/api/reports/search', rateLimits.general, async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    const result = await searchArchive({
+      config: wordpressReportsConfig, query: req.query.q, page: req.query.page ?? 1,
+    });
+    return res.status(result.status).json(result.payload);
+  });
 
   app.get('/api/admin/accounts', rateLimits.general, async (req, res) => {
     res.set('Cache-Control', 'private, no-store');

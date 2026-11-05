@@ -2,23 +2,46 @@ export async function runReportSubmission({ values, images, apiKey, user, upload
   const report = { ...values, nickname: String(values.nickname || '').trim() };
   delete report.evidence;
   const reporter = { id: user?.id || '', name: user?.username || 'Anónimo', email: user?.email || '' };
-  const evidence = await upload(images, apiKey);
-  if (!Array.isArray(evidence) || evidence.length !== images.length) {
-    throw new Error('No se subieron todas las evidencias. Corrige los archivos o vuelve a intentar antes de crear el reporte.');
-  }
-  for (const item of evidence) {
-    let url;
-    try {
-      url = new URL(item?.url);
-    } catch (error) {
-      if (!(error instanceof TypeError)) throw error;
-      throw new Error(`La evidencia ${item?.name || ''} no tiene una URL valida. Vuelve a subirla antes de crear el reporte.`);
+  
+  // Primero validar y subir evidencias (solo si hay)
+  // Esto asegura que si falla la subida de evidencias, el reporte NO se crea
+  let evidence = [];
+  if (Array.isArray(images) && images.length > 0) {
+    // Validar que todas las imágenes estén listas
+    const evidenceError = images
+      .map((img, idx) => (!img || typeof img !== 'object') ? `Evidencia ${idx + 1} invalida` : null)
+      .filter(Boolean)[0];
+    
+    if (evidenceError) {
+      throw new Error(evidenceError);
     }
-    if (!['http:', 'https:'].includes(url.protocol)) {
-      throw new Error(`La evidencia ${item?.name || ''} no tiene una URL HTTP o HTTPS. Vuelve a subirla antes de crear el reporte.`);
+    
+    // Intentar subir imágenes a ImgBB
+    evidence = await upload(images, apiKey);
+    
+    // Validar que se subieron todas
+    if (!Array.isArray(evidence) || evidence.length !== images.length) {
+      throw new Error('No se subieron todas las evidencias. Corrige los archivos o vuelve a intentar antes de crear el reporte.');
+    }
+    
+    // Validar URLs de evidencias
+    for (const item of evidence) {
+      let url;
+      try {
+        url = new URL(item?.url);
+      } catch (error) {
+        if (!(error instanceof TypeError)) throw error;
+        throw new Error(`La evidencia ${item?.name || ''} no tiene una URL valida. Vuelve a subirla antes de crear el reporte.`);
+      }
+      if (!['http:', 'https:'].includes(url.protocol)) {
+        throw new Error(`La evidencia ${item?.name || ''} no tiene una URL HTTP o HTTPS. Vuelve a subirla antes de crear el reporte.`);
+      }
     }
   }
+  
+  // Ahora sí, guardar el reporte con las evidencias verificadas
   const result = await save({ report, reporter, evidence });
+  
   let warning = result.warning || '';
   try {
     const refresh = await onSaved?.(report, result);

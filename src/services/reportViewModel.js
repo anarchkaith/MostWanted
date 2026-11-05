@@ -68,6 +68,10 @@ export function mapWordpressReportToReporte(report = {}) {
     categories: Array.isArray(report.categories) && report.categories.length
       ? report.categories : Array.isArray(report.typesOfInfraction) ? report.typesOfInfraction : [],
     labels: normalizeReportLabels(report.labels || report.etiquetas),
+    analysis: {
+      summary: typeof report.analysis?.summary === 'string' ? report.analysis.summary : '',
+      recommendation: typeof report.analysis?.recommendation === 'string' ? report.analysis.recommendation : '',
+    },
   };
 }
 
