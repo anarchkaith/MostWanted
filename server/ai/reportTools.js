@@ -23,7 +23,6 @@ function sanitizeReports(reportes) {
       id: safeText(report?.id, 80) || null,
       usuario: safeText(report?.usuario, 100),
       categoria: safeText(report?.categoria, 80) || 'sin_categoria',
-      severidad: safeText(report?.severidad, 80) || 'sin_severidad',
       motivo: safeText(report?.motivo),
       fecha: safeText(report?.fecha, 80),
       etiquetas: Array.isArray(report?.etiquetas)
@@ -43,7 +42,7 @@ function countBy(reports, getKey) {
 }
 
 function tokenize(report) {
-  const words = `${report.categoria} ${report.severidad} ${report.motivo} ${report.etiquetas.join(' ')}`
+  const words = `${report.categoria} ${report.motivo} ${report.etiquetas.join(' ')}`
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -106,11 +105,9 @@ function buildReadAllResult(reports, params = {}) {
       usuario: report.usuario,
       totalReportes: 0,
       categorias: Object.create(null),
-      severidades: Object.create(null),
     };
     current.totalReportes += 1;
     current.categorias[report.categoria] = (current.categorias[report.categoria] || 0) + 1;
-    current.severidades[report.severidad] = (current.severidades[report.severidad] || 0) + 1;
     byUser.set(report.usuario, current);
 
     const categoryUsers = byCategoryAndUser.get(report.categoria) || new Map();
@@ -137,7 +134,6 @@ function buildReadAllResult(reports, params = {}) {
     totalReportes: reports.length,
     totalUsuariosUnicos: byUser.size,
     porCategoria: countBy(reports, (report) => report.categoria),
-    porSeveridad: countBy(reports, (report) => report.severidad),
     rankingPorCategoria,
     ...(requestedCategory ? { categoriaConsultada: requestedCategory, rankingCategoria: categoryRanking } : {}),
     rankingUsuarios: [...byUser.values()]
@@ -179,7 +175,6 @@ function buildSimilarityResult(reports, params = {}) {
     totalReportesAnalizados: analysisReports.length,
     totalUsuariosUnicos: new Set(analysisReports.map((report) => report.usuario)).size,
     porCategoria: countBy(analysisReports, (report) => report.categoria),
-    porSeveridad: countBy(analysisReports, (report) => report.severidad),
     terminosFrecuentes: getCommonTerms(analysisReports),
     comparacionDePares: similar,
   };

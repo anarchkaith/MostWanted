@@ -63,6 +63,14 @@ assert.equal(similarity.totalReportesAnalizados, 3);
 assert.equal(similarity.porCategoria.griefing, 2);
 assert.equal(similarity.comparacionDePares.paresSimilares[0].similitud, 1);
 assert.ok(similarity.terminosFrecuentes.some(({ term }) => term === 'construcciones'));
+for (const result of [summary, details, similarity]) {
+  assert.doesNotMatch(JSON.stringify(result), /severidad|severity|severidades|porSeveridad/i);
+}
+const withoutSeverity = reports.map(({ severidad, ...report }) => report);
+for (const tool of ['read_all_reports', 'get_report_detail', 'analyze_recent_similarity']) {
+  assert.deepEqual(executeReportTool({ tool, params: { usuario: 'JugadorUno' }, reportes: reports }),
+    executeReportTool({ tool, params: { usuario: 'JugadorUno' }, reportes: withoutSeverity }), 'Severity cannot change rankings or correlations');
+}
 
 assert.equal(executeReportTool({ tool: 'unsafe_tool', reportes: reports }), null);
 

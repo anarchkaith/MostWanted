@@ -59,7 +59,7 @@ function mw_share_risk_key($value) {
         'Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U', 'Ñ' => 'N', 'Ü' => 'U',
     ]);
     $text = iconv('UTF-8', 'ASCII//TRANSLIT', $value);
-    if ($text === false) throw new RuntimeException('Cannot normalize preview severity.', 502);
+    if ($text === false) throw new RuntimeException('Cannot normalize preview conduct.', 502);
     return strtolower($text);
 }
 
@@ -67,18 +67,13 @@ function mw_share_risk($reports) {
     $scores = json_decode(file_get_contents(__DIR__ . DIRECTORY_SEPARATOR . 'share-conduct-scores.json'), true, 512, JSON_THROW_ON_ERROR);
     $normalized = [];
     foreach ($scores as $label => $score) $normalized[mw_share_risk_key($label)] = $score;
-    $levels = ['baja' => 1, 'low' => 1, 'media' => 2, 'medium' => 2, 'normal' => 2,
-        'alta' => 3, 'high' => 3, 'critica' => 4, 'critical' => 4];
     $risk = 0;
     foreach ($reports as $report) {
-        $severity = $report['severity'] ?? $report['severidad'] ?? $report['analysis']['severity'] ?? $report['analysis']['severidad'] ?? '';
-        $level = $levels[mw_share_risk_key($severity)] ?? 0;
-        if ($level === 0) {
-            foreach (($report['labels'] ?? []) as $label) {
-                $name = is_array($label) ? ($label['label'] ?? $label['name'] ?? '') : $label;
-                $score = $normalized[mw_share_risk_key($name)] ?? 0;
-                $level = max($level, $score >= 3 ? $score - 1 : ($score > 0 ? 1 : 0));
-            }
+        $level = 0;
+        foreach (($report['labels'] ?? []) as $label) {
+            $name = is_array($label) ? ($label['label'] ?? $label['name'] ?? '') : $label;
+            $score = $normalized[mw_share_risk_key($name)] ?? 0;
+            $level = max($level, $score >= 3 ? $score - 1 : ($score > 0 ? 1 : 0));
         }
         $risk = max($risk, $level);
     }
@@ -425,12 +420,14 @@ function mw_share_fetch($endpoint) {
         return ['ok' => true, 'names' => $entries];
     }
     $base = rtrim(getenv('WORDPRESS_API_BASE_URL') ?: 'https://kaithsrebels.com', '/');
+    $secret = getenv('WORDPRESS_API_SECRET');
+    if (!$secret) throw new RuntimeException('WordPress preview backend secret is not configured.', 503);
     $handle = curl_init($base . '/wp-json/mostwanted/v1' . $endpoint);
     curl_setopt_array($handle, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_CONNECTTIMEOUT => 3,
         CURLOPT_TIMEOUT => 9,
-        CURLOPT_HTTPHEADER => ['Accept: application/json'],
+        CURLOPT_HTTPHEADER => ['Accept: application/json', 'Authorization: Bearer ' . $secret],
         CURLOPT_PROTOCOLS => CURLPROTO_HTTPS | CURLPROTO_HTTP,
     ]);
     $body = curl_exec($handle);

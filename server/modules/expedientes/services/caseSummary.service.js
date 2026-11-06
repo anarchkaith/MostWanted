@@ -4,7 +4,7 @@ import { updateExpedientes } from './expedientesStore.service.js';
 
 const RETRY_MS = 5 * 60 * 1000;
 const LEASE_MS = 3 * 60 * 1000;
-const SUMMARY_VERSION = 2;
+const SUMMARY_VERSION = 3;
 
 export function summaryInput(reports) {
   return reports.map((report) => ({
@@ -13,7 +13,6 @@ export function summaryInput(reports) {
     rid: report.rid,
     categories: report.categories,
     reason: report.reason || report.content,
-    ...(report.severity ? { severity: report.severity } : {}),
     ...(report.validation ? { validation: report.validation } : {}),
     createdAt: report.createdAt,
     evidenceCount: report.evidence?.length || 0,
@@ -52,6 +51,7 @@ export function createCaseSummaryGenerator({ config }) {
           'Escribe de 80 a 160 palabras en Markdown, con párrafos breves y negritas cuando aporten claridad, sin envolver la respuesta en un bloque de código. Usa solo los datos proporcionados.',
           'Describe patrones, categorías, evolución y limitaciones. Distingue denuncias de hechos verificados.',
           'Menciona rechazos o validaciones solo si constan explícitamente en los datos. Su ausencia no prueba que una denuncia haya sido revisada ni permite deducir su gravedad.',
+          'No asignes niveles de severidad: esa clasificacion ya no se utiliza.',
           'Omite campos opcionales ausentes o vacíos; no menciones su ausencia ni reproduzcas nombres técnicos de campos, valores null o fragmentos JSON.',
           'Expresa la cantidad de evidencias en lenguaje natural, sin afirmar su contenido. No infieras culpabilidad ni inventes evidencia.',
           'No identifiques a reportantes, no incluyas datos privados ni recomendaciones de hostigamiento.',

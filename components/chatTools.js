@@ -12,6 +12,5 @@ export {
 } from './toolCatalog';
 
 export {
-  readReportesFromLocalStorage,
   buildReportesChatContext
 } from './reportesChatContext';

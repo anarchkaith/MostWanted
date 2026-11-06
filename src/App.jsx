@@ -35,7 +35,6 @@ function App() {
       { ...player, source: 'Analizado en esta sesión' },
     ]);
   }, []);
-  const { reportes, setReportes, reportsError, isLoading, refreshReports, voteOnReport, getUserVotes } = useReportArchive();
   const detailReturnPath = useRef('/');
   const formReturnPath = useRef('/');
   const resetDesk = useCallback(() => {
@@ -44,10 +43,17 @@ function App() {
   }, []);
   const { path, navigate, isAuthCallback, isValidPath, expedienteId, reportId } = useAppNavigation({ onPopState: resetDesk });
   const { user, capabilities, sessionError, isAuthChecked, login: handleLogin, logout, expireSession } = useSession({ isAuthCallback });
+  const { reportes, setReportes, reportsError, isLoading, voteOnReport, getUserVotes } = useReportArchive({ userId: user?.id, reportId });
   // Estado para el modal de ayuda
   const [showHelp, setShowHelp] = useState(false);
   // Estado para el modal de detalle
   const [reporteSeleccionado, setReporteSeleccionado] = useState(null);
+  useEffect(() => {
+    setKnownPlayers([]);
+    setSearchPlayer(null);
+    setReportPlayer(null);
+    setReporteSeleccionado(null);
+  }, [user?.id]);
   const hasReportPlayerName = typeof reportPlayer?.nickname === 'string' && reportPlayer.nickname.trim().length > 0;
 
   useEffect(() => {
@@ -62,33 +68,11 @@ function App() {
     return urlParams.get('demo') === 'true';
   });
 
-  // Manejar navegación por URL (abrir expediente desde URL)
   useEffect(() => {
-    const abrirExpedienteDesdeURL = () => {
-      if (reportes.length > 0) {
-        let reporte = null;
-
-        const reporteId = reportId;
-        if (reporteId) {
-          reporte = reportes.find(r => Number(r.id) === reporteId);
-        } else if (expedienteId) {
-          reporte = reportes.find(r => Number(r.expedienteId) === expedienteId);
-        }
-
-        if (reporte) {
-          setReporteSeleccionado(reporte);
-        } else {
-          setReporteSeleccionado(null);
-        }
-      }
-    };
-
-    // Esperar a que los reportes estén cargados
-    if (!isLoading) {
-      abrirExpedienteDesdeURL();
+    if (!isLoading && reportId) {
+      setReporteSeleccionado(reportes.find(report => Number(report.id) === reportId) || null);
     }
-
-  }, [isLoading, reportes, path, expedienteId, reportId]);
+  }, [isLoading, reportes, reportId]);
 
 
   const handleCardClick = (reporte) => {
@@ -118,7 +102,7 @@ function App() {
     rememberPlayer(refreshedPlayer);
     formReturnPath.current = refreshedPlayer.nickname ? playerPath(refreshedPlayer.nickname) : '/';
     setCaseRevision(value => value + 1);
-    return refreshReports();
+    return { warning: '' };
   };
 
   // Cuando el usuario vota, persistir en WordPress y refrescar el reporte local.
@@ -139,13 +123,14 @@ function App() {
   if (!isValidPath) return <main className="desk-empty"><h1>Página no encontrada</h1><a href="/">Volver al inicio</a></main>;
 
   // Mostrar loading
-  if (isLoading || !isAuthChecked) {
+  if (!isAuthChecked) {
     return (
       <main className="app-container app-loading"><Skeleton label="Cargando sesión y despacho…" rows={8} /></main>
     );
   }
 
   const canUseReports = Boolean(user) || isDemo;
+  if (!canUseReports) return <AccessScreen onLogin={handleLogin} error={sessionError} />;
   const startReport = (player = null) => {
     formReturnPath.current = player?.nickname ? playerPath(player.nickname) : path === '/denunciar' ? formReturnPath.current : path;
     setSearchPlayer(player);
@@ -182,7 +167,9 @@ function App() {
       />
       {/* Modal de ayuda */}
       <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />
+      {user && isLoading && reportId && !reporteSeleccionado && <Skeleton label="Cargando reporte…" rows={4} />}
       {sessionError && <p className="rfm-submit-error" role="alert">{sessionError}</p>}
+      {user && expedienteId && <p className="rfm-submit-error" role="alert">Este enlace antiguo usa una numeración temporal que ya no está disponible. Busca al jugador o abre el enlace estable del reporte.</p>}
       {isAdminScreen && user && capabilities.viewAccounts && reportId && !reporteSeleccionado && <p className="rfm-submit-error" role="alert">Este reporte no está disponible en el archivo público. Puede estar sin publicar o haberse retirado. <a href="/admin" onClick={event => { event.preventDefault(); navigate('/admin'); }}>Volver al panel</a></p>}
 
       {showSearchLanding ? (
@@ -202,17 +189,26 @@ function App() {
         <AccessScreen onLogin={handleLogin} />
       )}
 
-      {reporteSeleccionado && (
+      {user && reporteSeleccionado && (
         <ReportDetailModal
+          key={`${reporteSeleccionado.id}:${user?.id || ''}`}
           reporte={reporteSeleccionado}
           onClose={handleCloseDetail}
           onVote={handleVote}
+          currentUser={user}
+          onUpdated={report => {
+            const updated = { ...mapWordpressReportToReporte(report), userVote: getUserVotes()[report.id] || null };
+            setReporteSeleccionado(current => current?.id === updated.id ? updated : current);
+            setReportes(current => current.map(item => item.id === updated.id ? updated : item));
+            setCaseRevision(value => value + 1);
+          }}
         />
       )}
 
       <SiteFooter />
 
       <AIAssistantBubble
+        reports={user ? reportes : []}
         isAuthenticated={isAuthChecked && Boolean(user?.id)}
         onSessionExpired={expireSession}
       />

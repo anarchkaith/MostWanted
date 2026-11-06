@@ -1,4 +1,4 @@
-import { normalizeReportSeverity, normalizeReportValidation } from './casePresentation.js';
+import { normalizeReportValidation } from './casePresentation.js';
 import { resolvePlayerRid } from '../../shared/playerIdentity.js';
 
 export function mapCategoriaLegacy(categorias = [], categoriaActual = '') {
@@ -53,7 +53,6 @@ export function mapWordpressReportToReporte(report = {}) {
       tipo: item?.contentType || 'image/png',
     })).filter(item => item.preview),
     estado: 'activo',
-    severidad: normalizeReportSeverity(report?.severidad || report?.severity || report.analysis?.severity || report.analysis?.severidad),
     validacion: normalizeReportValidation(report?.validacion || report?.validation),
     votos: {
       up: Number(communityVerification?.up) || 0,
@@ -76,12 +75,14 @@ export function mapWordpressReportToReporte(report = {}) {
 }
 
 export function normalizeReporte(reporte = {}) {
+  const current = { ...reporte };
+  delete current.severity;
+  delete current.severidad;
   return {
-    ...reporte,
+    ...current,
     id: reporte.id ?? Date.now(),
     usuario: reporte.usuario || 'USUARIO_SIN_NOMBRE',
     categoria: mapCategoriaLegacy(reporte.categorias, reporte.categoria),
-    severidad: normalizeReportSeverity(reporte.severidad),
     labels: normalizeReportLabels(reporte.labels || reporte.etiquetas),
     fecha: reporte.fecha ?? new Date().toISOString().slice(0, 10),
     reportadoPor: 'ANONIMO',

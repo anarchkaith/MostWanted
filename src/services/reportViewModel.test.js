@@ -24,7 +24,8 @@ test('WordPress adapter preserves report presentation, evidence and player ident
   assert.deepEqual(view.categories, ['MODDER', 'ACOSO-RAID']);
   assert.equal(view.motivo, '**Motivo**');
   assert.equal(view.fecha, report.createdAt);
-  assert.equal(view.severidad, 'alta');
+  assert.equal(Object.hasOwn(view, 'severidad'), false);
+  assert.equal(Object.hasOwn(view, 'severity'), false);
   assert.equal(view.validacion, 'verificado');
   assert.equal(view.reportadoPor, 'ANONIMO');
   assert.equal(view.evidencia, report.evidence[0].url);
@@ -51,16 +52,17 @@ test('missing and legacy values retain their established defaults', () => {
   const view = mapWordpressReportToReporte({ id: 7, title: 'Title', categories: ['griffer'] });
   assert.equal(view.usuario, 'Title');
   assert.equal(view.categoria, 'griffer');
-  assert.equal(view.severidad, '');
+  assert.equal(Object.hasOwn(view, 'severidad'), false);
   assert.equal(view.validacion, '');
   assert.equal(view.avatar2, '');
   assert.deepEqual(view.evidencias, []);
   assert.deepEqual(view.labels, []);
   assert.deepEqual(view.votos, { up: 0, down: 0, comentarios: [] });
-  const legacy = normalizeReporte({ id: 1, categorias: ['MODDER'], severidad: 'invalid', reportadoPor: 'PRIVATE' });
+  const legacy = normalizeReporte({ id: 1, categorias: ['MODDER'], severidad: 'alta', severity: 'critical', reportadoPor: 'PRIVATE' });
   assert.equal(legacy.categoria, 'modder');
   assert.equal(legacy.validacion, 'pendiente');
-  assert.equal(legacy.severidad, '');
+  assert.equal(Object.hasOwn(legacy, 'severidad'), false);
+  assert.equal(Object.hasOwn(legacy, 'severity'), false);
   assert.equal(legacy.reportadoPor, 'ANONIMO');
   assert.deepEqual(normalizeComentariosFromCommunityVerification({ confirmations: 'invalid' }), []);
 });
@@ -81,7 +83,8 @@ test('labels retain names and details across WordPress, case reports and cached 
     assert.equal(view.motivo, raw.reason);
     assert.equal(view.time, raw.time);
     assert.equal(view.investigation_status, 'resolved');
-    assert.equal(view.severidad, 'alta');
+    assert.equal(Object.hasOwn(view, 'severidad'), false);
+    assert.equal(Object.hasOwn(view, 'severity'), false);
     assert.equal(JSON.stringify(view).includes('PRIVATE'), false);
   }
   assert.deepEqual(normalizeReporte({ etiquetas: raw.labels }).labels, expectedLabels);

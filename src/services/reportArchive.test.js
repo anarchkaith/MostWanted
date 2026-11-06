@@ -1,87 +1,54 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { loadReportArchive, prepareReportArchive, readUserVotes } from './reportArchive.js';
+import { clearLegacyReportArchive, readUserVotes } from './reportArchive.js';
+import { fetchReportById, fetchWordpressPlayerInsights, submitWordpressCommunityVerificationVote } from './reportSubmissionService.js';
 
-function memoryStorage(initial = {}) {
-  const values = new Map(Object.entries(initial));
-  return { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
-}
-
-test('archive follows pagination, maps WordPress reports and stores only presentation data', async () => {
-  const storage = memoryStorage();
-  const calls = [];
-  const result = await loadReportArchive({
-    storage,
-    fetchPage: async options => {
-      calls.push(options);
-      return { items: options.page === 1
-        ? Array.from({ length: 100 }, (_, index) => ({ id: index + 1, nickname: 'Player', ownerDiscordId: 'PRIVATE' }))
-        : [{ id: 101, nickname: 'LastPlayer' }] };
-    },
-  });
-  assert.deepEqual(calls.map(call => [call.perPage, call.page]), [[100, 1], [100, 2]]);
-  assert.equal(result.reports.length, 101);
-  assert.equal(result.reports[100].usuario, 'LastPlayer');
-  assert.equal(result.warning, '');
-  assert.equal(storage.getItem('mostwanted_reportes').includes('PRIVATE'), false);
-});
-
-test('remote failures use the cache with a visible stale warning, never an unmarked empty success', async () => {
-  const messages = [];
-  const cached = [{ id: 42, usuario: 'CachedPlayer' }];
-  const storage = memoryStorage({ mostwanted_reportes: JSON.stringify(cached) });
-  for (const fetchPage of [
-    async () => { throw new Error('offline'); },
-    async () => ({ unexpected: 'shape' }),
-  ]) {
-    const result = await loadReportArchive({ fetchPage, storage, logger: { error: (...args) => messages.push(args) } });
-    assert.deepEqual(result.reports, cached);
-    assert.match(result.warning, /desactualizadas/);
-  }
-  assert.equal(messages.length, 2);
-  const result = await loadReportArchive({
-    fetchPage: async () => { throw new Error('offline'); }, storage: memoryStorage(), logger: { error() {} },
-  });
-  assert.deepEqual(result.reports, []);
-  assert.match(result.warning, /No se pudo actualizar/);
-});
-
-test('corrupt caches fail explicitly and storage failures do not discard a valid remote result', async () => {
-  const logger = { error() {} };
-  for (const cached of ['invalid-json', '{}']) {
-    await assert.rejects(loadReportArchive({
-      fetchPage: async () => { throw new Error('offline'); },
-      storage: memoryStorage({ mostwanted_reportes: cached }), logger,
-    }), /ni leer su copia local/);
-  }
-  const result = await loadReportArchive({
-    fetchPage: async () => ({ items: [{ id: 1, nickname: 'Remote' }] }),
-    storage: { setItem() { throw new Error('quota'); } }, logger,
-  });
-  assert.equal(result.reports[0].usuario, 'Remote');
-  assert.match(result.warning, /no se pudo guardar su copia local/);
-});
-
-test('cancelled archive requests never overwrite storage or fall back to stale reports', async () => {
-  const controller = new AbortController();
-  const storage = { setItem() { assert.fail('Cancelled request wrote to storage'); }, getItem() { assert.fail('Cancelled request read fallback'); } };
-  await assert.rejects(loadReportArchive({
-    signal: controller.signal, storage,
-    fetchPage: async () => {
-      controller.abort();
-      return { items: [{ id: 1 }] };
-    },
-  }), { name: 'AbortError' });
-});
-
-test('archive preparation preserves numbering and merges local vote preferences without mutation', () => {
-  const reports = [{ id: 2, fecha: '2026-10-02', userVote: 'up' }, { id: 1, fecha: '2026-10-01' }];
-  const before = structuredClone(reports);
-  const prepared = prepareReportArchive(reports, { 1: 'down' });
-  assert.deepEqual(prepared.map(report => [report.id, report.expedienteId, report.userVote]), [[2, 2, 'up'], [1, 1, 'down']]);
-  assert.deepEqual(reports, before);
-  assert.deepEqual(readUserVotes(memoryStorage({ mostwanted_user_votes: '{"1":"up"}' })), { 1: 'up' });
+test('legacy bulk cache is removed, never read or reused as fallback', () => {
+  const removed = [];
+  assert.equal(clearLegacyReportArchive({
+    removeItem(key) { removed.push(key); },
+    getItem() { assert.fail('Read old full archive'); },
+  }), '');
+  assert.deepEqual(removed, ['mostwanted_reportes']);
   let errors = 0;
-  assert.deepEqual(readUserVotes(memoryStorage({ mostwanted_user_votes: '[]' }), { error() { errors += 1; } }), {});
+  assert.match(clearLegacyReportArchive({ removeItem() { throw new Error('denied'); } },
+    { error() { errors++; } }), /copia antigua/);
+  assert.equal(errors, 1);
+});
+
+test('scoped report, insights and votes use backend session, never direct WordPress or a client key', async () => {
+  const originalFetch = globalThis.fetch;
+  const requests = [];
+  const signal = new AbortController().signal;
+  const buildUrl = path => `https://api.test/api${path}`;
+  globalThis.fetch = async (url, options) => {
+    requests.push({ url, options });
+    assert.ok(String(url).includes('/api/reports/'));
+    assert.ok(!String(url).includes('wp-json'));
+    assert.equal(options.credentials, 'include');
+    assert.equal(options.headers?.Authorization, undefined);
+    return Response.json(String(url).includes('player-insights')
+      ? { ok: true, player: { rid: '123' } }
+      : String(url).includes('community-verification')
+        ? { ok: true, communityVerification: { up: 1, down: 0 } }
+        : { ok: true, report: { id: 42, nickname: 'Player' } });
+  };
+  try {
+    assert.equal((await fetchReportById({ reportId: 42, signal }, buildUrl)).id, 42);
+    assert.equal(requests[0].options.signal, signal);
+    assert.equal((await fetchWordpressPlayerInsights({ username: 'Player', rid: '123', signal }, buildUrl)).rid, '123');
+    await submitWordpressCommunityVerificationVote({ reportId: 42, voteType: 'up' }, buildUrl);
+    assert.equal(requests.length, 3);
+    globalThis.fetch = async () => Response.json({ ok: false, error: 'auth_required' }, { status: 401 });
+    await assert.rejects(fetchReportById({ reportId: 42 }, buildUrl), /auth_required/);
+    globalThis.fetch = async () => Response.json({ ok: true, report: { id: 99 } });
+    await assert.rejects(fetchReportById({ reportId: 42 }, buildUrl), /invalido/);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('vote preferences remain available without storing report content', () => {
+  assert.deepEqual(readUserVotes({ getItem: () => '{"1":"up"}' }), { 1: 'up' });
+  let errors = 0;
+  assert.deepEqual(readUserVotes({ getItem: () => '[]' }, { error() { errors++; } }), {});
   assert.equal(errors, 1);
 });

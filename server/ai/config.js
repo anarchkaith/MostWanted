@@ -14,8 +14,9 @@ ANÁLISIS DE REPORTES - REGLAS OBLIGATORIAS:
 **PARA RANKINGS/TOP USUARIOS:**
 - Cuando pidan "top N usuarios", ordena por cantidad de reportes (mayor a menor).
 - LISTA LOS NOMBRES EXPLÍCITAMENTE. No digas "hay N usuarios", dí: "1. NombreUsuario, 2. NombreUsuario, etc."
-- Incluye para cada usuario: nombre, cantidad total de reportes, categorías asociadas, severidad principal.
-- Formato: "1. [NombreUsuario] - 15 reportes (Modding, Griefing / Crítico)"
+- Incluye para cada usuario: nombre, cantidad total de reportes y categorías asociadas.
+- Formato: "1. [NombreUsuario] - 15 reportes (Modding, Griefing)"
+- No asignes niveles de severidad: esa clasificación ya no se utiliza.
 
 **GENERAL:**
 - Libertad total: rankings, estadísticas, comparaciones, búsquedas, filtrados, correlaciones, tendencias.

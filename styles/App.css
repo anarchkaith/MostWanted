@@ -1509,19 +1509,6 @@ body::after {
   color: var(--color-text-muted, #9a9a9a);
 }
 
-.report-card__severity {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs);
-}
-
-.severity-indicator {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  animation: blink 1s ease-in-out infinite;
-}
-
 @keyframes blink {
 
   0%,
@@ -1532,22 +1519,6 @@ body::after {
   50% {
     opacity: 0.3;
   }
-}
-
-.severity-indicator--critica {
-  background: var(--severity-critica);
-}
-
-.severity-indicator--alta {
-  background: var(--severity-alta);
-}
-
-.severity-indicator--media {
-  background: var(--severity-media);
-}
-
-.severity-indicator--baja {
-  background: var(--severity-baja);
 }
 
 /* === MODAL BASE === */
@@ -2481,47 +2452,6 @@ body::after {
   }
 }
 
-/* Efecto neón pulsante para severity indicators */
-.severity-indicator {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  animation: severityPulse 1s ease-in-out infinite;
-  box-shadow: 0 0 5px currentColor;
-}
-
-@keyframes severityPulse {
-
-  0%,
-  100% {
-    opacity: 1;
-    transform: scale(1);
-    box-shadow: 0 0 5px currentColor, 0 0 10px currentColor;
-  }
-
-  50% {
-    opacity: 0.6;
-    transform: scale(0.9);
-    box-shadow: 0 0 2px currentColor;
-  }
-}
-
-.severity-indicator--critica {
-  background: var(--severity-critica);
-  color: var(--severity-critica);
-  animation: severityPulse 0.5s ease-in-out infinite, criticalGlow 0.3s ease-in-out infinite alternate;
-}
-
-@keyframes criticalGlow {
-  0% {
-    box-shadow: 0 0 5px var(--severity-critica), 0 0 10px var(--severity-critica);
-  }
-
-  100% {
-    box-shadow: 0 0 10px var(--severity-critica), 0 0 20px var(--severity-critica), 0 0 30px var(--severity-critica);
-  }
-}
-
 /* Efecto de texto revelado para el header */
 .header__subtitle {
   font-family: var(--font-typewriter);
@@ -3043,10 +2973,6 @@ body::after {
 
 .report-card__tag {
   animation: badgePulse 3s ease-in-out infinite;
-}
-
-.severity-indicator--critica {
-  animation: energyWave 1s ease-out infinite;
 }
 
 .header__logo-icon {

@@ -43,13 +43,6 @@ export function searchFieldMatches(fields, query) {
   return fields.filter(item => terms.some(term => normalizeSearchText(item.text).includes(term)));
 }
 
-export function searchExcerpt(text, query, limit = 160) {
-  const normalized = normalizeSearchText(text);
-  const position = Math.max(0, normalized.indexOf(normalizeSearchText(query).split(/\s+/)[0]));
-  const start = Math.max(0, position - 40);
-  return `${start ? '…' : ''}${text.slice(start, start + limit)}${text.length > start + limit ? '…' : ''}`;
-}
-
 export function mergePlayerMatches(reported, known, query) {
   const text = normalizeSearchText(query);
   if (!text) return [];
@@ -58,14 +51,18 @@ export function mergePlayerMatches(reported, known, query) {
     const nickname = String(player.nickname || '').trim();
     const rid = resolvePlayerRid(player);
     const fields = [...publicSearchFields(player), ...(player.searchMatches || [])];
-    const searchMatches = player.matchedQuery === text ? player.searchMatches : searchFieldMatches(fields, query);
-    if (!searchMatches.length) continue;
+    const serverMatch = player.matchedQuery === text;
+    const searchMatches = serverMatch ? player.searchMatches || [] : searchFieldMatches(fields, query);
+    if (!serverMatch && !searchMatches.length) continue;
     const key = rid ? `rid:${rid}` : `name:${nickname.toLocaleLowerCase()}`;
     const previous = matches.get(key);
     matches.set(key, {
       ...player, nickname, rid, key,
       count: Math.max(Number(player.count) || 0, previous?.count || 0),
-      names: [...(previous?.names || []), ...(player.names || [])],
+      names: [...(previous?.names || []), previous?.nickname, ...texts(player.names), ...texts(player.aliases)]
+        .map(name => String(name || '').trim())
+        .filter((name, index, names) => name && normalizeSearchText(name) !== normalizeSearchText(nickname)
+          && names.findIndex(other => normalizeSearchText(other) === normalizeSearchText(name)) === index),
       searchMatches: [...(previous?.searchMatches || []), ...searchMatches]
         .filter((item, index, items) => items.findIndex(other => other.field === item.field && other.text === item.text && other.reportId === item.reportId) === index),
       sources: [...new Set([...(previous?.sources || []), player.source || 'Reportes'])],

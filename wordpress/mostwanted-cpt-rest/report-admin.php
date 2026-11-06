@@ -27,8 +27,13 @@ function mw_report_admin_extra_keys() {
 }
 
 function mw_add_report_meta_box() {
+    if (function_exists('acf_add_local_field_group')) {
+        if (current_user_can('manage_options')) {
+            add_meta_box('mw-report-internal', 'MostWanted - Datos internos privados', 'mw_render_report_internal_meta_box', 'mw_report', 'normal', 'low');
+        }
+        return;
+    }
     add_meta_box('mw-report-metadata', 'Reporte MostWanted', 'mw_render_report_meta_box', 'mw_report', 'normal', 'high');
-    add_meta_box('mw-report-moderation', 'Moderación de votos', 'mw_render_report_moderation', 'mw_report', 'normal', 'default');
 }
 add_action('add_meta_boxes_mw_report', 'mw_add_report_meta_box');
 
@@ -44,8 +49,8 @@ function mw_report_admin_values($post_id) {
             $values[$key] = $public['categories'];
         } elseif ($key === 'investigation_status') {
             $values[$key] = $payload[$key] ?? $payload['report'][$key] ?? get_post_meta($post_id, $field['meta'], true);
-        } elseif ($key === 'analysis' && !isset($payload[$key]) && empty($public[$key])) {
-            $values[$key] = $payload['report'][$key] ?? $public[$key];
+        } elseif ($key === 'analysis') {
+            $values[$key] = $payload[$key] ?? $payload['report'][$key] ?? mw_safe_meta_array($post_id, $field['meta']);
         } elseif ($key === 'labels' && !array_key_exists('labels', $payload) && empty($public['labels'])) {
             $values[$key] = mw_safe_meta_array($post_id, $field['meta']);
         } else {
@@ -57,15 +62,23 @@ function mw_report_admin_values($post_id) {
 }
 
 function mw_render_report_meta_box($post) {
-    mw_render_report_form($post);
+    echo '<p>Solo lectura. Los cambios se realizan en MostWanted por la administradora o el autor del reporte.</p>';
+    echo mw_report_readonly_html($post->ID);
+    mw_render_report_internal_meta_box($post);
+}
+
+function mw_render_report_internal_meta_box($post) {
+    if (current_user_can('manage_options')) {
+        echo '<details><summary>Datos internos privados (solo administracion)</summary>';
+        echo mw_readonly_value_html(mw_without_report_severity(get_post_meta($post->ID, '_mw_report_payload', true)));
+        echo '</details>';
+    }
 }
 
 function mw_report_admin_assets($hook) {
     $screen = get_current_screen();
     if ($screen && $screen->post_type === 'mw_report' && in_array($hook, ['post.php', 'post-new.php'], true)) {
-        wp_enqueue_media();
-        wp_enqueue_style('mw-report-admin', plugins_url('report-admin.css', __FILE__), [], '0.6.9');
-        wp_enqueue_script('mw-report-admin', plugins_url('report-admin.js', __FILE__), ['media-views'], '0.6.9', true);
+        wp_enqueue_style('mw-report-admin', plugins_url('report-admin.css', __FILE__), [], '0.7.4');
     }
 }
 add_action('admin_enqueue_scripts', 'mw_report_admin_assets');
@@ -313,6 +326,20 @@ function mw_save_report_metadata($post_id) {
     if (is_wp_error($values)) {
         wp_die(esc_html($values->get_error_message()) . ' No se guardo la metadata; vuelve atras para corregirla.', 'MostWanted', ['response' => 400, 'back_link' => true]);
     }
+    $result = mw_write_report_values($post_id, $values, in_array($form_version, ['3', '4'], true));
+    if (is_wp_error($result)) {
+        $data = $result->get_error_data();
+        wp_die(esc_html($result->get_error_message()), 'MostWanted', ['response' => $data['status'] ?? 400, 'back_link' => true]);
+    }
+    if ($community !== null && $community !== $community_previous) {
+        $saved = update_post_meta($post_id, '_mw_community_verification', wp_slash($community), $community_previous);
+        if ($saved === false && get_post_meta($post_id, '_mw_community_verification', true) !== $community) {
+            wp_die('Los votos cambiaron mientras guardabas.', 'MostWanted', ['response' => 409, 'back_link' => true]);
+        }
+    }
+}
+
+function mw_write_report_values($post_id, $values, $sync_profile = true, $trusted_api = false) {
     $payload = get_post_meta($post_id, '_mw_report_payload', true);
     $payload = is_array($payload) ? $payload : [];
     $old_rid = mw_resolve_player_rid($payload, get_post_meta($post_id, '_mw_rid', true));
@@ -342,25 +369,23 @@ function mw_save_report_metadata($post_id) {
             'analysis' => $payload['analysis'],
         ]);
     }
-    $profile_sync = in_array($form_version, ['3', '4'], true) ? mw_prepare_report_profile_sync($post_id, $payload) : ['player_id' => 0, 'updates' => []];
+    $profile_sync = $sync_profile ? mw_prepare_report_profile_sync($post_id, $payload, $trusted_api) : ['player_id' => 0, 'updates' => []];
     if (is_wp_error($profile_sync)) {
-        wp_die(esc_html($profile_sync->get_error_message()), 'MostWanted', ['response' => 400, 'back_link' => true]);
+        return $profile_sync;
     }
     $updates = ['_mw_report_payload' => $payload];
-    if ($community !== null && $community !== $community_previous) {
-        $updates['_mw_community_verification'] = $community;
-    }
     foreach (mw_report_admin_fields() as $key => $field) {
         $updates[$field['meta']] = $key === 'rid' ? ($rid !== null ? strval($rid) : '') : $values[$key];
     }
     foreach ($updates as $meta_key => $value) {
-        $saved = $meta_key === '_mw_community_verification'
-            ? update_post_meta($post_id, $meta_key, wp_slash($value), $community_previous)
-            : update_post_meta($post_id, $meta_key, wp_slash($value));
+        $saved = update_post_meta($post_id, $meta_key, wp_slash($value));
         if ($saved === false && get_post_meta($post_id, $meta_key, true) !== $value) {
-            wp_die('No se pudo guardar toda la metadata del reporte. Revisa los datos antes de reintentar.', 'MostWanted', ['response' => 500, 'back_link' => true]);
+            return new WP_Error('mw_report_storage', 'No se pudo guardar toda la metadata del reporte. Recarga los datos antes de reintentar.', ['status' => 500]);
         }
     }
-    mw_apply_report_profile_sync($profile_sync);
+    $result = wp_update_post(['ID' => $post_id, 'post_title' => mw_build_player_display_title($values['nickname'], $rid)], true);
+    if (is_wp_error($result) || !$result) {
+        return new WP_Error('mw_report_storage', 'El reporte se guardo, pero no se pudo actualizar su titulo. Recarga y reintenta.', ['status' => 500]);
+    }
+    return mw_apply_report_profile_sync($profile_sync);
 }
-add_action('save_post_mw_report', 'mw_save_report_metadata');

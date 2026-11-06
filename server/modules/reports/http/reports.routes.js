@@ -1,30 +1,40 @@
 ﻿import { checkReportsHealth } from '../services/reportsHealth.service.js';
 import { submitWordpressReport } from '../services/submitReport.service.js';
-import { getPlayerInsights } from '../../background-investigation/services/playerInsights.service.js';
-import { getSessionUser, requireSessionAuth } from '../../../shared/auth/sessionAuth.js';
+import { getSessionUser, requireSessionAuth, requirePrivateSession } from '../../../shared/auth/sessionAuth.js';
 import { getOwnedReports } from '../services/ownedReports.service.js';
 import { canViewPrivateAccounts } from '../../../shared/auth/accountAdmin.js';
 import { getAccountDashboard, parseDashboardQuery } from '../services/accountDashboard.service.js';
 import { searchArchive } from '../services/archiveSearch.service.js';
+import { editReport } from '../services/editReport.service.js';
+import { accessReportData } from '../services/reportReads.service.js';
 
 /**
  * Registra endpoints de salud, alta de reporte y antecedentes por jugador.
  */
 export function registerReportsRoutes(app, deps) {
   const {
-    rootDir,
     wordpressReportsConfig,
     discordWebhookUrl,
     rateLimits,
-    maybeRequireSessionAuth,
     requireNonEmptyBody,
-    getReportesSnapshot,
-    buildPlayerInsightsWithScCache,
     refreshPlayerCase,
   } = deps;
 
-  app.get('/api/reports/search', rateLimits.general, async (req, res) => {
-    res.set('Cache-Control', 'no-store');
+  const reportEdit = inspect => async (req, res) => {
+    const result = await editReport({
+      config: wordpressReportsConfig, user: getSessionUser(req), reportId: req.params.id,
+      body: req.body, inspect, refreshPlayerCase,
+    });
+    return res.status(result.status).json(result.payload);
+  };
+  const privateReport = (req, res, next) => {
+    res.set('Cache-Control', 'private, no-store');
+    return requireSessionAuth(req, res, next);
+  };
+  app.get('/api/reports/:id/edit', rateLimits.general, privateReport, reportEdit(true));
+  app.post('/api/reports/:id/edit', rateLimits.webhook, privateReport, requireNonEmptyBody, reportEdit(false));
+
+  app.get('/api/reports/search', rateLimits.general, requirePrivateSession, async (req, res) => {
     const result = await searchArchive({
       config: wordpressReportsConfig, query: req.query.q, page: req.query.page ?? 1,
     });
@@ -69,7 +79,7 @@ export function registerReportsRoutes(app, deps) {
     return res.status(result.status).json(result.payload);
   });
 
-  app.post('/api/reports', rateLimits.webhook, maybeRequireSessionAuth, requireNonEmptyBody, async (req, res) => {
+  app.post('/api/reports', rateLimits.webhook, requirePrivateSession, requireNonEmptyBody, async (req, res) => {
     const result = await submitWordpressReport({
       body: req.body,
       sessionUser: getSessionUser(req),
@@ -82,15 +92,21 @@ export function registerReportsRoutes(app, deps) {
     return res.status(result.status).json(result.payload);
   });
 
-  app.get('/api/reports/player-insights', rateLimits.general, async (req, res) => {
-    const result = await getPlayerInsights({
-      rootDir,
-      username: req.query?.username,
-      rid: req.query?.rid,
-      getReportesSnapshot,
-      buildPlayerInsightsWithScCache,
+  app.get('/api/reports/player-insights', rateLimits.general, requirePrivateSession, async (req, res) => {
+    const result = await accessReportData({
+      config: wordpressReportsConfig, username: req.query.username || '', rid: req.query.rid || '',
     });
-
+    return res.status(result.status).json(result.payload);
+  });
+  app.get('/api/reports/:id', rateLimits.general, requirePrivateSession, async (req, res) => {
+    const result = await accessReportData({ config: wordpressReportsConfig, reportId: req.params.id });
+    return res.status(result.status).json(result.payload);
+  });
+  app.post('/api/reports/:id/community-verification', rateLimits.general, requirePrivateSession, requireNonEmptyBody, async (req, res) => {
+    const result = await accessReportData({
+      config: wordpressReportsConfig, reportId: req.params.id, user: getSessionUser(req),
+      vote: { voteType: req.body.voteType, reason: req.body.reason || '', voterName: req.body.voterName || '' },
+    });
     return res.status(result.status).json(result.payload);
   });
 }

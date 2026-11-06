@@ -11,16 +11,15 @@ const reportes = Array.from({ length: 140 }, (_, index) => ({
   fecha: new Date(Date.UTC(2026, 0, index + 1)).toISOString(),
 }));
 
-globalThis.localStorage = {
-  getItem: () => JSON.stringify(reportes),
-};
-
 const query = 'Que encuentras en comun con todos los reportados?';
-const context = buildReportesChatContext(query, inferReportIntent(query));
+const context = buildReportesChatContext(query, inferReportIntent(query), reportes);
 
 assert.equal(context.useReportesDb, true);
 assert.equal(context.reportQuery.tool, 'analyze_recent_similarity');
 assert.equal(context.reportesContext.reportes.length, reportes.length);
 assert.equal(context.reportesContext.stats.total, reportes.length);
+assert.deepEqual(context.reportesContext.stats, { total: reportes.length, byCategoria: { modder: reportes.length } });
+assert.doesNotMatch(JSON.stringify(context), /severidad|severity/i);
+assert.deepEqual(buildReportesChatContext(query, inferReportIntent(query)).reportesContext.reportes, []);
 
 console.log('OK full report context checks completed');

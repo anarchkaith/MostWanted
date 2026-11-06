@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { playerCandidates } from '../src/services/casePresentation';
-import { fetchArchiveSearch, mergePlayerMatches, searchExcerpt } from '../src/services/playerSearch';
+import { fetchArchiveSearch, mergePlayerMatches } from '../src/services/playerSearch';
 import CyberButtonLabel from './ui/CyberButtonLabel';
 import SpecialTextContent from './ui/SpecialTextContent';
 import Skeleton from './ui/Skeleton';
@@ -123,8 +123,7 @@ export default function PersonSearch({ reports, knownPlayers, onSelect, revision
           {matches.slice(0, resultLimit).map((player, index) => <button type="button" role="option" aria-selected={active === index} id={`person-match-${index}`} key={player.key} onMouseDown={event => event.preventDefault()} onClick={() => choose(player)}>
             <strong translate="no"><SpecialTextContent>{player.nickname || `RID ${player.rid}`}</SpecialTextContent></strong>
             <span><SpecialTextContent>{player.rid ? `RID ${player.rid}` : 'Solo nombre'}{player.count > 0 ? ` · ${player.count} reporte(s)` : ''}</SpecialTextContent></span>
-            {player.searchMatches.filter(item => !['Nombre', 'Alias', 'RID'].includes(item.field)).slice(0, 2).map((item, matchIndex) =>
-              <span key={matchIndex}><SpecialTextContent>{item.field}{item.reportId ? ` · Reporte #${item.reportId}` : ''}: {searchExcerpt(item.text, term)}</SpecialTextContent></span>)}
+            {player.names.length > 0 && <span><SpecialTextContent>Otros nombres: {player.names.join(', ')}</SpecialTextContent></span>}
           </button>)}
         </div>
         {loading && <Skeleton label="Buscando en reportes y resúmenes…" rows={2} />}

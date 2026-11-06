@@ -29,7 +29,7 @@ try {
   assert.equal(Object.hasOwn(optionalFields, 'severity'), false);
   assert.equal(Object.hasOwn(optionalFields, 'validation'), false);
   const [assignedFields] = summaryInput([{ id: 1, severity: 'alta', validation: 'rejected' }]);
-  assert.equal(assignedFields.severity, 'alta');
+  assert.equal(Object.hasOwn(assignedFields, 'severity'), false, 'Ignore severity even when it was explicitly stored');
   assert.equal(assignedFields.validation, 'rejected');
 
   const first = await readCase(query);
@@ -45,6 +45,10 @@ try {
   reports[0].communityVerification = { up: 12, down: 4 };
   await readCase(query);
   assert.equal(calls, 1, 'votes do not rerun AI');
+  reports[0].severity = 'critical';
+  reports[0].severidad = 'critica';
+  await readCase(query);
+  assert.equal(calls, 1, 'Retired severity never invalidates the current summary');
   reports.push({ ...reports[0], id: 2, reason: 'Una nueva denuncia' });
   const updated = await readCase(query);
   assert.equal(calls, 2);

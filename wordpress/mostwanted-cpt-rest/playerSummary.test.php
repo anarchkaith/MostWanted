@@ -42,6 +42,9 @@ check(!isset($summary['sourceRevision']), 'Do not expose internal synchronizatio
 $GLOBALS['reports'][1]['communityVerification'] = ['up' => 42];
 $GLOBALS['reports'][1]['crews'] = [['name' => 'Crew']];
 check(!mw_player_public_summary(10)['stale'], 'Votes and crews do not invalidate AI');
+$GLOBALS['reports'][1]['severity'] = 'critical';
+$GLOBALS['reports'][1]['analysis'] = ['severidad' => 'critica'];
+check(!mw_player_public_summary(10)['stale'], 'Legacy severity no longer affects summary freshness');
 $GLOBALS['reports'][1]['reason'] = 'Motivo corregido';
 check(mw_player_public_summary(10)['stale'], 'Relevant changes invalidate published summary without generating AI');
 check(mw_rest_player_summary(new Request($body, 'POST'))->status === 409, 'Reject a summary for an outdated source revision');

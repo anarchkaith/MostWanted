@@ -5,7 +5,7 @@ import usePlayerInvestigation from './usePlayerInvestigation';
 import { isBlockedReportedUsername } from './blockedUsernames';
 import { completeReportPlayerDraft } from '../src/services/reportPlayerDraft';
 
-export default function ReportPlayerIdentity({ initialPlayer }) {
+export default function ReportPlayerIdentity({ initialPlayer, editMode = false }) {
   const { values, errors, touched, isSubmitting, setValues } = useFormikContext();
   const [request, setRequest] = useState(() => initialPlayer && !initialPlayer.investigationCompleted
     ? { username: initialPlayer.nickname, rid: initialPlayer.rid } : null);
@@ -22,7 +22,7 @@ export default function ReportPlayerIdentity({ initialPlayer }) {
     <section className="rfm-panel rfm-panel--objetivo mw-cyber-panel" aria-labelledby="report-player-title">
       <div className="cyber-tile mw-cyber-frame" aria-hidden="true" />
       <h3 id="report-player-title" className="rfm-panel__title cyber-h mw-cyber-heading">Jugador</h3>
-      {initialPlayer?.nickname || initialPlayer?.rid ? <div className="form-group">
+      {!editMode && (initialPlayer?.nickname || initialPlayer?.rid) ? <div className="form-group">
         <strong className="rfm-player-name notranslate" translate="no">{values.nickname || `RID ${values.rid}`}</strong>
         <ErrorMessage name="nickname" component="span" className="form-group__hint" />
       </div> : <div className="form-group">
@@ -32,7 +32,7 @@ export default function ReportPlayerIdentity({ initialPlayer }) {
         </div>
         <ErrorMessage name="nickname" component="span" className="form-group__hint" />
       </div>}
-      {!initialPlayer?.investigationCompleted && <button type="button" className="cyber-button-small mw-cyber-button mw-cyber-button--secondary" disabled={isSubmitting || isLoading || username.length < 2 || isBlockedReportedUsername(username)} onClick={() => setRequest({ username, rid: initialPlayer?.rid || '' })}>
+      {!editMode && !initialPlayer?.investigationCompleted && <button type="button" className="cyber-button-small mw-cyber-button mw-cyber-button--secondary" disabled={isSubmitting || isLoading || username.length < 2 || isBlockedReportedUsername(username)} onClick={() => setRequest({ username, rid: initialPlayer?.rid || '' })}>
         <CyberButtonLabel>{isLoading ? 'Buscando...' : 'Completar datos disponibles'}</CyberButtonLabel>
       </button>}
       {isLoading && <p role="status">Consultando jugador…</p>}

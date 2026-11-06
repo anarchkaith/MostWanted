@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { mergePlayerMatches, publicSearchFields, searchFieldMatches, searchExcerpt, fetchArchiveSearch } from './playerSearch.js';
+import { mergePlayerMatches, publicSearchFields, searchFieldMatches, fetchArchiveSearch } from './playerSearch.js';
 import { playerCandidates, filterCaseReports } from './casePresentation.js';
 import { mapWordpressReportToReporte } from './reportViewModel.js';
 
@@ -55,14 +55,28 @@ test('server matches remain selectable even when excerpts omit one of multiple s
     searchMatches: [{ field: 'Resumen', text: 'carreras …', reportId: 9 }],
   }], 'carreras nocturnas');
   assert.equal(matches.length, 1);
+  assert.equal(mergePlayerMatches([], [{
+    nickname: 'Player', rid: '123', names: [], count: 1, matchedQuery: 'carreras nocturnas',
+  }], 'carreras nocturnas').length, 1, 'Scoped search identities need not expose report text to remain selectable');
 });
 
-test('excerpt includes a keyword late in a long summary', () => {
-  const text = `${'Introducción '.repeat(100)}teletransporte observado`;
-  const excerpt = searchExcerpt(text, 'teletransporte');
-  assert(excerpt.includes('teletransporte'));
-  assert(excerpt.startsWith('…'));
-  assert(excerpt.length <= 162);
+test('keyword results keep player identity and deduplicated aliases, separate from report excerpts', () => {
+  const matches = mergePlayerMatches(playerCandidates([
+    { ...report, aliases: ['OldName', 'Player'] },
+    { ...report, id: 10, aliases: ['OLDNAME', 'OtherName'] },
+  ], 'carreras'), [{
+    nickname: 'Player', rid: '123', names: ['Player', 'OldName', 'OtherName'],
+    matchedQuery: 'carreras', searchMatches: [{ field: 'Motivo', text: 'carreras', reportId: 9 }],
+  }], 'carreras');
+  assert.equal(matches.length, 1);
+  assert.equal(matches[0].nickname, 'Player');
+  assert.equal(matches[0].rid, '123');
+  assert.equal(matches[0].count, 2);
+  assert.deepEqual(matches[0].names, ['OldName', 'OtherName']);
+  assert.ok(matches[0].searchMatches.length > 0, 'Matching evidence is retained without becoming player identity');
+  assert.equal(mergePlayerMatches([], [{
+    nickname: 'Player', aliases: ['OldName'], aiSummary: { text: 'carreras' },
+  }], 'carreras')[0].names[0], 'OldName');
 });
 
 test('archive request preserves query, pagination and cancellation and surfaces errors', async () => {

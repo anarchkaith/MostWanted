@@ -1,7 +1,5 @@
 import { toolExists } from './toolCatalog.js';
 
-const REPORTES_STORAGE_KEY = 'mostwanted_reportes';
-
 const normalizeText = (value) => String(value || '').trim().toLowerCase();
 
 const toSafeArray = (value) => (Array.isArray(value) ? value : []);
@@ -16,7 +14,6 @@ function pickRelevantFields(reporte = {}) {
     id: reporte.id ?? null,
     usuario: String(reporte.usuario || 'USUARIO_SIN_NOMBRE').trim(),
     categoria: String(reporte.categoria || '').trim(),
-    severidad: String(reporte.severidad || '').trim(),
     motivo: String(reporte.motivo || '').trim(),
     fecha: String(reporte.fecha || '').trim(),
     validacion: String(reporte.validacion || 'pendiente').trim(),
@@ -27,17 +24,14 @@ function pickRelevantFields(reporte = {}) {
 function buildStats(reportes = []) {
   return reportes.reduce((acc, reporte) => {
     const categoria = normalizeText(reporte.categoria) || 'sin_categoria';
-    const severidad = normalizeText(reporte.severidad) || 'sin_severidad';
 
     acc.total += 1;
     acc.byCategoria[categoria] = (acc.byCategoria[categoria] || 0) + 1;
-    acc.bySeveridad[severidad] = (acc.bySeveridad[severidad] || 0) + 1;
 
     return acc;
   }, {
     total: 0,
     byCategoria: {},
-    bySeveridad: {},
   });
 }
 
@@ -93,24 +87,8 @@ function filterByDetailTarget(reportes = [], intentData = {}, targetUsuario = ''
   return reportes.filter((reporte) => normalizeText(reporte.usuario).includes(target));
 }
 
-export function readReportesFromLocalStorage() {
-  try {
-    const raw = localStorage.getItem(REPORTES_STORAGE_KEY);
-    if (!raw) return [];
-
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-
-    return parsed
-      .map(pickRelevantFields)
-      .filter((reporte) => reporte.usuario.length > 0);
-  } catch {
-    return [];
-  }
-}
-
-export function buildReportesChatContext(userText, intentData = {}) {
-  const reportes = readReportesFromLocalStorage();
+export function buildReportesChatContext(userText, intentData = {}, currentReports = []) {
+  const reportes = toSafeArray(currentReports).map(pickRelevantFields).filter(reporte => reporte.usuario.length > 0);
   const targetUsuario = extractTargetUsuario(userText, reportes);
   const intentNeedsReportContext = typeof intentData?.needsReportContext === 'boolean'
     ? intentData.needsReportContext
@@ -169,7 +147,7 @@ export function buildReportesChatContext(userText, intentData = {}) {
     useReportesDb: true,
     reportQuery,
     reportesContext: {
-      source: 'localStorage',
+      source: 'session-view',
       intent: String(intentData?.intentType || 'reportes-query').trim() || 'reportes-query',
       tool,
       reason: String(intentData?.reason || '').trim(),

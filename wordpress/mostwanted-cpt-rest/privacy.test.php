@@ -24,7 +24,8 @@ $GLOBALS['test_meta'] = [
         'privateIdentity' => ['id' => 'PRIVATE_ID', 'email' => 'PRIVATE_EMAIL'],
         'reportedby' => 'PRIVATE_NAME', 'reportadoPor' => 'PRIVATE_NAME',
         'contacto' => 'PRIVATE_CONTACT', 'metadata' => ['reporter' => 'PRIVATE_NAME'],
-        'report' => ['reportedby' => 'PRIVATE_NESTED', 'categories' => ['MODDER']],
+        'report' => ['reportedby' => 'PRIVATE_NESTED', 'categories' => ['MODDER'], 'analysis' => ['severity' => 'critical', 'summary' => 'Keep nested analysis']],
+        'analysis' => ['severidad' => 'critica', 'summary' => 'Keep analysis'],
         'avatar1' => 'avatar.png', 'severity' => 'alta',
         'evidence' => [['url' => 'evidence.png']],
     ],
@@ -41,7 +42,9 @@ $report = mw_map_report_item(1);
 check(strpos(json_encode($report), 'PRIVATE') === false, 'Public API must not expose reporter identity');
 check($GLOBALS['test_meta'] === $before, 'Public serialization must preserve internal attribution');
 check($report['nickname'] === 'Player' && $report['rid'] === '123', 'Keep player identity');
-check($report['severity'] === 'alta' && $report['avatar1'] === 'avatar.png', 'Keep report metadata');
+check(!isset($report['severity']) && !isset($report['severidad']) && $report['avatar1'] === 'avatar.png', 'Omit retired severity while keeping other metadata');
+check(!isset($report['analysis']['severidad']) && !isset($report['report']['analysis']['severity']), 'Omit nested legacy severity');
+check($report['analysis']['summary'] === 'Keep analysis' && $report['report']['analysis']['summary'] === 'Keep nested analysis', 'Keep analysis text');
 check($report['content'] === 'Denuncia' && count($report['evidence']) === 1, 'Keep reason and evidence');
 check($report['communityVerification']['up'] === 2, 'Keep votes');
 check($report['communityVerification']['confirmations'][0]['reason'] === 'Revisar', 'Keep vote reasons');

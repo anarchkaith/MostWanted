@@ -3,7 +3,7 @@ import { useFormik } from 'formik';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
-import { buildReportesChatContext, readReportesFromLocalStorage } from './chatTools';
+import { buildReportesChatContext } from './chatTools';
 import { getIaChatEndpoint, getIaIntentEndpoint } from '../src/services/apiConfig';
 import { requestAssistantReply } from '../src/services/assistantChat';
 import CyberButtonLabel from './ui/CyberButtonLabel';
@@ -43,7 +43,7 @@ function AssistantReply({ text, animate }) {
   );
 }
 
-export default function AIAssistantBubble({ isAuthenticated = false, onSessionExpired }) {
+export default function AIAssistantBubble({ isAuthenticated = false, onSessionExpired, reports = [] }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -192,7 +192,7 @@ export default function AIAssistantBubble({ isAuthenticated = false, onSessionEx
       ]);
 
       try {
-        const localReportes = readReportesFromLocalStorage();
+        const localReportes = reports;
         const candidateUsuarios = localReportes
           .map((reporte) => String(reporte?.usuario || '').trim())
           .filter(Boolean);
@@ -204,7 +204,7 @@ export default function AIAssistantBubble({ isAuthenticated = false, onSessionEx
           messages: updatedMessages,
           candidateUsuarios,
           candidateCategories,
-          buildContext: buildReportesChatContext,
+          buildContext: (text, intent) => buildReportesChatContext(text, intent, reports),
           chatEndpoint: IA_ENDPOINT,
           intentEndpoint: INTENT_ENDPOINT,
           signal: controller.signal,

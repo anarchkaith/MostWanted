@@ -72,7 +72,8 @@ async function requestWordpressApi({
     const error = new Error(`WordPress ${operation.toLowerCase()} failed.`);
     error.name = 'WordpressApiError';
     error.status = response.status;
-    error.details = parsed?.error || rawText.slice(0, 240) || 'empty_response';
+    error.code = parsed?.code;
+    error.details = parsed?.error || parsed?.message || rawText.slice(0, 240) || 'empty_response';
     throw error;
   }
 
@@ -81,6 +82,28 @@ async function requestWordpressApi({
     status: response.status,
     payload: parsed ?? { raw: rawText || 'ok' },
   };
+}
+
+export async function readWordpressReport({ config, reportId, logger = console }) {
+  return requestWordpressApi({
+    config, logger, method: 'GET', path: `/wp-json/mostwanted/v1/reports/${reportId}`,
+    operation: 'Scoped report lookup',
+  });
+}
+
+export async function readWordpressPlayerInsights({ config, username, rid, logger = console }) {
+  const params = new URLSearchParams({ username, rid });
+  return requestWordpressApi({
+    config, logger, method: 'GET', path: `/wp-json/mostwanted/v1/player-insights?${params}`,
+    operation: 'Scoped player insights',
+  });
+}
+
+export async function postWordpressReportVote({ config, reportId, vote, logger = console }) {
+  return requestWordpressApi({
+    config, logger, method: 'POST', path: `/wp-json/mostwanted/v1/reports/${reportId}/community-verification`,
+    operation: 'Authenticated report vote', body: vote,
+  });
 }
 
 export async function postWordpressAccountActivity({ config, identity, event, logger = console }) {
@@ -139,6 +162,15 @@ export async function getWordpressOwnedReports({ config, ownerDiscordId, page, p
     operation: 'Private reports lookup',
     useAuth: true,
     onLog: () => logger.info('[wordpress] Reading private reports'),
+  });
+}
+
+export async function requestWordpressReportEdit({ config, reportId, actor, changes, revision, logger = console }) {
+  const path = `/wp-json/mostwanted/v1/reports/${reportId}/edit`;
+  return requestWordpressApi({
+    config, logger, method: 'POST', path,
+    operation: 'Private report editing', useAuth: true,
+    body: { actor, ...(changes ? { changes, revision } : { inspect: true }) },
   });
 }
 

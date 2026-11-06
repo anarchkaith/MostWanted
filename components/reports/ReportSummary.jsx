@@ -1,4 +1,4 @@
-import { CATEGORY_LABELS, SEVERITY_LABELS, VALIDATION_LABELS, formatCaseDate, formatReportDate, reportCategories } from '../../src/services/casePresentation';
+import { CATEGORY_LABELS, formatCaseDate, reportCategories } from '../../src/services/casePresentation';
 import { normalizeReportLabels } from '../../src/services/reportViewModel';
 import { reportEvidence } from '../../src/services/reportEvidence';
 import { resolvePlayerRid } from '../../shared/playerIdentity';
@@ -32,13 +32,35 @@ export default function ReportSummary({ report, onOpenAvatar }) {
     ? new Date(timestamp * (timestamp < 1e12 ? 1000 : 1)) : null;
   return <SpecialTextContent>
     <>
-      <div className="report-detail__field">
-        <div className="report-detail__label">Jugador</div>
-        <div className="report-detail__value report-detail__value--user notranslate" translate="no">
-          <SpecialTextContent group>{report.usuario}</SpecialTextContent>
+      <div className="report-detail__identity">
+        {avatars.length > 0 && <div className="report-detail__avatars">
+          <CurrentPlayerAvatars key={`${report.id}-${avatars.map(avatar => avatar.src).join('|')}`}
+            label="Avatar"
+            investigation={{ nombre: report.usuario, avatares: avatars.map((avatar, index) => ({ index, avatarUrl: avatar.src })) }}
+            onOpen={onOpenAvatar} />
+        </div>}
+        <div className="report-detail__identity-content">
+          <div className="report-detail__label">Jugador</div>
+          <div className="report-detail__name notranslate" translate="no">
+            <SpecialTextContent group>{report.usuario}</SpecialTextContent>
+          </div>
+          {aliases.length > 0 && <div className="report-detail__aliases">
+            <span>Otros nombres registrados</span>
+            <span className="notranslate" translate="no">{aliases.join(', ')}</span>
+          </div>}
+          {(rid || crews.length > 0) && <div className="report-detail__identity-meta">
+            {rid && <div className="report-detail__metadata">
+              <span className="report-detail__metadata-label">RID</span>
+              <span className="notranslate" translate="no">{rid}</span>
+            </div>}
+            {crews.length > 0 && <div className="report-detail__metadata">
+              <span className="report-detail__metadata-label">Crews</span>
+              {crews.map((crew, index) => <a className="notranslate" translate="no" key={`${crew.url}-${index}`}
+                href={crew.url} target="_blank" rel="noopener noreferrer">{crew.name}</a>)}
+            </div>}
+          </div>}
         </div>
       </div>
-      {rid && <DetailField label="RID"><span className="notranslate" translate="no">{rid}</span></DetailField>}
       <div className="report-detail__field report-detail__classification">
         <div>
           <div className="report-detail__label">Tipos de infracción</div>
@@ -50,47 +72,20 @@ export default function ReportSummary({ report, onOpenAvatar }) {
         </div>
       </div>
       {labels.length > 0 && <DetailField label="Etiquetas">
-        <div className="threat-labels__options">{labels.map((item, index) => <span className="threat-label threat-label--selected" key={`${item.label}-${index}`}>
-          <span>{item.label}{item.detail && <span> — {item.detail}</span>}</span>
-          <span aria-hidden="true">✓</span>
+        <div className="report-detail__tags">{labels.map((item, index) => <span className="report-detail__tag" key={`${item.label}-${index}`}>
+          <span>{item.label}{item.detail && <span className="report-detail__tag-detail"> — {item.detail}</span>}</span>
         </span>)}</div>
       </DetailField>}
-      {SEVERITY_LABELS[report.severidad] && <DetailField label="Severidad">{SEVERITY_LABELS[report.severidad]}</DetailField>}
       {INVESTIGATION_LABELS[report.investigation_status] && <DetailField label="Investigación de identidad">
         {INVESTIGATION_LABELS[report.investigation_status]}
       </DetailField>}
       {incidentDate && Number.isFinite(incidentDate.getTime()) && <DetailField label="Fecha y hora del incidente">
         {formatCaseDate(incidentDate.toISOString(), true)}
       </DetailField>}
-      {aliases.length > 0 && <DetailField label="Otros nombres registrados">
-        <span className="notranslate" translate="no">{aliases.join(', ')}</span>
-      </DetailField>}
-      {crews.length > 0 && <DetailField label="Crews">
-        <ul className="report-detail__list">{crews.map((crew, index) => <li key={`${crew.url}-${index}`}>
-          <a className="notranslate" translate="no" href={crew.url} target="_blank" rel="noopener noreferrer">{crew.name}</a>
-        </li>)}</ul>
-      </DetailField>}
-      {avatars.length > 0 && <div className="report-detail__field report-detail__avatars">
-        <CurrentPlayerAvatars key={`${report.id}-${avatars.map(avatar => avatar.src).join('|')}`}
-          label="Avatares registrados en el reporte"
-          investigation={{ nombre: report.usuario, avatares: avatars.map((avatar, index) => ({ index, avatarUrl: avatar.src })) }}
-          onOpen={onOpenAvatar} />
-      </div>}
       <div className="report-detail__field">
         <div className="report-detail__label">Motivo</div>
         <div className="report-detail__value"><SpecialTextContent group>{report.motivo}</SpecialTextContent></div>
       </div>
     </>
-  </SpecialTextContent>;
-}
-
-export function ReportValidation({ report }) {
-  return <SpecialTextContent>
-    <div className="report-detail__field">
-      <div className="report-detail__label">Validación del reporte</div>
-      <div className="report-detail__value">{VALIDATION_LABELS[report.validacion] || 'Sin validación registrada'}</div>
-      {report.fechaValidacion && <div className="report-detail__validation-date">📅 Validado el {formatReportDate(report.fechaValidacion)}</div>}
-      {report.adminNota && <div className="report-detail__historical-note">📝 Nota del Admin: {report.adminNota}</div>}
-    </div>
   </SpecialTextContent>;
 }

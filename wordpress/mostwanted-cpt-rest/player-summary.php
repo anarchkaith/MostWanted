@@ -23,7 +23,6 @@ function mw_player_summary_source($player_id) {
             'id' => $report['id'], 'nickname' => $report['nickname'], 'rid' => $report['rid'],
             'reason' => $report['reason'] ?? $report['content'] ?? '',
             'categories' => $report['typesOfInfraction'] ?? $report['categories'] ?? [],
-            'severity' => $report['severity'] ?? $report['severidad'] ?? $report['analysis']['severity'] ?? $report['analysis']['severidad'] ?? null,
             'validation' => $report['validation'] ?? $report['validacion'] ?? null,
             'createdAt' => $report['createdAt'] ?? null,
             'time' => empty($report['createdAt']) ? ($report['time'] ?? null) : null,

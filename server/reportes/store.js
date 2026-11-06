@@ -162,7 +162,6 @@ function summarizeReporteMatch(reporte = {}) {
     id: reporte?.id ?? null,
     usuario: String(reporte?.usuario || reporte?.nickname || reporte?.username || '').trim(),
     categoria: String(reporte?.categoria || '').trim(),
-    severidad: String(reporte?.severidad || '').trim(),
     motivo: String(reporte?.motivo || reporte?.reason || '').trim(),
     fecha: String(reporte?.fecha || reporte?.created_at || reporte?.time || '').trim(),
     etiquetas: Array.isArray(reporte?.etiquetas) ? reporte.etiquetas.slice(0, 8) : [],
@@ -228,10 +227,6 @@ export function getRelatedReportes(reportes, targetReport, limit = 5) {
         overlap += 2;
       }
 
-      if (item?.severidad && item.severidad === targetReport?.severidad) {
-        overlap += 1;
-      }
-
       return { item, overlap };
     })
     .filter((entry) => entry.overlap > 0)
@@ -244,19 +239,15 @@ export function getRelatedReportes(reportes, targetReport, limit = 5) {
 
 export function buildReportesStats(reportes) {
   const byCategory = {};
-  const bySeverity = {};
 
   for (const reporte of reportes) {
     const category = String(reporte?.categoria || 'sin_categoria');
-    const severity = String(reporte?.severidad || 'sin_severidad');
     byCategory[category] = (byCategory[category] || 0) + 1;
-    bySeverity[severity] = (bySeverity[severity] || 0) + 1;
   }
 
   return {
     total: reportes.length,
     byCategory,
-    bySeverity,
   };
 }
 

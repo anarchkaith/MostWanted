@@ -25,9 +25,6 @@ export async function searchArchive({ config, query, page = 1, logger = console,
       }
       return {
         nickname: item.nickname, rid: item.rid, names: item.names, count: item.count,
-        searchMatches: item.searchMatches.map(match => ({
-          field: match.field, text: match.text, ...(Number.isSafeInteger(match.reportId) ? { reportId: match.reportId } : {}),
-        })),
       };
     });
     return { status: 200, payload: {

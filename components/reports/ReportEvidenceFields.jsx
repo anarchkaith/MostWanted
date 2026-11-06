@@ -1,7 +1,7 @@
 import { ErrorMessage, Field, useFormikContext } from 'formik';
 import ImageUpload from '../ImageUpload';
 
-export default function ReportEvidenceFields({ imageUploadRef, onImagesChange, onBlockedChange }) {
+export default function ReportEvidenceFields({ imageUploadRef, onImagesChange, onBlockedChange, existingEvidence, maxImages = 5, maxReasonLength = 500 }) {
   const { values, errors, touched, isSubmitting } = useFormikContext();
   return <div className="rfm-motivo-row">
     <div className="rfm-panel mw-cyber-panel" style={{ display: 'flex', flexDirection: 'column' }}>
@@ -11,12 +11,12 @@ export default function ReportEvidenceFields({ imageUploadRef, onImagesChange, o
         <div className="cyber-input-full mw-cyber-input rfm-reason-input">
           <Field as="textarea" id="reason" name="reason" aria-invalid={Boolean(touched.reason && errors.reason)}
             className="form-group__textarea" aria-label="Motivo del Reporte"
-            placeholder="Describe lo que viste: qué hizo, cuándo, en qué sesión..." maxLength={500}
+            placeholder="Describe lo que viste: qué hizo, cuándo, en qué sesión..." maxLength={maxReasonLength}
             disabled={isSubmitting} style={{ flex: 1, resize: 'none' }} />
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
           <ErrorMessage name="reason" component="span" className="form-group__hint" style={{ color: '#ff3333' }} />
-          <span className="form-group__hint" style={{ marginLeft: 'auto' }}>{values.reason.length}/500</span>
+          <span className="form-group__hint" style={{ marginLeft: 'auto' }}>{values.reason.length}/{maxReasonLength}</span>
         </div>
       </div>
     </div>
@@ -24,7 +24,10 @@ export default function ReportEvidenceFields({ imageUploadRef, onImagesChange, o
       <div className="cyber-tile mw-cyber-frame" aria-hidden="true" />
       <h3 className="rfm-panel__title cyber-h mw-cyber-heading">Evidencias<span className="rfm-optional">Opcional</span></h3>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <ImageUpload ref={imageUploadRef} onImagesChange={onImagesChange} onBlockedChange={onBlockedChange} maxImages={5} globalPaste={false} disabled={isSubmitting} />
+        {existingEvidence}
+        {maxImages > 0
+          ? <ImageUpload ref={imageUploadRef} onImagesChange={onImagesChange} onBlockedChange={onBlockedChange} maxImages={maxImages} globalPaste={false} disabled={isSubmitting} />
+          : <p className="rfm-note">Quita una evidencia guardada para añadir otra.</p>}
       </div>
     </div>
   </div>;

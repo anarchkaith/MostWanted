@@ -67,7 +67,7 @@ function normalizeTimestamp(value) {
 }
 
 function getColorByInfraction(infractions = []) {
-  const severityMap = {
+  const colorsByInfraction = {
     modder: 0xff0000,
     aimbot: 0xff3333,
     griffer: 0x39d353,
@@ -80,7 +80,7 @@ function getColorByInfraction(infractions = []) {
 
   for (const infraction of infractions) {
     const key = String(infraction || '').trim().toLowerCase();
-    if (severityMap[key]) return severityMap[key];
+    if (colorsByInfraction[key]) return colorsByInfraction[key];
   }
 
   return 0xff3333;

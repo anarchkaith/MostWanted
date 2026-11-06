@@ -17,7 +17,7 @@ test('search forwards pagination and returns only the public search contract', a
   } });
   assert.equal(result.status, 200);
   assert.equal(result.payload.items[0].privateIdentity, undefined);
-  assert.equal(result.payload.items[0].searchMatches[0].reporter, undefined);
+  assert.equal(result.payload.items[0].searchMatches, undefined, 'Search only exposes identity, never report excerpts or IDs');
 });
 
 test('invalid queries and pages never reach WordPress', async () => {
@@ -58,12 +58,12 @@ test('registered search endpoint proxies the query with backend-only authorizati
   try {
     let data;
     const response = {
-      set(key, value) { assert.equal(key, 'Cache-Control'); assert.equal(value, 'no-store'); },
+      set(key, value) { assert.equal(key, 'Cache-Control'); assert.equal(value, 'private, no-store'); },
       status(value) { assert.equal(value, 200); return this; },
       json(value) { data = value; },
     };
     await routes.get('/api/reports/search').at(-1)({ query: { q: 'carreras', page: '2' } }, response);
-    assert.equal(data.items[0].searchMatches[0].text, 'Carreras nocturnas');
+    assert.equal(data.items[0].searchMatches, undefined);
     assert.equal(data.items[0].privateIdentity, undefined);
   } finally { globalThis.fetch = originalFetch; }
 });

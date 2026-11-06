@@ -11,7 +11,6 @@ const count = (value) => Number.isFinite(Number(value)) ? Math.max(0, Math.trunc
 // An allowlist is deliberate: WP may return ingestion payloads, IPs and Discord IDs.
 export function publicReport(raw) {
   const votes = raw.communityVerification || raw.votes || {};
-  const severity = text(raw.severity || raw.severidad || raw.analysis?.severity || raw.analysis?.severidad) || null;
   const validation = raw.rejectedByStaff === true ? 'rejected'
     : text(raw.staffValidation?.status || raw.staffValidation || raw.validation?.status || raw.validation
       || raw.validacion?.status || raw.validacion
@@ -49,8 +48,6 @@ export function publicReport(raw) {
     labels: list(raw.labels || raw.etiquetas).map((item) => typeof item === 'object'
       ? { id: item?.id ?? null, name: text(item?.name || item?.label),
         label: text(item?.label || item?.name), detail: text(item?.detail) } : text(item)),
-    severity,
-    severidad: severity,
     validation,
     content: text(raw.content || raw.reason || raw.motivo),
     reason: text(raw.reason || raw.content || raw.motivo),
@@ -92,29 +89,10 @@ export function matchReports(reports, { nickname = '', rid = '' }) {
     || String(a.id).localeCompare(String(b.id), undefined, { numeric: true }));
 }
 
-export function calculatePriority(reports) {
-  const levels = ['low', 'normal', 'high', 'critical'];
-  const severities = { baja: 0, low: 0, media: 1, medium: 1, normal: 1, alta: 2, high: 2, critica: 3, critical: 3 };
-  let result = { level: 'undetermined', reason: 'Sin reportes elegibles con severidad conocida.', reportId: null, severity: null, balance: null };
-  let max = -1;
-  for (const report of reports) {
-    if (['rejected', 'rechazado', 'rechazada'].includes(normalizeName(report.validation))) continue;
-    const severity = normalizeName(report.severity || report.severidad);
-    const base = severities[severity];
-    if (base === undefined) continue;
-    const balance = count(report.communityVerification?.up) - count(report.communityVerification?.down);
-    const rank = Math.min(3, base + (balance >= 5 ? 1 : 0));
-    if (rank <= max) continue;
-    max = rank;
-    result = { level: levels[rank], reportId: report.id, severity: report.severity || report.severidad, balance,
-      reason: `Reporte ${report.id}: severidad ${report.severity || report.severidad}, saldo ${balance}${balance >= 5 ? '; incremento de un nivel (tope crítica)' : ''}.` };
-  }
-  return result;
-}
-
 export function createCaseReportsSource({ config, fetchImpl = fetch }) {
   return async ({ nickname = '', rid = '' }) => {
-    if (!config?.enabled || !config?.baseUrl) throw new Error('wordpress_source_not_configured');
+    if (!config?.enabled || !config?.baseUrl || !config?.apiSecret) throw new Error('wordpress_source_not_configured');
+    if (!nickname && !rid) throw new Error('player_identity_required');
     const reports = [];
     for (let page = 1; page <= 1000; page++) {
       const url = new URL(`${String(config.baseUrl).replace(/\/+$/, '')}/wp-json/mostwanted/v1/reports`);
@@ -123,7 +101,9 @@ export function createCaseReportsSource({ config, fetchImpl = fetch }) {
       // Fetch by name as well for RID-less historical reports; matching below never joins conflicting RIDs.
       if (nickname) url.searchParams.set('nickname', nickname);
       else if (rid) url.searchParams.set('rid', rid);
-      const response = await fetchImpl(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(config.timeoutMs || 9000) });
+      const response = await fetchImpl(url, { headers: {
+        Accept: 'application/json', Authorization: `Bearer ${config.apiSecret}`,
+      }, signal: AbortSignal.timeout(config.timeoutMs || 9000) });
       if (!response.ok) throw new Error(`wordpress_source_${response.status}`);
       const payload = await response.json();
       if (payload.ok === false || !Array.isArray(payload.items)) throw new Error('wordpress_source_invalid_payload');

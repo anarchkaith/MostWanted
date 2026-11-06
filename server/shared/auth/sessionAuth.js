@@ -38,3 +38,8 @@ export function requireSessionAuth(req, res, next) {
 
   return next();
 }
+
+export function requirePrivateSession(req, res, next) {
+  res.set('Cache-Control', 'private, no-store');
+  return requireSessionAuth(req, res, next);
+}

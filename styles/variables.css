@@ -42,18 +42,6 @@
    /* Texto atenuado/hints */
 
    /* ==========================================
-     COLORES DE SEVERIDAD
-     ========================================== */
-   --severity-critica: #ff0040;
-   /* Rojo intenso */
-   --severity-alta: #ff3333;
-   /* Rojo */
-   --severity-media: #ffaa00;
-   /* Naranja/Amarillo */
-   --severity-baja: #88cc00;
-   /* Verde */
-
-   /* ==========================================
      COLORES DE ESTADO/VALIDACIÓN
      ========================================== */
    --color-success: #22c55e;

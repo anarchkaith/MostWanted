@@ -6,7 +6,7 @@ import { ReportBehaviorFields, ReportInfractionFields } from './ReportInfraction
 import ReportEvidenceFields from './ReportEvidenceFields';
 import SpecialTextContent from '../ui/SpecialTextContent';
 
-export default function ReportFormFields({ initialPlayer, isDemo, onPaste, imageUploadRef, onImagesChange, evidenceBlocked, onEvidenceBlockedChange, submitError, submitErrorRef, submitButtonRef }) {
+export default function ReportFormFields({ initialPlayer, isDemo, onPaste, imageUploadRef, onImagesChange, evidenceBlocked, onEvidenceBlockedChange, submitError, submitErrorRef, submitButtonRef, editMode = false, existingEvidence, maxImages = 5, maxReasonLength = 500 }) {
   const { isSubmitting } = useFormikContext();
   return <Form className="report-form" noValidate onPaste={onPaste} style={{ position: 'relative' }}>
     {isDemo && <div className="cyber-banner-short mw-cyber-banner">
@@ -18,15 +18,16 @@ export default function ReportFormFields({ initialPlayer, isDemo, onPaste, image
     </div>}
     <div className="rfm-stack">
       {submitError && <div ref={submitErrorRef} className="rfm-submit-error" role="alert" tabIndex={-1}>⚠ {submitError}</div>}
-      <ReportPlayerIdentity initialPlayer={initialPlayer} />
-      <ReportAdditionalDetails initialPlayer={initialPlayer} />
+      <ReportPlayerIdentity initialPlayer={initialPlayer} editMode={editMode} />
+      <ReportAdditionalDetails initialPlayer={initialPlayer} editMode={editMode} />
       <ReportInfractionFields />
-      <ReportEvidenceFields imageUploadRef={imageUploadRef} onImagesChange={onImagesChange} onBlockedChange={onEvidenceBlockedChange} />
+      <ReportEvidenceFields imageUploadRef={imageUploadRef} onImagesChange={onImagesChange} onBlockedChange={onEvidenceBlockedChange}
+        existingEvidence={existingEvidence} maxImages={maxImages} maxReasonLength={maxReasonLength} />
       <ReportBehaviorFields />
       <div className="rfm-submit-wrap">
         <button ref={submitButtonRef} type="submit" className="cyber-button mw-cyber-button notranslate"
           translate="no" disabled={isSubmitting || evidenceBlocked} style={{ opacity: isSubmitting || evidenceBlocked ? 0.7 : 1, cursor: isSubmitting ? 'wait' : 'pointer' }}>
-          <CyberButtonLabel>{isSubmitting ? 'Enviando...' : 'Enviar reporte'}</CyberButtonLabel>
+          <CyberButtonLabel>{isSubmitting ? 'Enviando...' : editMode ? 'Guardar cambios' : 'Enviar reporte'}</CyberButtonLabel>
         </button>
       </div>
     </div>

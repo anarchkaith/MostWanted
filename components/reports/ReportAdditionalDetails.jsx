@@ -1,8 +1,8 @@
 import { ErrorMessage, Field, useFormikContext } from 'formik';
 
-export default function ReportAdditionalDetails({ initialPlayer }) {
+export default function ReportAdditionalDetails({ initialPlayer, editMode = false }) {
   const { values, errors, touched, isSubmitting } = useFormikContext();
-  const ridResolved = Boolean(initialPlayer?.rid) || values.investigation_status === 'resolved';
+  const ridResolved = editMode || Boolean(initialPlayer?.rid) || values.investigation_status === 'resolved';
   return <div className="rfm-panel mw-cyber-panel">
     <div className="cyber-tile mw-cyber-frame" aria-hidden="true" />
     <h3 className="rfm-panel__title cyber-h mw-cyber-heading">Datos adicionales</h3>

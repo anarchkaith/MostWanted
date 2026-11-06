@@ -1,4 +1,4 @@
-import { getSessionUser, requireSessionAuth } from '../../../shared/auth/sessionAuth.js';
+import { getSessionUser, requireSessionAuth, requirePrivateSession } from '../../../shared/auth/sessionAuth.js';
 import { createRequireCaseStaff } from '../../../shared/auth/discordStaff.js';
 import { submitWordpressReport } from '../../reports/services/submitReport.service.js';
 import { getPlayerInsights } from '../../background-investigation/services/playerInsights.service.js';
@@ -55,7 +55,7 @@ export function registerExpedientesRoutes(app, deps) {
     return requireLegacyNoteStaff(req, res, next);
   };
 
-  app.get('/api/players/investigate', rateLimits.general, async (req, res) => {
+  app.get('/api/players/investigate', rateLimits.general, requirePrivateSession, async (req, res) => {
     const username = typeof req.query?.username === 'string' ? req.query.username.trim() : '';
     const rid = typeof req.query?.rid === 'string' ? req.query.rid.trim() : '';
 
@@ -118,7 +118,7 @@ export function registerExpedientesRoutes(app, deps) {
     });
   });
 
-  app.get('/api/expedientes/search', rateLimits.general, (req, res) => {
+  app.get('/api/expedientes/search', rateLimits.general, requirePrivateSession, (req, res) => {
     const query = typeof req.query?.q === 'string' ? req.query.q.trim() : '';
     const limit = Number(req.query?.limit);
 
@@ -135,7 +135,7 @@ export function registerExpedientesRoutes(app, deps) {
     });
   });
 
-  app.get('/api/expedientes/:expedienteId', rateLimits.general, (req, res) => {
+  app.get('/api/expedientes/:expedienteId', rateLimits.general, requirePrivateSession, (req, res) => {
     const expedienteId = String(req.params?.expedienteId || '').trim();
     const expediente = getExpedienteById({ rootDir, expedienteId });
 
@@ -152,7 +152,7 @@ export function registerExpedientesRoutes(app, deps) {
     });
   });
 
-  app.post('/api/expedientes/:expedienteId/vote', rateLimits.general, requireBodyObject, (req, res) => {
+  app.post('/api/expedientes/:expedienteId/vote', rateLimits.general, requirePrivateSession, requireBodyObject, (req, res) => {
     const expedienteId = String(req.params?.expedienteId || '').trim();
     const voteType = req.body?.voteType;
     const reason = req.body?.reason;

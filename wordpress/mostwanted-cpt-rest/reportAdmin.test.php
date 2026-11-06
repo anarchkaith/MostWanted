@@ -1,7 +1,7 @@
 <?php
 define('ABSPATH', __DIR__);
 function add_action($hook, $callback) { $GLOBALS['hooks'][$hook] = $callback; }
-function add_filter(...$args) {}
+function add_filter(...$args) { $GLOBALS['filters'][$args[0]][] = $args[1]; }
 function register_activation_hook(...$args) {}
 function register_deactivation_hook(...$args) {}
 function add_meta_box(...$args) { $GLOBALS['box'] = $args; }
@@ -14,6 +14,7 @@ function wp_enqueue_script(...$args) { $GLOBALS['assets'][] = $args; }
 function wp_is_post_revision($id) { return $GLOBALS['revision'] ?? false; }
 function wp_is_post_autosave($id) { return $GLOBALS['autosave'] ?? false; }
 function current_user_can($cap, $id = 0) {
+    if ($cap === 'manage_options') return $GLOBALS['is_admin_user'] ?? false;
     if ($cap === 'upload_files') return $GLOBALS['can_upload'] ?? true;
     if ($cap === 'read_post') return $GLOBALS['can_read_attachment'] ?? true;
     if ($id === 9 && isset($GLOBALS['can_edit_player'])) return $GLOBALS['can_edit_player'];
@@ -37,7 +38,7 @@ function get_post_mime_type($id) { return $GLOBALS['attachment_mime'] ?? 'image/
 function get_attached_file($id) { return $GLOBALS['attachment_path'] ?? __FILE__; }
 function wp_get_attachment_url($id) { return 'https://wordpress.test/uploads/' . $id . '.png'; }
 function get_the_title($id) { return 'Original title'; }
-function get_post($id) { return isset($GLOBALS['meta'][$id]) ? (object) ['ID' => $id, 'post_type' => $id === 9 ? 'mw_player' : 'mw_report'] : null; }
+function get_post($id) { return isset($GLOBALS['meta'][$id]) ? (object) ['ID' => $id, 'post_type' => $id === 9 ? 'mw_player' : 'mw_report', 'post_status' => $GLOBALS['post_status'][$id] ?? 'publish'] : null; }
 function get_gmt_from_date($value) { return $value; }
 function mysql2date($format, $value) { return date($format, strtotime($value . ' UTC')); }
 function get_children($args) { return $GLOBALS['linked_reports'] ?? [1]; }
@@ -64,8 +65,9 @@ function update_post_meta($id, $key, $value, $previous = null) {
 }
 function is_wp_error($value) { return $value instanceof WP_Error; }
 class WP_Error {
-    public function __construct(public $code, public $message) {}
+    public function __construct(public $code, public $message, public $data = null) {}
     public function get_error_message() { return $this->message; }
+    public function get_error_data() { return $this->data; }
 }
 require __DIR__ . DIRECTORY_SEPARATOR . 'mostwanted-cpt-rest.php';
 function check($condition, $message) { if (!$condition) throw new RuntimeException($message); }
@@ -102,9 +104,11 @@ $GLOBALS['meta'] = [
     ],
     9 => ['_mw_nickname' => 'Old', '_mw_rid' => '123', '_mw_aliases_history' => [['alias' => 'Old', 'time' => 100]]],
 ];
-check($GLOBALS['hooks']['save_post_mw_report'] === 'mw_save_report_metadata', 'Wire report saves');
+check(!isset($GLOBALS['hooks']['save_post_mw_report']), 'Native WordPress saves must not edit report metadata');
 mw_register_post_types();
-check($GLOBALS['post_types']['mw_report']['supports'] === ['title'], 'Hide irrelevant content and generic custom fields only for reports');
+check($GLOBALS['post_types']['mw_report']['show_in_rest'] === false && $GLOBALS['post_types']['mw_player']['show_in_rest'] === false, 'Native WordPress REST must not expose report or player listings');
+check($GLOBALS['post_types']['mw_report']['supports'] === [], 'Hide all native report editing controls');
+check($GLOBALS['post_types']['mw_report']['capabilities']['create_posts'] === 'do_not_allow', 'Disable native report creation');
 check(in_array('custom-fields', $GLOBALS['post_types']['mw_player']['supports'], true), 'Keep player editing unchanged');
 $GLOBALS['assets'] = [];
 mw_report_admin_assets('edit.php');
@@ -114,7 +118,7 @@ mw_report_admin_assets('post.php');
 check($GLOBALS['assets'] === [], 'Do not load assets for unrelated post types');
 $GLOBALS['screen_type'] = 'mw_report';
 mw_report_admin_assets('post.php');
-check(count($GLOBALS['assets']) === 3 && $GLOBALS['assets'][2][2] === ['media-views'], 'Load native media picker, CSS and script only on report editors');
+check(count($GLOBALS['assets']) === 1 && $GLOBALS['assets'][0][0] === 'mw-report-admin', 'Load only viewer styling, never the media picker or editing script');
 mw_add_report_meta_box();
 check($GLOBALS['box'][3] === 'mw_report', 'Use the existing report CPT');
 $initial = mw_report_admin_values(1);
@@ -141,7 +145,7 @@ check($public['content'] === $input['reason'], 'Preserve quotes, newlines and ba
 check($public['categories'] === ['Modder'] && $public['labels'][0]['id'] === 1, 'API reflects labels and categories');
 check($public['evidence'][0]['url'] === 'https://images.test/new.png', 'API reflects evidence');
 check($public['analysis']['path'] === 'C:\\evidence', 'Preserve JSON backslashes through WordPress slashing');
-check($public['severity'] === 'alta' && !isset($public['avatar1']), 'Apply extra metadata additions and removals');
+check(!isset($public['severity']) && $saved['_mw_report_payload']['severity'] === 'alta' && !isset($public['avatar1']), 'Preserve stored severity without publishing it');
 check($saved['_mw_report_payload']['report']['analysis'] === $saved['_mw_analysis'], 'Synchronize nested analysis');
 check($saved['_mw_report_payload']['report']['tags'] === ['Abuso de bugs'], 'Synchronize nested tags');
 check($saved['_mw_report_payload']['categories'] === $saved['_mw_types'], 'Synchronize legacy categories');
@@ -195,10 +199,10 @@ foreach (['revision', 'autosave'] as $flag) {
 $GLOBALS['meta'][1]['_mw_report_payload']['nickname'] = '"><script>alert(1)</script>';
 ob_start();
 mw_render_report_meta_box((object) ['ID' => 1]);
-mw_render_report_moderation((object) ['ID' => 1]);
 $html = ob_get_clean();
 check(strpos($html, '<script>') === false && strpos($html, '&lt;script&gt;') !== false, 'Escape stored metadata in admin fields');
-check(strpos($html, 'PRIVATE') === false, 'Do not render private reporter data');
+check(strpos($html, 'PRIVATE') === false, 'Do not render private reporter data to non-administrators');
+check(strpos($html, '<input') === false && strpos($html, '<textarea') === false, 'The WordPress viewer has no report editing fields');
 $GLOBALS['fail_meta_key'] = '_mw_report_payload';
 reject($input, 500);
 unset($GLOBALS['fail_meta_key']);
@@ -305,7 +309,7 @@ try {
     mw_save_report_metadata(1);
     throw new RuntimeException('Expected concurrent vote conflict');
 } catch (RuntimeException $error) {
-    check($error->getCode() === 500, 'Surface concurrent writes explicitly');
+    check($error->getCode() === 409, 'Surface concurrent writes explicitly');
     check(mw_get_community_verification(1)['up'] === 5, 'Never overwrite a vote arriving during persistence');
     check(mw_get_community_verification(1)['votesByVoter']['PRIVATE_A']['reason'] === 'Corrected', 'Do not overwrite concurrently changed vote data');
 }
@@ -343,7 +347,7 @@ check($public['labels'][0]['id'] === 18 && $public['categories'] === ['MODDER'],
 check($public['aliases'] === ['Old', 'Other'] && $public['crews'][0]['name'] === 'Crew', 'Native player fields persist aliases and crews');
 check($public['analysis']['historical'] === ['unknown' => 'preserved'] && $public['analysis']['confidence'] === 85, 'Analysis keeps unknown fields and typed numbers');
 check($public['evidence'][0]['contentType'] === 'image/png', 'Detect media MIME type');
-check($public['severidad'] === 'alta' && $public['validacion'] === 'verificado', 'Synchronize legacy severity and validation consumed by MostWanted');
+check(!isset($public['severidad']) && $GLOBALS['meta'][1]['_mw_report_payload']['severidad'] === 'alta' && $public['validacion'] === 'verificado', 'Preserve legacy severity internally while publishing validation');
 check($public['communityVerification']['confirmations'][0]['reason'] === 'Native moderation', 'Native editor moderates false reasons');
 check(strpos(json_encode($public), 'PRIVATE') === false, 'Native editor preserves privacy');
 foreach ([
@@ -449,13 +453,9 @@ mw_save_report_metadata(1);
 check($GLOBALS['meta'][9]['_mw_crews_data'][0]['name'] === 'Write failure test', 'Retry repairs a failed profile sync from the persisted reports');
 $sync = mw_prepare_report_profile_sync(1, $GLOBALS['meta'][1]['_mw_report_payload']);
 $GLOBALS['meta'][9]['_mw_crews_data'][] = ['name' => 'Concurrent observation', 'url' => ''];
-try {
-    mw_apply_report_profile_sync($sync);
-    throw new RuntimeException('Expected concurrent profile conflict');
-} catch (RuntimeException $error) {
-    check($error->getCode() === 409, 'Do not silently overwrite concurrent profile changes');
-    check(in_array('Concurrent observation', array_column($GLOBALS['meta'][9]['_mw_crews_data'], 'name'), true), 'Keep the concurrent profile data on conflict');
-}
+$conflict = mw_apply_report_profile_sync($sync);
+check(is_wp_error($conflict) && $conflict->get_error_data()['status'] === 409, 'Do not silently overwrite concurrent profile changes');
+check(in_array('Concurrent observation', array_column($GLOBALS['meta'][9]['_mw_crews_data'], 'name'), true), 'Keep the concurrent profile data on conflict');
 mw_save_report_metadata(1);
 $insights = mw_build_player_insights(9);
 check($insights['crews'] === ['Write failure test', 'Renamed crew'], 'Player insights expose the corrected and independently backed crews only');
@@ -576,7 +576,7 @@ $bad = web_post();
 $bad['mw_report_metadata']['reason'] = str_repeat('x', 501);
 reject_post($bad);
 ob_start();
-mw_render_report_meta_box((object) ['ID' => 1]);
+mw_render_report_form((object) ['ID' => 1]);
 $web_html = ob_get_clean();
 foreach (['[extra]', '[analysis]', '[anonymous]', '[aliases]', '[custom_type]', '[contentType]', '[detail]', '[url]', '[investigation_status]', 'mw-conduct-picker', 'mw-report-moderation'] as $unwanted) {
     check(strpos($web_html, $unwanted) === false, 'Web report form must not expose: ' . $unwanted);

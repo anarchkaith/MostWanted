@@ -12,7 +12,6 @@ function sanitizeClientReportes(reportes = []) {
       id: reporte?.id ?? null,
       usuario: toSafeText(reporte?.usuario, ''),
       categoria: toSafeText(reporte?.categoria, ''),
-      severidad: toSafeText(reporte?.severidad, ''),
       motivo: toSafeText(reporte?.motivo, '').slice(0, 180),
       fecha: toSafeText(reporte?.fecha, ''),
       validacion: toSafeText(reporte?.validacion, 'pendiente'),

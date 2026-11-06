@@ -7,7 +7,7 @@ import { pathToFileURL } from 'node:url';
 import express from 'express';
 import { registerCasesRoutes } from './cases.routes.js';
 import { registerExpedientesRoutes } from './expedientes.routes.js';
-import { calculatePriority, matchReports, publicReport, createCaseReportsSource } from '../services/caseReports.service.js';
+import { matchReports, publicReport, createCaseReportsSource } from '../services/caseReports.service.js';
 import { readCase, manageCase, staffCase } from '../services/cases.service.js';
 import { readExpedientes, publicLegacyExpediente, updateExpedientes } from '../services/expedientesStore.service.js';
 import { createDiscordStaffVerifier } from '../../../shared/auth/discordStaff.js';
@@ -19,16 +19,12 @@ const report = (id, severity = 'alta', up = 4, down = 0) => publicReport({
   notes: 'PRIVATE_NOTE', metadata: { notes: 'PRIVATE_META' },
   communityVerification: { up, down, confirmations: [{ voterIp: 'PRIVATE_IP' }], votesByVoter: { PRIVATE: true } },
 });
-assert.equal(calculatePriority([report(1)]).level, 'high');
-assert.equal(calculatePriority([report(1, 'alta', 5)]).level, 'critical');
-assert.equal(calculatePriority([report(1, 'critica', 500)]).level, 'critical');
-assert.equal(calculatePriority([report(1, 'baja', 5), report(2, 'alta', 4)]).reportId, 2);
-assert.equal(calculatePriority([report(1, 'baja', 3), report(2, 'baja', 3)]).level, 'low');
-assert.equal(calculatePriority([report(1, '', 100)]).level, 'undetermined');
-assert.equal(calculatePriority([{ ...report(1), validation: 'rechazado' }]).level, 'undetermined');
-assert.equal(calculatePriority([report(1, 'alta', 0, 100)]).level, 'high');
-assert.equal(calculatePriority([report(1, 'media', 8, 4)]).level, 'normal');
-assert.equal(calculatePriority([report(1, 'media', 9, 4)]).level, 'high');
+for (const severity of ['alta', 'critica', 'baja', 'media', '']) {
+  const item = report(1, severity, 500);
+  assert.equal(Object.hasOwn(item, 'severity'), false);
+  assert.equal(Object.hasOwn(item, 'severidad'), false);
+  assert.equal(item.communityVerification.up, 500, 'Removing severity preserves votes');
+}
 assert.equal(JSON.stringify(report(1)).includes('PRIVATE'), false);
 const historicalReport = publicReport({ id: 6789, nickname: 'Sazxxin', rid: '', playerId: 'RID-298932732' });
 assert.equal(historicalReport.rid, '298932732');
@@ -73,18 +69,21 @@ try {
   reports = [report(1), report(2, 'media', 5)];
   const refreshed = await readCase({ rootDir, source, id });
   assert.equal(refreshed.payload.case.status, 'closed');
-  assert.equal(refreshed.payload.case.priority.level, 'high');
+  assert.equal(Object.hasOwn(refreshed.payload.case, 'priority'), false, 'Retire severity-derived priority without inventing a replacement');
   assert.equal(JSON.stringify(refreshed).includes('PRIVATE'), false);
   assert.equal(JSON.stringify(publicLegacyExpediente(readExpedientes(rootDir)[0])).includes('PRIVATE'), false);
   assert.equal(readExpedientes(rootDir)[0].history.at(-1).type, 'new_reports_on_closed_case');
   unavailable = true;
   updateExpedientes(rootDir, (items) => {
     items[0].caseSnapshot.reports[0].reporter = { name: 'PRIVATE_OLD_SNAPSHOT' };
+    items[0].caseSnapshot.reports[0].severity = 'critical';
+    items[0].caseSnapshot.reports[0].severidad = 'critica';
   });
   const stale = await readCase({ rootDir, source, id });
   assert.equal(stale.payload.source.stale, true);
   assert.equal(JSON.stringify(stale).includes('PRIVATE'), false, 'old snapshots are sanitized even during source outages');
-  assert.equal(stale.payload.case.priority.level, 'high');
+  assert.equal(Object.hasOwn(stale.payload.case, 'priority'), false);
+  assert.ok(stale.payload.reports.every(item => !Object.hasOwn(item, 'severity') && !Object.hasOwn(item, 'severidad')), 'Old cached snapshots omit retired severity');
   assert.equal((await readCase({ rootDir, source, nickname: 'Unknown' })).status, 502);
   unavailable = false;
 
@@ -110,13 +109,15 @@ try {
   registerExpedientesRoutes(app, deps);
   server = await new Promise((resolve) => { const listener = app.listen(0, '127.0.0.1', () => resolve(listener)); });
   const base = `http://127.0.0.1:${server.address().port}/api/cases/${id}`;
-  const publicRead = await (await fetch(base)).json();
+  const headers = { 'x-test-auth': 'yes', 'Content-Type': 'application/json' };
+  assert.equal((await fetch(base)).status, 401);
+  assert.equal((await fetch(base)).headers.get('cache-control'), 'private, no-store');
+  const publicRead = await (await fetch(base, { headers })).json();
   assert.equal(publicRead.case.classification.text, 'Resumen público de denuncias no verificadas.');
   assert.equal(publicRead.case.classification.stale, false);
-  await fetch(base);
+  await fetch(base, { headers });
   assert.equal(summaryCalls, 1, 'HTTP reads reuse the persisted classification');
   assert.equal((await fetch(`${base}/staff`)).status, 401);
-  const headers = { 'x-test-auth': 'yes', 'Content-Type': 'application/json' };
   assert.equal((await fetch(`${base}/staff`, { headers })).status, 200);
   role = false;
   assert.equal((await fetch(`${base}/staff`, { headers })).status, 403);
@@ -134,7 +135,7 @@ try {
     body: '{"status":"investigating","reason":"STAFF_REASON_PRIVATE"}' });
   assert.equal(changedStatus.status, 200);
   assert.equal((await changedStatus.json()).case.status, 'investigating');
-  assert.equal((await (await fetch(base)).json()).case.status, 'investigating', 'manual status survives subsequent public reads');
+  assert.equal((await (await fetch(base, { headers })).json()).case.status, 'investigating', 'manual status survives subsequent authenticated reads');
   const statusEvent = staffCase({ rootDir, id }).history.at(-1);
   assert.equal(statusEvent.from, 'closed');
   assert.equal(statusEvent.to, 'investigating');
@@ -150,7 +151,7 @@ try {
   assert.equal(stored.staffNotes.length, 16);
   assert.equal(stored.history.filter((entry) => entry.type === 'status_changed').length, 17);
   assert.ok(stored.staffNotes.every((note) => note.author.id === 'STAFF_PRIVATE'));
-  assert.equal(JSON.stringify(await (await fetch(base)).json()).includes('PRIVATE'), false);
+  assert.equal(JSON.stringify(await (await fetch(base, { headers })).json()).includes('PRIVATE'), false);
   assert.equal((await readCase({ rootDir, source, id })).payload.case.id, id);
   assert.ok(fs.existsSync(path.join(rootDir, 'data', 'expedientes.json')));
   const moduleUrl = pathToFileURL(path.resolve('server', 'modules', 'expedientes', 'services', 'cases.service.js')).href;
@@ -165,7 +166,7 @@ try {
     child.on('exit', (code) => code === 0 ? resolve() : reject(new Error(errors)));
   })));
   assert.equal(readExpedientes(rootDir)[0].staffNotes.length, 46, 'separate processes preserve every note');
-  assert.equal(readExpedientes(rootDir)[0].votes.legit, 1000, 'legacy votes preserved but never added to WP priority');
+  assert.equal(readExpedientes(rootDir)[0].votes.legit, 1000, 'Legacy votes remain preserved internally');
   const legacyWrite = await fetch(legacyUrl, { method: 'POST', headers,
     body: JSON.stringify({ player: { nickname: 'Player', rid: '123' }, notes: 'AUTHORIZED_NOTE_PRIVATE' }) });
   assert.equal(legacyWrite.status, 201);
@@ -178,7 +179,9 @@ try {
   assert.equal(fs.readFileSync(path.join(rootDir, 'data', 'expedientes.json'), 'utf8'), '{broken');
 
   let pages = 0;
-  const paginated = createCaseReportsSource({ config: { enabled: true, baseUrl: 'https://wp.test' }, fetchImpl: async () => {
+  const paginated = createCaseReportsSource({ config: { enabled: true, baseUrl: 'https://wp.test', apiSecret: 'test-secret' }, fetchImpl: async (url, options) => {
+    assert.equal(url.searchParams.get('rid'), '123');
+    assert.equal(options.headers.Authorization, 'Bearer test-secret');
     pages++;
     return { ok: true, json: async () => ({ ok: true, items: pages === 1 ? Array.from({ length: 100 }, (_, i) => ({ id: i })) : [{ id: 101 }] }) };
   } });
@@ -193,7 +196,7 @@ try {
   const migrated = await readCase({ rootDir: migrationRoot, nickname: 'Legacy', rid: '777',
     source: async () => [{ ...report(777, 'baja', 0), nickname: 'Legacy', rid: '777' }] });
   assert.equal(migrated.payload.case.id, 'exp-legacy');
-  assert.equal(migrated.payload.case.priority.level, 'low', 'old local votes cannot boost WordPress reports');
+  assert.equal(Object.hasOwn(migrated.payload.case, 'priority'), false, 'Migration does not restore retired priority');
   const preserved = readExpedientes(migrationRoot)[0];
   assert.equal(preserved.createdAt, '2020-01-01');
   assert.deepEqual(preserved.notes, ['OLD_PRIVATE']);
@@ -229,4 +232,4 @@ try {
   if (server) await new Promise((resolve) => server.close(resolve));
   fs.rmSync(rootDir, { recursive: true, force: true });
 }
-console.log('OK case priority / privacy / snapshots / persistent concurrent staff mutations');
+console.log('OK retired severity / privacy / snapshots / persistent concurrent staff mutations');

@@ -81,12 +81,12 @@ function mw_report_profile_updates($reports) {
     ];
 }
 
-function mw_prepare_report_profile_sync($post_id, $payload) {
+function mw_prepare_report_profile_sync($post_id, $payload, $trusted_api = false) {
     $player_id = intval(get_post_meta($post_id, '_mw_player_post_id', true));
     if ($player_id <= 0) {
         return new WP_Error('mw_report_metadata', 'El reporte no tiene una ficha de jugador asociada. Revisa su vinculacion antes de sincronizar.');
     }
-    if (!current_user_can('edit_post', $player_id)) {
+    if (!$trusted_api && !current_user_can('edit_post', $player_id)) {
         return new WP_Error('mw_report_metadata', 'Necesitas permiso para editar el jugador asociado y sincronizar su ficha.');
     }
     $player = get_post($player_id);
@@ -141,18 +141,18 @@ function mw_apply_report_profile_sync($sync) {
     $id = $sync['player_id'];
     foreach ($sync['previous'] as $key => $value) {
         if (!mw_report_profile_meta_matches(get_post_meta($id, $key, true), $value)) {
-            wp_die('El reporte se guardo, pero la ficha cambio durante la sincronizacion. Vuelve a guardar para incluir los datos nuevos sin sobrescribirlos.', 'MostWanted', ['response' => 409, 'back_link' => true]);
+            return new WP_Error('mw_profile_conflict', 'El reporte se guardo, pero la ficha cambio durante la sincronizacion. Recarga y guarda para completar la sincronizacion.', ['status' => 409]);
         }
     }
     foreach ($sync['updates'] as $key => $value) {
         if (mw_report_profile_meta_matches(get_post_meta($id, $key, true), $value)) continue;
         if (update_post_meta($id, $key, wp_slash($value), $sync['previous'][$key]) === false && !mw_report_profile_meta_matches(get_post_meta($id, $key, true), $value)) {
-            wp_die('El reporte se guardo, pero no se pudo actualizar toda la ficha del jugador. Reintenta guardar para completar la sincronizacion.', 'MostWanted', ['response' => 500, 'back_link' => true]);
+            return new WP_Error('mw_profile_storage', 'El reporte se guardo, pero no se pudo actualizar toda la ficha del jugador. Recarga y reintenta guardar.', ['status' => 500]);
         }
     }
     $title = mw_build_player_display_title($sync['updates']['_mw_nickname'], mw_int_or_null(get_post_meta($id, '_mw_rid', true)));
     $result = wp_update_post(['ID' => $id, 'post_title' => $title], true);
     if (is_wp_error($result) || !$result) {
-        wp_die('El reporte se guardo, pero no se pudo actualizar el titulo de la ficha. Reintenta guardar.', 'MostWanted', ['response' => 500, 'back_link' => true]);
+        return new WP_Error('mw_profile_storage', 'El reporte se guardo, pero no se pudo actualizar el titulo de la ficha. Recarga y reintenta guardar.', ['status' => 500]);
     }
 }

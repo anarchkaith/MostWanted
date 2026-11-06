@@ -29,6 +29,7 @@ assert.match(generatedPrompt, /RESULTADO DE HERRAMIENTA EJECUTADA EN EL SERVIDOR
 assert.match(generatedPrompt, /"herramienta":"read_all_reports"/);
 assert.match(generatedPrompt, /"categoriaConsultada":"modder"/);
 assert.match(generatedPrompt, /"rankingCategoria":\[\{"usuario":"JugadorUno","totalReportes":2\}/);
+assert.doesNotMatch(generatedPrompt, /"severidad"|"severity"|"porSeveridad"|"severidades"/);
 assert.equal(result.payload.agent.tool, 'read_all_reports');
 assert.equal(result.payload.agent.reportCount, 3);
 

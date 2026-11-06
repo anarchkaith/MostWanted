@@ -38,6 +38,7 @@ class Request {
     public function __construct(private $params = [], private $token = '') {}
     public function get_param($name) { return $this->params[$name] ?? null; }
     public function get_header($name) { return $name === 'authorization' ? $this->token : ''; }
+    public function get_route() { return '/mostwanted/v1/reports'; }
 }
 require __DIR__ . DIRECTORY_SEPARATOR . 'mostwanted-cpt-rest.php';
 function check($condition, $message) { if (!$condition) throw new RuntimeException($message); }
@@ -69,7 +70,13 @@ check(mw_rest_owned_reports(new Request(['ownerDiscordId' => 'invalid']))->statu
 $GLOBALS['posts'][$first] = (object) ['post_type' => 'mw_report', 'post_status' => 'publish'];
 $GLOBALS['posts'][$other] = (object) ['post_type' => 'mw_report', 'post_status' => 'draft'];
 $GLOBALS['posts'][$second] = (object) ['post_type' => 'mw_player', 'post_status' => 'publish'];
-check($GLOBALS['routes']['/reports/(?P<id>\d+)']['permission_callback'] === '__return_true', 'Published report detail is public');
+foreach (['/reports/(?P<id>\d+)', '/reports/(?P<id>\d+)/community-verification', '/players', '/players/lookup', '/player-insights'] as $path) {
+    check($GLOBALS['routes'][$path]['permission_callback'] === 'mw_can_ingest_reports', 'Report reads and votes require backend secret: ' . $path);
+}
+check($GLOBALS['routes']['/reports'][0]['permission_callback'] === 'mw_can_ingest_reports', 'Bulk listing requires backend secret');
+$private_response = mw_private_rest_response(new WP_REST_Response([], 401), null, new Request());
+check($private_response->headers['Cache-Control'] === 'private, no-store', 'Even denied report responses are not publicly cacheable');
+check($private_response->headers['Vary'] === 'Authorization, Cookie', 'Private responses vary by credentials');
 $detail = mw_rest_report_detail(new Request(['id' => $first]));
 check($detail->status === 200 && $detail->data['report']['id'] === $first, 'Read the exact published report');
 check(!isset($detail->data['report']['ownerDiscordId']), 'Report detail does not expose ownership');

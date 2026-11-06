@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { readExpedientes, updateExpedientes } from './expedientesStore.service.js';
-import { calculatePriority, matchReports, normalizeName, normalizeRid, publicReport } from './caseReports.service.js';
+import { matchReports, normalizeName, normalizeRid, publicReport } from './caseReports.service.js';
 import { publicClassification, refreshCaseSummary } from './caseSummary.service.js';
 
 function findCase(items, { id, nickname, rid }) {
@@ -16,7 +16,7 @@ export function publicCase(item, reports = item.caseSnapshot?.reports || []) {
     player: { nickname: item.player.nickname, rid: item.player.rid || null },
     status: ['open', 'investigating', 'closed'].includes(item.status) ? item.status : 'open',
     createdAt: item.createdAt, updatedAt: item.updatedAt,
-    priority: calculatePriority(reports), reportIds: reports.map((report) => report.id),
+    reportIds: reports.map((report) => report.id),
     classification: publicClassification(item, reports),
   };
 }

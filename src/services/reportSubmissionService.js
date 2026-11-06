@@ -1,13 +1,6 @@
 import { buildApiUrl } from './apiConfig.js';
 import { readApiResponse } from './jsonResponse.js';
 
-const DEFAULT_WORDPRESS_API_BASE_URL = 'https://kaithsrebels.com';
-
-function getWordpressApiBaseUrl() {
-  const configured = String(import.meta.env.VITE_WORDPRESS_API_BASE_URL || '').trim();
-  return (configured || DEFAULT_WORDPRESS_API_BASE_URL).replace(/\/+$/, '');
-}
-
 export async function uploadImageToImgbb(image, apiKey) {
   const imageName = image?.name || 'evidence';
   const contentType = image?.type || 'image/png';
@@ -85,43 +78,25 @@ export async function submitWordpressReport({ report, reporter, evidence }) {
   return postReportToBackend('/reports', { report, reporter, evidence });
 }
 
-export async function fetchWordpressPlayersSnapshot({ perPage = 100, reportsLimit = 20 } = {}) {
-  const safePerPage = Number.isFinite(perPage) ? Math.max(1, Math.min(100, Number(perPage))) : 100;
-  const safeReportsLimit = Number.isFinite(reportsLimit) ? Math.max(1, Math.min(100, Number(reportsLimit))) : 20;
-
-  const endpoint = `${getWordpressApiBaseUrl()}/wp-json/mostwanted/v1/players?per_page=${safePerPage}&with_reports=1&reports_limit=${safeReportsLimit}`;
-  const response = await fetch(endpoint, {
-    method: 'GET',
-    headers: { Accept: 'application/json' },
+export async function fetchReportById({ reportId, signal }, buildUrl = buildApiUrl) {
+  const response = await fetch(buildUrl(`/reports/${reportId}`), {
+    credentials: 'include', cache: 'no-store', signal,
   });
-
-  return readApiResponse(response, 'No se pudo consultar la API de jugadores de WordPress.');
+  const payload = await readApiResponse(response, 'No se pudo consultar el reporte.');
+  if (payload.ok !== true || Number(payload.report?.id) !== Number(reportId)) throw new Error('El servidor devolvio un reporte invalido.');
+  return payload.report;
 }
 
-export async function fetchWordpressReportsSnapshot({ perPage = 100, page = 1, signal } = {}) {
-  const safePerPage = Number.isFinite(perPage) ? Math.max(1, Math.min(100, Number(perPage))) : 100;
-  const safePage = Number.isFinite(page) ? Math.max(1, Number(page)) : 1;
-
-  const endpoint = `${getWordpressApiBaseUrl()}/wp-json/mostwanted/v1/reports?per_page=${safePerPage}&page=${safePage}`;
-  const response = await fetch(endpoint, {
-    method: 'GET',
-    cache: 'no-store',
-    signal,
-    headers: { Accept: 'application/json' },
-  });
-
-  return readApiResponse(response, 'No se pudo consultar la API de reportes de WordPress.');
-}
-
-export async function fetchWordpressPlayerInsights({ username = '', rid = '', signal } = {}) {
+export async function fetchWordpressPlayerInsights({ username = '', rid = '', signal } = {}, buildUrl = buildApiUrl) {
   const params = new URLSearchParams();
   if (username) params.set('username', username);
   if (rid) params.set('rid', String(rid));
 
-  const endpoint = `${getWordpressApiBaseUrl()}/wp-json/mostwanted/v1/player-insights?${params.toString()}`;
+  const endpoint = buildUrl(`/reports/player-insights?${params}`);
   const response = await fetch(endpoint, {
     method: 'GET',
     cache: 'no-store',
+    credentials: 'include',
     signal,
     headers: { Accept: 'application/json' },
   });
@@ -134,22 +109,21 @@ export async function submitWordpressCommunityVerificationVote({
   reportId,
   voteType,
   reason = '',
-  voterId = '',
   voterName = '',
-}) {
+}, buildUrl = buildApiUrl) {
   const safeReportId = Number(reportId);
   if (!Number.isFinite(safeReportId) || safeReportId <= 0) {
     throw new Error('reportId invalido para verificacion comunitaria.');
   }
 
-  const endpoint = `${getWordpressApiBaseUrl()}/wp-json/mostwanted/v1/reports/${safeReportId}/community-verification`;
+  const endpoint = buildUrl(`/reports/${safeReportId}/community-verification`);
   const response = await fetch(endpoint, {
     method: 'POST',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({
       voteType,
       reason,
-      voterId,
       voterName,
     }),
   });

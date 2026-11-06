@@ -2,7 +2,7 @@
 /**
  * Plugin Name: MostWanted CPT + REST
  * Description: CPT de jugadores/reportes y API REST para ingesta y consulta desde MostWanted.
- * Version: 0.6.17
+ * Version: 0.7.4
  * Author: KaithHacks
  */
 
@@ -17,13 +17,16 @@ require_once __DIR__ . DIRECTORY_SEPARATOR . 'report-admin.php';
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'player-summary.php';
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'account-activity.php';
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'search.php';
+require_once __DIR__ . DIRECTORY_SEPARATOR . 'report-edit.php';
+require_once __DIR__ . DIRECTORY_SEPARATOR . 'report-readonly.php';
+require_once __DIR__ . DIRECTORY_SEPARATOR . 'report-fields.php';
 
 function mw_register_post_types() {
     register_post_type('mw_player', [
         'label' => 'Jugadores MostWanted',
         'public' => false,
         'show_ui' => true,
-        'show_in_rest' => true,
+        'show_in_rest' => false,
         'supports' => ['title', 'custom-fields'],
         'menu_icon' => 'dashicons-groups',
     ]);
@@ -35,7 +38,7 @@ function mw_register_post_types() {
             'singular_name' => 'Reporte MostWanted',
             'menu_name' => 'MostWanted',
             'all_items' => 'Reportes',
-            'edit_item' => 'Corregir reporte',
+            'edit_item' => 'Consultar reporte',
             'add_new_item' => 'Nuevo reporte',
             'search_items' => 'Buscar reportes',
             'not_found' => 'No se encontraron reportes.',
@@ -46,8 +49,10 @@ function mw_register_post_types() {
         'has_archive' => 'reportes',
         'rewrite' => ['slug' => 'reportes', 'with_front' => false],
         'show_ui' => true,
-        'show_in_rest' => true,
-        'supports' => ['title'],
+        'show_in_rest' => false,
+        'supports' => [],
+        'capabilities' => ['create_posts' => 'do_not_allow'],
+        'map_meta_cap' => true,
         'menu_icon' => 'dashicons-warning',
     ]);
 }
@@ -864,6 +869,12 @@ function mw_parse_report_title($title) {
     return ['nickname' => mw_str($nickname), 'rid' => $rid_match ? mw_str($rid_match) : ''];
 }
 
+function mw_without_report_severity($value) {
+    if (!is_array($value)) return $value;
+    unset($value['severity'], $value['severidad']);
+    return array_map('mw_without_report_severity', $value);
+}
+
 function mw_map_report_item($report_post_id) {
     $payload = get_post_meta($report_post_id, '_mw_report_payload', true);
     $safe_payload = is_array($payload) ? $payload : [];
@@ -903,7 +914,7 @@ function mw_map_report_item($report_post_id) {
     $safe_payload = array_intersect_key($safe_payload, array_flip([
         'username', 'playerId', 'avatar1', 'avatar2', 'time', 'reason',
         'typesOfInfraction', 'labelIds', 'tagIds', 'investigation_status',
-        'severity', 'severidad', 'validation', 'validacion', 'anonymous', 'source',
+        'validation', 'validacion', 'anonymous', 'source',
     ]));
     $report_metadata = is_array($payload['report'] ?? null) ? $payload['report'] : [];
     if ($report_metadata) {
@@ -942,7 +953,7 @@ function mw_map_report_item($report_post_id) {
     ];
 
     // El payload queda unificado directamente en el objeto report, sin anidarlo.
-    return array_merge($base_report, $flattened_payload);
+    return mw_without_report_severity(array_merge($base_report, $flattened_payload));
 }
 
 function mw_rest_report_community_verification($request) {
@@ -1604,7 +1615,7 @@ function mw_register_rest_routes() {
         [
             'methods' => WP_REST_Server::READABLE,
             'callback' => 'mw_rest_reports_list',
-            'permission_callback' => '__return_true',
+            'permission_callback' => 'mw_can_ingest_reports',
         ],
         [
             'methods' => WP_REST_Server::CREATABLE,
@@ -1616,25 +1627,25 @@ function mw_register_rest_routes() {
     register_rest_route(MW_NAMESPACE, '/reports/(?P<id>\d+)', [
         'methods' => WP_REST_Server::READABLE,
         'callback' => 'mw_rest_report_detail',
-        'permission_callback' => '__return_true',
+        'permission_callback' => 'mw_can_ingest_reports',
     ]);
 
     register_rest_route(MW_NAMESPACE, '/reports/(?P<id>\d+)/community-verification', [
         'methods' => WP_REST_Server::CREATABLE,
         'callback' => 'mw_rest_report_community_verification',
-        'permission_callback' => '__return_true',
+        'permission_callback' => 'mw_can_ingest_reports',
     ]);
 
     register_rest_route(MW_NAMESPACE, '/players', [
         'methods' => WP_REST_Server::READABLE,
         'callback' => 'mw_rest_players_list',
-        'permission_callback' => '__return_true',
+        'permission_callback' => 'mw_can_ingest_reports',
     ]);
 
     register_rest_route(MW_NAMESPACE, '/players/lookup', [
         'methods' => WP_REST_Server::READABLE,
         'callback' => 'mw_rest_player_lookup',
-        'permission_callback' => '__return_true',
+        'permission_callback' => 'mw_can_ingest_reports',
     ]);
 
     register_rest_route(MW_NAMESPACE, '/players/load-default', [
@@ -1646,7 +1657,16 @@ function mw_register_rest_routes() {
     register_rest_route(MW_NAMESPACE, '/player-insights', [
         'methods' => WP_REST_Server::READABLE,
         'callback' => 'mw_rest_player_insights',
-        'permission_callback' => '__return_true',
+        'permission_callback' => 'mw_can_ingest_reports',
     ]);
 }
 add_action('rest_api_init', 'mw_register_rest_routes');
+
+function mw_private_rest_response($response, $server, $request) {
+    if (strpos($request->get_route(), '/' . MW_NAMESPACE . '/') === 0) {
+        $response->header('Cache-Control', 'private, no-store');
+        $response->header('Vary', 'Authorization, Cookie');
+    }
+    return $response;
+}
+add_filter('rest_post_dispatch', 'mw_private_rest_response', 10, 3);

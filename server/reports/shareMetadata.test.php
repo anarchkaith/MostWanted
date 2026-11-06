@@ -9,6 +9,19 @@ function check($condition, $message) {
     if (!$condition) throw new RuntimeException($message);
 }
 
+$previousSecret = getenv('WORDPRESS_API_SECRET');
+putenv('WORDPRESS_API_SECRET');
+try {
+    try {
+        mw_share_fetch('/reports/7');
+        check(false, 'Preview must not fall back to anonymous WordPress reads');
+    } catch (RuntimeException $error) {
+        check($error->getCode() === 503, 'Missing existing PHP secret fails explicitly before contacting WordPress');
+    }
+} finally {
+    if ($previousSecret !== false) putenv('WORDPRESS_API_SECRET=' . $previousSecret);
+}
+
 function meta_value($html, $name) {
     $document = new DOMDocument();
     @$document->loadHTML('<?xml encoding="UTF-8">' . $html);
@@ -348,6 +361,7 @@ mw_share_card_png($emptyCard, static function () use (&$noAvatarCalls) { $noAvat
 check($noAvatarCalls === 0, 'No invented avatar when no URL exists');
 $galleryReport = $report;
 $galleryReport['severity'] = 'baja';
+$galleryReport['labels'] = ['Spawnkill'];
 $galleryReport['avatar1'] = '';
 $galleryReport['evidence'] = [
     ['url' => 'https://i.ibb.co/example/a.png', 'contentType' => 'image/png'],
@@ -387,7 +401,7 @@ foreach ($galleryLayout['evidence'] as $slot) {
 }
 check((imagecolorat($galleryImage, 1155, 20) & 0xFFFFFF) === 0x121618, 'Use a subtle dotted background');
 check((imagecolorat($galleryImage, 60, $galleryLayout['evidence'][0]['y'] - 12) & 0xFFFFFF) === 0x4ADE80,
-    'Separate evidence from text with a green accent for low severity');
+    'Separate evidence from text with the green catalog conduct accent');
 check(imagesy($galleryImage) === $galleryLayout['height'], 'Render the complete gallery canvas before fitting to landscape');
 imagedestroy($galleryImage);
 $tallPhoto = imagecreatetruecolor(1440, 3200);
@@ -477,7 +491,7 @@ foreach ($identityLayout['tags'] as $tag) {
 }
 $identityPng = imagecreatefromstring(mw_share_card_canvas_png($identity['card']));
 $tag = $identityLayout['tags'][0];
-check((imagecolorat($identityPng, $tag['x'] + 8, $tag['y']) & 0xFFFFFF) === 0xF1EF4F, 'Render medium-severity conduct tags in yellow');
+check((imagecolorat($identityPng, $tag['x'] + 8, $tag['y']) & 0xFFFFFF) === 0xF1EF4F, 'Render catalog conduct tags with the matching yellow accent');
 imagedestroy($identityPng);
 foreach ([
     ['Spawnkill', 'low'], ['Crash', 'medium'], ['Wallhack / ESP', 'high'],
@@ -485,10 +499,11 @@ foreach ([
 ] as [$label, $expected]) {
     check(mw_share_risk([['labels' => [['label' => $label]]]]) === $expected, 'Use catalog score for ' . $label);
 }
-check(mw_share_risk([['severity' => 'BAJA', 'labels' => ['Crash']]]) === 'low', 'Prefer recorded severity over conduct fallback');
+check(mw_share_risk([['severity' => 'BAJA', 'labels' => ['Crash']]]) === 'medium', 'Retired severity never overrides catalog conduct colors');
 check(mw_share_risk([['severity' => 'invalid', 'labels' => ['Crash']]]) === 'medium', 'Unknown severity uses known conduct scores');
-check(mw_share_risk([['analysis' => ['severidad' => 'Crítica']]]) === 'critical', 'Accept accented severity from analysis');
-check(mw_share_risk([['severity' => 'baja'], ['severity' => 'alta']]) === 'high', 'Profiles use the maximum severity among consulted reports');
+check(mw_share_risk([['analysis' => ['severidad' => 'Crítica']]]) === 'neutral', 'Ignore nested legacy severity without known conducts');
+check(mw_share_risk([['severity' => 'baja'], ['severity' => 'alta']]) === 'neutral', 'Profiles no longer derive colors from severity');
+check(mw_share_risk([['labels' => ['Spawnkill']], ['labels' => ['Wallhack / ESP']]]) === 'high', 'Profiles retain the maximum known catalog conduct color');
 foreach (['neutral' => 0xAAB9CC, 'low' => 0x4ADE80, 'medium' => 0xF1EF4F, 'high' => 0xFFA440, 'critical' => 0xFF4B55] as $risk => $expectedColor) {
     $riskCard = $emptyCard;
     $riskCard['risk'] = $risk;

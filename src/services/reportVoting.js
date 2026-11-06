@@ -34,10 +34,6 @@ export async function registerReportVote({ request, storage, input, user, logger
   try {
     const votes = readUserVotes(storage, logger);
     storage.setItem('mostwanted_user_votes', JSON.stringify({ ...votes, [vote.reportId]: vote.voteType }));
-    const cached = JSON.parse(storage.getItem('mostwanted_reportes') || '[]');
-    if (!Array.isArray(cached)) throw new Error('invalid_stored_reports');
-    storage.setItem('mostwanted_reportes', JSON.stringify(cached.map(report =>
-      String(report.id) === String(vote.reportId) ? { ...report, ...result } : report)));
   } catch (error) {
     logger.error('[reports] El voto se guardó, pero no se pudo actualizar su copia local.', error);
     warning = 'El voto se guardó en WordPress, pero no se pudo actualizar su copia local.';

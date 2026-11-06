@@ -27,7 +27,7 @@ test('vote names and feedback preserve the established contract', () => {
     { reportId: 42, voteType: 'down', reason: 'Motivo suficiente', voterName: 'Comunidad' });
 });
 
-test('only a confirmed remote vote updates local preferences and cached counters', async () => {
+test('only a confirmed remote vote updates preferences, without writing any report cache', async () => {
   const cache = storage({
     mostwanted_user_votes: '{"1":"down"}',
     mostwanted_reportes: JSON.stringify([{ id: 42, usuario: 'Player' }, { id: 43, usuario: 'Other' }]),
@@ -43,7 +43,7 @@ test('only a confirmed remote vote updates local preferences and cached counters
   assert.equal(result.warning, '');
   assert.deepEqual(JSON.parse(cache.getItem('mostwanted_user_votes')), { 1: 'down', 42: 'up' });
   const cachedReports = JSON.parse(cache.getItem('mostwanted_reportes'));
-  assert.deepEqual(cachedReports[0].votos, result.votos);
+  assert.deepEqual(cachedReports[0], { id: 42, usuario: 'Player' });
   assert.deepEqual(cachedReports[1], { id: 43, usuario: 'Other' });
 });
 
