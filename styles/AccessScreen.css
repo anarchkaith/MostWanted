@@ -6,27 +6,25 @@
   min-height: 100dvh;
   width: 100%;
   padding: 40px 20px;
-  background: var(--color-black);
-  color: var(--color-cream);
+  background: #111815;
+  color: #edf3ee;
   font: 1rem/1.6 var(--font-typewriter);
 }
 .login-access *, .login-access *::before, .login-access *::after { box-sizing: border-box; }
 .login-access__content { width: 100%; max-width: 360px; }
 .login-access__brand { display: flex; align-items: center; justify-content: center; gap: 9px; margin-bottom: 20px; font-size: 0.9375rem; }
 .login-access__brand img { object-fit: contain; }
-.login-access__card { padding: 26px 24px 20px; border: 1px solid #323030; border-radius: 12px; background: #181616; }
-.login-access__card h1 { margin: 0 0 8px; color: var(--color-cream); font: 600 1.25rem/1.4 var(--font-typewriter); text-align: center; letter-spacing: 0; text-transform: none; }
-.login-access__intro { margin: 0 0 22px; color: var(--color-cream-dark); font-size: 0.875rem; text-align: center; }
-.login-access__button { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid #955151; border-radius: 6px; background: #2a1d1d; color: var(--color-cream); font: 500 0.9375rem/1.5 var(--font-typewriter); cursor: pointer; }
-.login-access__button:hover { background: #352424; border-color: #bc7575; }
-.login-access__button:focus-visible, .login-access summary:focus-visible, .login-access a:focus-visible { outline: 2px solid #dc9b9b; outline-offset: 4px; }
+.login-access__card { padding: 26px 24px 20px; border: 1px solid #394a40; border-radius: 16px; background: #1c2821; }
+.login-access__card h1 { margin: 0 0 8px; color: #edf3ee; font: 600 1.25rem/1.4 var(--font-typewriter); text-align: center; letter-spacing: 0; text-transform: none; }
+.login-access__intro { margin: 0 0 22px; color: #bdcdbf; font-size: 0.875rem; text-align: center; }
+.login-access__button { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid #b9d3be; border-radius: 8px; background: #b9d3be; color: #18251d; font: 500 0.9375rem/1.5 var(--font-typewriter); cursor: pointer; }
+.login-access__button:hover { background: #c9dfcd; border-color: #c9dfcd; }
+.login-access__button:focus-visible, .login-access__help button:focus-visible, .login-access summary:focus-visible { outline: 2px solid #d5e7d8; outline-offset: 4px; }
 .login-access__button svg { flex-shrink: 0; }
-.login-access__privacy { margin-top: 18px; color: var(--color-cream-dark); font-size: 0.8125rem; }
+.login-access__help { margin: 18px 0 0; text-align: center; font-size: 0.8125rem; }
+.login-access__help button { padding: 4px 0; border: 0; background: none; color: inherit; font: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.login-access__privacy { margin-top: 18px; color: #bdcdbf; font-size: 0.8125rem; }
 .login-access__privacy summary { cursor: pointer; width: fit-content; margin: auto; padding: 4px; }
 .login-access__privacy details[open] summary { margin-bottom: 16px; }
 .login-access__privacy p { margin: 0 0 12px; }
-.login-access__privacy ol { padding-left: 20px; }
-.login-access__privacy li { margin-bottom: 8px; }
-.login-access__privacy a { color: #e3b2b2; overflow-wrap: anywhere; }
-.login-access__note { margin: 18px 0 0; color: var(--color-text-muted); font-size: 0.75rem; text-align: center; }
 .login-access__error { margin: 0 0 16px; color: #ffb0b0; font-size: 0.875rem; overflow-wrap: anywhere; }
