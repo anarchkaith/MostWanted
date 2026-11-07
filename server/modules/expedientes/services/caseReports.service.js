@@ -80,9 +80,12 @@ export function matchReports(reports, { nickname = '', rid = '' }) {
   return reports.filter((report) => {
     if (!report || report.id == null || seen.has(String(report.id))) return false;
     const reportRid = normalizeRid(report.rid);
+    const reportName = normalizeName(report.nickname);
+    // If we have a RID, match by RID (with name as fallback for name-only reports)
+    // If we only have a name, match by name (regardless of whether report has RID)
     const matches = targetRid
-      ? (reportRid ? reportRid === targetRid : Boolean(targetName && normalizeName(report.nickname) === targetName))
-      : Boolean(targetName && normalizeName(report.nickname) === targetName && !reportRid);
+      ? (reportRid === targetRid || (reportRid === '' && targetName && reportName === targetName))
+      : (targetName && reportName === targetName);
     if (matches) seen.add(String(report.id));
     return matches;
   }).sort((a, b) => (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0)
