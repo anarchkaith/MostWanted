@@ -25,7 +25,7 @@ test('all report read surfaces deny anonymous callers before accessing data, eve
     const base = `http://127.0.0.1:${server.address().port}`;
     for (const path of ['/api/reports/search?q=Player', '/api/reports/7', '/api/reports/mine',
       '/api/reports/7/edit', '/api/reports/player-insights?username=Player',
-      '/api/cases/lookup?username=Player', '/api/cases/case-test', '/api/players/investigate?username=Player',
+      '/api/players/investigate?username=Player',
       '/api/expedientes/search?q=Player', '/api/expedientes/exp-test']) {
       const response = await fetch(base + path, { headers: { Authorization: 'Bearer test-secret', 'X-User-Id': '123' } });
       assert.equal(response.status, 401, path);

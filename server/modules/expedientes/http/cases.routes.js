@@ -1,5 +1,5 @@
 import { createRequireCaseStaff } from '../../../shared/auth/discordStaff.js';
-import { getSessionUser, requirePrivateSession } from '../../../shared/auth/sessionAuth.js';
+import { getSessionUser } from '../../../shared/auth/sessionAuth.js';
 import { manageCase, readCase, staffCase } from '../services/cases.service.js';
 
 export function registerCasesRoutes(app, { rootDir, rateLimits, requireBodyObject, verifyCaseStaff, getCaseReports, generateCaseSummary, publishCaseSummary }) {
@@ -13,7 +13,7 @@ export function registerCasesRoutes(app, { rootDir, rateLimits, requireBodyObjec
       return res.status(503).json({ ok: false, error: 'case_storage_unavailable' });
     }
   };
-  app.get('/api/cases/lookup', rateLimits.general, requirePrivateSession, (req, res) => {
+  app.get('/api/cases/lookup', rateLimits.general, (req, res) => {
     const nickname = typeof req.query.username === 'string' ? req.query.username.trim() : '';
     const rid = typeof req.query.rid === 'string' ? req.query.rid.trim() : '';
     if ((!nickname && !rid) || nickname.length > 128 || (rid && !/^\d{1,30}$/.test(rid))) {
@@ -21,7 +21,7 @@ export function registerCasesRoutes(app, { rootDir, rateLimits, requireBodyObjec
     }
     return read(req, res, { nickname, rid });
   });
-  app.get('/api/cases/:caseId', rateLimits.general, requirePrivateSession, (req, res) => read(req, res, { id: req.params.caseId }));
+  app.get('/api/cases/:caseId', rateLimits.general, (req, res) => read(req, res, { id: req.params.caseId }));
   app.get('/api/cases/:caseId/staff', rateLimits.general, staffAccess, (req, res) => {
     try {
       const data = staffCase({ rootDir, id: req.params.caseId });

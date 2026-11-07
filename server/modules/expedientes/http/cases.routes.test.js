@@ -110,7 +110,7 @@ try {
   server = await new Promise((resolve) => { const listener = app.listen(0, '127.0.0.1', () => resolve(listener)); });
   const base = `http://127.0.0.1:${server.address().port}/api/cases/${id}`;
   const headers = { 'x-test-auth': 'yes', 'Content-Type': 'application/json' };
-  assert.equal((await fetch(base)).status, 401);
+  assert.equal((await fetch(base)).status, 200);
   assert.equal((await fetch(base)).headers.get('cache-control'), 'private, no-store');
   const publicRead = await (await fetch(base, { headers })).json();
   assert.equal(publicRead.case.classification.text, 'Resumen público de denuncias no verificadas.');
