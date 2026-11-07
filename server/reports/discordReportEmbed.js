@@ -232,16 +232,18 @@ export function buildDiscordReportPayload({ report = {}, reporter = {}, evidence
   if (videoValue) {
     fields.push({ name: '📼 Evidencias de Video', value: videoValue, inline: false });
   }
-  fields.push({
-    name: '🔗 Enlaces',
-    value: `[Aportar información sobre este jugador](${playerUrl})\n[Reportar a un jugador](${MOSTWANTED_WEB_URL}/denunciar)\n[Ver lista de reportes](${MOSTWANTED_WEB_URL}/#reportes-lista)`,
-    inline: false,
-  });
-
   // Discord agrupa en una galería los embeds de un mismo mensaje que comparten la misma url.
   const galleryEmbeds = galleryImageUrls
     .slice(0, MAX_DISCORD_EMBEDS_PER_MESSAGE - 1)
     .map((url) => ({ url: profileUrl, color: embedColor, image: { url } }));
+
+  // Construir botones de acción
+  const actionButtons = [
+    { label: 'ℹ️ Información del jugador', url: playerUrl, style: 2 },
+    { label: '🚨 Reportar jugador', url: `${MOSTWANTED_WEB_URL}/denunciar`, style: 2 },
+    { label: '📋 Ver reportes', url: `${MOSTWANTED_WEB_URL}/#reportes-lista`, style: 2 },
+    { label: '🔍 Ver reporte y votar', url: reportUrl, style: 1 },
+  ].filter(btn => btn.url !== MOSTWANTED_WEB_URL || reportUrl !== MOSTWANTED_WEB_URL);
 
   const payload = {
     content: '',
@@ -255,7 +257,7 @@ export function buildDiscordReportPayload({ report = {}, reporter = {}, evidence
           ...(reporterAvatarUrl ? { icon_url: reporterAvatarUrl } : {}),
         },
         title: truncateText(toTrimmedString(report.nickname), 256),
-        description: `**Reporte de jugador**\n[${reportUrl === MOSTWANTED_WEB_URL ? 'Ver reportes en la web' : 'Ver reporte y votar'}](${reportUrl})`,
+        description: `**Reporte de jugador**`,
         url: profileUrl,
         color: embedColor,
         fields,
@@ -267,6 +269,17 @@ export function buildDiscordReportPayload({ report = {}, reporter = {}, evidence
         timestamp: new Date(normalizeTimestamp(report.time)).toISOString(),
       },
       ...galleryEmbeds,
+    ],
+    components: [
+      {
+        type: 1,
+        components: actionButtons.map(btn => ({
+          type: 2,
+          style: btn.style,
+          label: btn.label,
+          url: btn.url,
+        })),
+      },
     ],
     allowed_mentions: { parse: [] },
   };

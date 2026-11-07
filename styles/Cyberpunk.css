@@ -955,6 +955,41 @@ table.case-table th { color: var(--color-cream); font: inherit; font-weight: 700
   .player-background-panel--dossier .pbp-identity-actions > .mw-cyber-button { width: 100%; }
   .player-background-panel--dossier .pbp-current-photos { padding-top: 16px; border-top: 1px solid var(--surface-border); }
   .case-identity-context { padding: 16px; }
+}
+
+/* Retry icon button */
+.retry-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  margin-left: 12px;
+  background: transparent;
+  color: var(--color-red-alert);
+  border: 2px solid var(--color-red-alert);
+  border-radius: 4px;
+  font-size: 1.25rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: bold;
+}
+
+.retry-icon-button:hover {
+  background: var(--color-red-alert);
+  color: var(--color-black);
+  transform: rotate(180deg);
+}
+
+.retry-icon-button:focus-visible {
+  outline: 2px solid var(--color-cream);
+  outline-offset: 2px;
+}
+
+.retry-icon-button:active {
+  transform: scale(0.95) rotate(180deg);
+}
   .desk-search__row { grid-template-columns: minmax(0, 1fr); }
   .case-filters { grid-template-columns: minmax(0, 1fr); }
   table.cyber-table.case-table { width: calc(100% - 32px); margin: 16px; }
