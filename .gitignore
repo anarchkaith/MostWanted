@@ -41,6 +41,12 @@ MostWanted.zip
 kaithgitlab
 kaithgitlab.pub
 
+# VPS Credentials - NEVER commit
+vps-credentials.env
+.vps-credentials*
+vps.env
+.vps-*
+
 # Private runtime case store (staff notes, audit and WordPress snapshots)
 /data/expedientes.json
 /data/expedientes.lock/
