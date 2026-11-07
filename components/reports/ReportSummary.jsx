@@ -1,4 +1,4 @@
-import { CATEGORY_LABELS, formatCaseDate, reportCategories } from '../../src/services/casePresentation';
+import { CATEGORY_LABELS, formatCaseDate, reportCategories, severityClassName } from '../../src/services/casePresentation';
 import { normalizeReportLabels } from '../../src/services/reportViewModel';
 import { reportEvidence } from '../../src/services/reportEvidence';
 import { resolvePlayerRid } from '../../shared/playerIdentity';
@@ -65,7 +65,7 @@ export default function ReportSummary({ report, onOpenAvatar }) {
         <div>
           <div className="report-detail__label">Tipos de infracción</div>
           <div className="report-detail__value">
-            {categories.length ? <div className="case-tags">{categories.map(category => <span key={category} className="case-badge">
+            {categories.length ? <div className="case-tags">{categories.map(category => <span key={category} className={`case-badge ${severityClassName(category)}`}>
               <SpecialTextContent group>{CATEGORY_LABELS[category] || String(category).toUpperCase()}</SpecialTextContent>
             </span>)}</div> : 'Sin infracciones registradas'}
           </div>

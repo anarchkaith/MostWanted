@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import useOwnedReports from '../../src/hooks/useOwnedReports';
-import { formatCaseDate } from '../../src/services/casePresentation';
+import { formatCaseDate, severityClassName } from '../../src/services/casePresentation';
 import { isRockstarPlayerAvatar } from '../../src/services/playerAvatars';
 import { handleInternalLink } from '../../src/services/appNavigation';
 import PlayerAvatarImage from '../PlayerAvatarImage';
@@ -49,22 +49,21 @@ export default function ProfileScreen({ user, canViewAccounts, onNavigate, onLog
         {!loading && !error && data && <>
           {data.items.length ? <ul className="profile-report-grid" aria-label="Reportes vinculados a tu cuenta">
             {data.items.map(report => <li key={report.id} className="profile-report-card">
-              <div className="profile-report-card__media">
+              <a className="profile-report-card__media" href={`/jugador/${encodeURIComponent(report.nickname)}`}
+                onClick={event => handleInternalLink(event, onNavigate, `/jugador/${encodeURIComponent(report.nickname)}`)}
+                aria-label={`Ver perfil de ${report.nickname}`}>
                 <ReportAvatar key={`${report.id}:${report.avatar1}:${report.avatar2}`} report={report} />
                 <div className="profile-report-card__name">
                   <strong className="notranslate" translate="no">{report.nickname}</strong>
                   <small>#{report.id} · {formatCaseDate(report.createdAt, true)}</small>
                 </div>
-              </div>
+              </a>
               <div className="profile-report-card__body">
                 <div className="profile-report-categories">{report.categories.length
-                  ? report.categories.map((category, index) => <span key={`${category}:${index}`}>{category}</span>)
+                  ? report.categories.map((category, index) => <span key={`${category}:${index}`} className={`case-badge ${severityClassName(category)}`}>{category}</span>)
                   : <span>Sin infracciones</span>}</div>
                 <div className="profile-report-actions">
                   <Button variant="secondary" className="mw-cyber-button--compact" onClick={() => onOpenReport(mapReport(report))} aria-label={`Ver reporte #${report.id}`}>Ver reporte</Button>
-                  <a href={`/jugador/${encodeURIComponent(report.rid || report.nickname)}`}
-                    onClick={event => handleInternalLink(event, onNavigate, `/jugador/${encodeURIComponent(report.rid || report.nickname)}`)}
-                    aria-label={`Ver ficha de ${report.nickname}`}>Ficha ↗</a>
                 </div>
               </div>
             </li>)}

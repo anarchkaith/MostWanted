@@ -182,7 +182,7 @@ function App() {
       {/* ============ HEADER ============ */}
       <AppHeader
         search={!showSearchLanding && !isAdminScreen && personSearch}
-        actions={<SessionActions user={user} canViewAccounts={capabilities.viewAccounts} isAdminScreen={isAdminScreen} isDemo={isDemo} canUseReports={canUseReports} isProfileScreen={isProfileScreen} onNavigate={navigate} onLogin={handleLogin} onHelp={() => setShowHelp(true)} />}
+        actions={<SessionActions user={user} isDemo={isDemo} canUseReports={canUseReports} isProfileScreen={isProfileScreen} onNavigate={navigate} onLogin={handleLogin} onHelp={() => setShowHelp(true)} />}
       />
       {/* Modal de ayuda */}
       <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />

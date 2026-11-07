@@ -1,9 +1,38 @@
 import { resolvePlayerRid } from '../../shared/playerIdentity.js';
 import { publicSearchFields, searchFieldMatches } from './playerSearch.js';
+import { TIPOS_ETIQUETAS } from '../../components/tiposEtiquetas.js';
 
 export const CASE_STATUSES = { open: 'Abierto', investigating: 'En investigación', closed: 'Cerrado' };
 export const VALIDATION_LABELS = { pendiente: 'Pendiente', investigando: 'En investigación', verificado: 'Verificado', rechazado: 'Rechazado' };
 export const CATEGORY_LABELS = { modder: 'MODDER', griffer: 'GRIFFER', ardido: 'ARDIDO' };
+
+export const SEVERITY_LEVELS = [
+  { key: 'leve', label: 'Leve', min: 1 },
+  { key: 'moderada', label: 'Moderada', min: 3 },
+  { key: 'grave', label: 'Grave', min: 4 },
+  { key: 'critica', label: 'Crítica', min: 5 },
+];
+
+const CATEGORY_TIPOS = { modder: ['MODDER'], griffer: ['GRIFFER'], ardido: ['GLITCHER', 'ACOSO-RAID'] };
+
+export function severityForScore(score) {
+  const rounded = Math.round(score);
+  return [...SEVERITY_LEVELS].reverse().find(level => rounded >= level.min) || SEVERITY_LEVELS[0];
+}
+
+export function categorySeverity(category) {
+  const key = String(category || '').toLowerCase();
+  const tipoKeys = (CATEGORY_TIPOS[key] || CATEGORY_TIPOS.ardido).map(tipo => tipo.toLowerCase());
+  const scores = TIPOS_ETIQUETAS
+    .filter(tipo => tipoKeys.includes(tipo.key.toLowerCase()))
+    .flatMap(tipo => tipo.etiquetas.map(etiqueta => etiqueta.puntaje));
+  if (!scores.length) return SEVERITY_LEVELS[0];
+  return severityForScore(scores.reduce((sum, score) => sum + score, 0) / scores.length);
+}
+
+export function severityClassName(category) {
+  return `severity-tag severity-tag--${categorySeverity(category).key}`;
+}
 
 export function formatReportDate(value) {
   if (!value || !Number.isFinite(new Date(value).getTime())) return 'Fecha desconocida';

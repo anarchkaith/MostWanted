@@ -3,7 +3,7 @@ import CyberButtonLabel from '../ui/CyberButtonLabel';
 import CyberSelect from '../ui/CyberSelect';
 import Skeleton from '../ui/Skeleton';
 import SpecialTextContent from '../ui/SpecialTextContent';
-import { VALIDATION_LABELS, filterCaseReports, reportCategories, formatCaseDate } from '../../src/services/casePresentation';
+import { VALIDATION_LABELS, CATEGORY_LABELS, filterCaseReports, reportCategories, formatCaseDate, severityClassName } from '../../src/services/casePresentation';
 
 const EMPTY_FILTERS = { category: '', validation: '', from: '', to: '', query: '' };
 const PAGE_SIZE = 10;
@@ -43,7 +43,9 @@ export default function PlayerCaseReports({ reports, payload, player, caseId, lo
         <td data-label="Fecha"><span className="case-report-reference"><time>{formatCaseDate(report.fecha)}</time><small>#{report.id}</small></span>
           {payload?.nameOnlyReportIds?.some(id => String(id) === String(report.id)) && <small>Asociación solo por nombre</small>}
         </td>
-        <td data-label="Infracción">{reportCategories(report).join(', ') || 'Sin datos'}</td>
+        <td data-label="Infracción">{reportCategories(report).length
+          ? <span className="case-tags">{reportCategories(report).map(category => <span key={category} className={`case-badge ${severityClassName(category)}`}>{CATEGORY_LABELS[category] || String(category).toUpperCase()}</span>)}</span>
+          : 'Sin datos'}</td>
         <td data-label="Validación"><span className="case-badge">{VALIDATION_LABELS[report.validacion] || report.validacion || 'Sin datos'}</span></td>
         <td><button type="button" className="cyber-button-small mw-cyber-button mw-cyber-button--secondary mw-cyber-button--compact" onClick={() => onOpenReport(report)} aria-label={`Ver detalles del reporte ${report.id}`}><CyberButtonLabel>Ver reporte</CyberButtonLabel></button></td>
       </tr>)}</tbody>

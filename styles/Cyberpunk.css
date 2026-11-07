@@ -970,6 +970,14 @@ table.cyber-table:is(.case-table, .mw-cyber-table)::after { caption-side: bottom
 .case-classification__text pre { overflow-x: auto; }
 .case-tags { display: flex; gap: 8px; flex-wrap: wrap; }
 .case-badge { display: inline-block; padding: 4px 8px; font: 0.8125rem/1.5 var(--font-mono); border: 1px solid var(--surface-border); overflow-wrap: anywhere; }
+.severity-tag.severity-tag--leve,
+.severity-tag.severity-tag--moderada,
+.severity-tag.severity-tag--grave,
+.severity-tag.severity-tag--critica { color: var(--severity-color); border-color: var(--severity-color); background: color-mix(in srgb, var(--severity-color) 12%, transparent); text-transform: uppercase; }
+.severity-tag.severity-tag--leve { --severity-color: #3ddc97; }
+.severity-tag.severity-tag--moderada { --severity-color: #f5c542; }
+.severity-tag.severity-tag--grave { --severity-color: #ff8a3d; }
+.severity-tag.severity-tag--critica { --severity-color: #ff3b5c; }
 .case-section meter { display: block; width: 100%; margin-top: 16px; appearance: none; height: 8px; background: var(--color-black); border: 1px solid var(--surface-border); border-radius: 0; }
 .case-section meter::-webkit-meter-bar { background: var(--color-black); border: 0; border-radius: 0; }
 .case-section meter::-webkit-meter-optimum-value { background: var(--color-success); border-radius: 0; }
@@ -1128,7 +1136,8 @@ table.case-table th { color: var(--color-text-muted); font: 0.6875rem/1.4 var(--
 .profile-report-grid { list-style: none; margin: 0; padding: 0 20px 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 14px; }
 .profile-report-card { display: flex; flex-direction: column; min-width: 0; border: 1px solid var(--surface-border); background: var(--surface-raised); transition: border-color .15s ease, transform .15s ease; }
 .profile-report-card:hover { border-color: var(--color-red-alert); transform: translateY(-2px); }
-.profile-report-card__media { position: relative; aspect-ratio: 3 / 4; overflow: hidden; background: #0d0d0d; }
+.profile-report-card__media { position: relative; display: block; aspect-ratio: 3 / 4; overflow: hidden; background: #0d0d0d; color: inherit; text-decoration: none; }
+.profile-report-card__media:focus-visible { outline: 2px solid var(--color-cream); outline-offset: -2px; }
 .profile-report-avatar { position: absolute; inset: 0; display: grid; place-items: center; }
 .profile-report-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .profile-report-avatar__fallback { font: 2.5rem/1 var(--font-stencil); color: var(--color-text-muted); }

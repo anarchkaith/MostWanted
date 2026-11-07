@@ -1,5 +1,5 @@
 ﻿import VoteSystem from './VoteSystem';
-import { CATEGORY_LABELS } from '../src/services/casePresentation';
+import { CATEGORY_LABELS, severityClassName } from '../src/services/casePresentation';
 
 /**
  * ReportCard - Componente para mostrar una ficha individual de reporte
@@ -61,7 +61,7 @@ const ReportCard = ({ reporte, onClick, onVote }) => {
       {/* Header con usuario y tag */}
       <header className="report-card__header">
         <h3 className="report-card__user notranslate" translate="no">{reporte.usuario || 'USUARIO_SIN_NOMBRE'}</h3>
-        <span className={`report-card__tag report-card__tag--${categoria}`}>
+        <span className={`report-card__tag report-card__tag--${categoria} ${severityClassName(categoria)}`}>
           {CATEGORY_LABELS[categoria] || categoria.toUpperCase()}
         </span>
       </header>
