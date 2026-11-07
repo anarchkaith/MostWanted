@@ -45,7 +45,7 @@ export default function PlayerCaseReports({ reports, payload, player, caseId, lo
         </td>
         <td data-label="Infracción">{reportCategories(report).join(', ') || 'Sin datos'}</td>
         <td data-label="Validación"><span className="case-badge">{VALIDATION_LABELS[report.validacion] || report.validacion || 'Sin datos'}</span></td>
-        <td><button type="button" className="cyber-button-small mw-cyber-button mw-cyber-button--secondary" onClick={() => onOpenReport(report)} aria-label={`Ver detalles del reporte ${report.id}`}><CyberButtonLabel>Ver reporte</CyberButtonLabel></button></td>
+        <td><button type="button" className="cyber-button-small mw-cyber-button mw-cyber-button--secondary mw-cyber-button--compact" onClick={() => onOpenReport(report)} aria-label={`Ver detalles del reporte ${report.id}`}><CyberButtonLabel>Ver reporte</CyberButtonLabel></button></td>
       </tr>)}</tbody>
     </table>}
     {filtered.length > PAGE_SIZE && <nav className="case-pagination" aria-label="Páginas de reportes"><button type="button" className="cyber-button-small mw-cyber-button mw-cyber-button--secondary" disabled={visiblePage === 1} onClick={() => setPage(visiblePage - 1)}><CyberButtonLabel>Anterior</CyberButtonLabel></button><span>{visiblePage} / {Math.ceil(filtered.length / PAGE_SIZE)}</span><button type="button" className="cyber-button-small mw-cyber-button mw-cyber-button--secondary" disabled={visiblePage * PAGE_SIZE >= filtered.length} onClick={() => setPage(visiblePage + 1)}><CyberButtonLabel>Siguiente</CyberButtonLabel></button></nav>}

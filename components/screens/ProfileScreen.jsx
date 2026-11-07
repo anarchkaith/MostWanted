@@ -61,7 +61,7 @@ export default function ProfileScreen({ user, canViewAccounts, onNavigate, onLog
                   ? report.categories.map((category, index) => <span key={`${category}:${index}`}>{category}</span>)
                   : <span>Sin infracciones</span>}</div>
                 <div className="profile-report-actions">
-                  <Button variant="secondary" onClick={() => onOpenReport(mapReport(report))} aria-label={`Ver reporte #${report.id}`}>Ver reporte</Button>
+                  <Button variant="secondary" className="mw-cyber-button--compact" onClick={() => onOpenReport(mapReport(report))} aria-label={`Ver reporte #${report.id}`}>Ver reporte</Button>
                   <a href={`/jugador/${encodeURIComponent(report.rid || report.nickname)}`}
                     onClick={event => handleInternalLink(event, onNavigate, `/jugador/${encodeURIComponent(report.rid || report.nickname)}`)}
                     aria-label={`Ver ficha de ${report.nickname}`}>Ficha ↗</a>
