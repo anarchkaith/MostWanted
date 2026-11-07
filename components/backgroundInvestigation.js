@@ -185,22 +185,6 @@ async function getPlayerRid(username, signal) {
   return { rid: String(data.id), usedProxy };
 }
 
-export async function lookupCachedPlayer(query, signal) {
-  const value = query.trim();
-  if (isBlockedReportedUsername(value)) throw new Error(BLOCKED_REPORTED_USERNAME_MESSAGE);
-  try {
-    if (/^\d+$/.test(value)) {
-      const { profile } = await getPlayerProfile(value, signal);
-      return { nickname: profile.name, rid: value, source: 'Social Club / sc-cache' };
-    }
-    const { rid } = await getPlayerRid(value, signal);
-    return { nickname: value, rid, source: 'Social Club / sc-cache' };
-  } catch (error) {
-    if (error.status === 404) return null;
-    throw error;
-  }
-}
-
 async function getPlayerProfile(rid, signal) {
   if (!rid) {
     throw new Error('RID invalido');
@@ -312,14 +296,26 @@ export async function investigatePlayerBackground(username, knownRid = '') {
   }
 
   const warnings = [];
-  const [insightsResult, ridResult] = await Promise.allSettled([
-    getPlayerReportInsights({ username: trimmedUsername, rid: knownRid }),
-    knownRid ? Promise.resolve({ rid: knownRid, usedProxy: false }) : getPlayerRid(trimmedUsername),
-  ]);
-  let reportInsights = insightsResult.status === 'fulfilled' ? insightsResult.value : null;
-  if (insightsResult.status === 'rejected') warnings.push(`Reportes no disponibles: ${insightsResult.reason.message}`);
-  if (ridResult.status === 'rejected') warnings.push(`No se pudo resolver el RID externo: ${ridResult.reason.message}`);
-  const rid = String(ridResult.status === 'fulfilled' ? ridResult.value.rid : reportInsights?.rid || knownRid || '');
+  let reportInsights = null;
+  try {
+    reportInsights = await getPlayerReportInsights({ username: trimmedUsername, rid: knownRid });
+  } catch (error) {
+    warnings.push(`Reportes no disponibles: ${error.message}`);
+  }
+
+  // El RID guardado en los reportes es estable: sc-cache solo se consulta si aún no se conoce.
+  let rid = String(knownRid || reportInsights?.rid || '');
+  let usedCorsProxy = false;
+  if (!rid && trimmedUsername) {
+    try {
+      const resolved = await getPlayerRid(trimmedUsername);
+      rid = resolved.rid;
+      usedCorsProxy = resolved.usedProxy;
+    } catch (error) {
+      warnings.push(`No se pudo resolver el RID externo: ${error.message}`);
+    }
+  }
+  const hasStoredRid = Boolean(knownRid || reportInsights?.rid);
   if (rid && String(reportInsights?.rid || '') !== rid) {
     // Consultar por el RID resuelto evita mezclar el archivo de un nombre reutilizado.
     try {
@@ -330,7 +326,7 @@ export async function investigatePlayerBackground(username, knownRid = '') {
     }
   }
   let currentProfile = null;
-  if (rid) {
+  if (rid && !hasStoredRid) {
     try {
       currentProfile = (await getPlayerProfile(rid)).profile;
     } catch (error) {
@@ -352,7 +348,7 @@ export async function investigatePlayerBackground(username, knownRid = '') {
     warnings,
     accountStatus: null,
     corsPermissionRequired: false,
-    usedCorsProxy: ridResult.status === 'fulfilled' && ridResult.value.usedProxy,
+    usedCorsProxy,
     timestamp: new Date().toISOString(),
   };
 }

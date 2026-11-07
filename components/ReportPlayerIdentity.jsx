@@ -4,6 +4,7 @@ import CyberButtonLabel from './ui/CyberButtonLabel';
 import usePlayerInvestigation from './usePlayerInvestigation';
 import { isBlockedReportedUsername } from './blockedUsernames';
 import { completeReportPlayerDraft } from '../src/services/reportPlayerDraft';
+import { buildPlayerTourSteps, startOnboardingTour } from '../src/services/onboardingTour';
 
 export default function ReportPlayerIdentity({ initialPlayer, editMode = false }) {
   const { values, errors, touched, isSubmitting, setValues } = useFormikContext();
@@ -34,6 +35,9 @@ export default function ReportPlayerIdentity({ initialPlayer, editMode = false }
       </div>}
       {!editMode && !initialPlayer?.investigationCompleted && <button type="button" className="cyber-button-small mw-cyber-button mw-cyber-button--secondary" disabled={isSubmitting || isLoading || username.length < 2 || isBlockedReportedUsername(username)} onClick={() => setRequest({ username, rid: initialPlayer?.rid || '' })}>
         <CyberButtonLabel>{isLoading ? 'Buscando...' : 'Completar datos disponibles'}</CyberButtonLabel>
+      </button>}
+      {!editMode && investigation && request?.username && <button type="button" className="cyber-button-small mw-cyber-button mw-cyber-button--secondary mw-cyber-button--compact" onClick={() => startOnboardingTour(buildPlayerTourSteps(request.username))}>
+        <CyberButtonLabel>Ver tutorial</CyberButtonLabel>
       </button>}
       {isLoading && <p role="status">Consultando jugador…</p>}
       {error && <p role="alert" className="rfm-submit-error">{error} Puedes aportar los datos manualmente.</p>}
