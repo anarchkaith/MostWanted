@@ -19,4 +19,16 @@ assert.equal(
   unwrapMarkdownFence('```\nUna respuesta de texto normal.\n```'),
   '```\nUna respuesta de texto normal.\n```',
 );
+assert.equal(
+  unwrapMarkdownFence(`\`\`\` markdown\n${markdown}\n\`\`\``),
+  markdown,
+);
+assert.equal(
+  unwrapMarkdownFence(`\`\`\`markdown\n${markdown}\n\`\`\`  `),
+  markdown,
+);
+assert.equal(
+  unwrapMarkdownFence(`~~~markdown\n${markdown}\n~~~`),
+  markdown,
+);
 assert.equal(unwrapMarkdownFence(markdown), markdown);

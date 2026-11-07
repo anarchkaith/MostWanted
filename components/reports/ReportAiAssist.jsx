@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useFormikContext } from 'formik';
 import { TIPOS_ETIQUETAS } from '../tiposEtiquetas';
 import { canRequestReportAssist, requestReportAssist, resolveReportAssistSuggestion } from '../../src/services/reportAssist.js';
+import { ASSISTANT_NAME } from '../../src/config/assistant.js';
 
 const IDLE = { status: 'idle', suggestion: null, applied: null, error: '' };
 const isEmpty = suggestion => !suggestion || (!suggestion.reason && !suggestion.categories.length && !suggestion.labels.length);
@@ -40,7 +41,7 @@ export default function ReportAiAssist({ autoRun = false }) {
       }
     } catch (error) {
       if (error.name === 'AbortError') return;
-      setState(auto ? IDLE : { ...IDLE, status: 'error', error: error.status ? error.message : 'No se pudo conectar con la ayuda IA. Inténtalo más tarde.' });
+      setState(auto ? IDLE : { ...IDLE, status: 'error', error: error.status ? error.message : `No se pudo conectar con ${ASSISTANT_NAME}. Inténtalo más tarde.` });
     }
   };
 
@@ -76,13 +77,13 @@ export default function ReportAiAssist({ autoRun = false }) {
 
   return <section className="ai-assist" aria-labelledby="ai-assist-title">
     <div className="ai-assist__bar">
-      <p id="ai-assist-title" className="ai-assist__title">Ayuda IA <span>Experimental</span></p>
+      <p id="ai-assist-title" className="ai-assist__title">Ayuda {ASSISTANT_NAME} <span>Experimental</span></p>
       <button type="button" className="ai-assist__trigger" onClick={() => ask()}
         disabled={isSubmitting || status === 'loading' || !canRequestReportAssist(values)}>
-        {status === 'loading' ? 'Analizando tu relato…' : suggestion || applied ? 'Probar otra vez' : '✨ Completar con IA'}
+        {status === 'loading' ? 'Analizando tu relato…' : suggestion || applied ? 'Probar otra vez' : `✨ Completar con ${ASSISTANT_NAME}`}
       </button>
     </div>
-    {status === 'idle' && !suggestion && <p className="ai-assist__hint">La IA lee tu relato, marca las infracciones probables y te propone un texto más claro. Tú decides qué se envía.</p>}
+    {status === 'idle' && !suggestion && <p className="ai-assist__hint">{ASSISTANT_NAME} lee tu relato, marca las infracciones probables y te propone un texto más claro. Tú decides qué se envía.</p>}
     <div role="status" aria-live="polite">
       {status === 'loading' && <p className="ai-assist__hint ai-assist__hint--busy">Buscando infracciones en tu relato…</p>}
       {status === 'error' && <p className="ai-assist__hint ai-assist__hint--warn">{error}</p>}
@@ -90,7 +91,7 @@ export default function ReportAiAssist({ autoRun = false }) {
     </div>
     {status === 'ready' && <div className="ai-assist__result">
       {applied && <div className="ai-assist__block ai-assist__block--applied">
-        <p className="ai-assist__label">✓ La IA marcó por ti</p>
+        <p className="ai-assist__label">✓ {ASSISTANT_NAME} marcó por ti</p>
         <ul className="ai-assist__chips">
           {applied.categories.map(key => <li key={key}>{categoryName(key)}</li>)}
           {applied.labels.map(label => <li key={label}>{label}</li>)}
@@ -120,7 +121,7 @@ export default function ReportAiAssist({ autoRun = false }) {
         </div>
       </div>}
       {suggestion?.note && <p className="ai-assist__hint">💡 {suggestion.note}</p>}
-      <p className="ai-assist__disclaimer">La IA solo usa lo que escribiste. Nunca inventa pruebas: revisa todo antes de enviar.</p>
+      <p className="ai-assist__disclaimer">{ASSISTANT_NAME} solo usa lo que escribiste. Nunca inventa pruebas: revisa todo antes de enviar.</p>
     </div>}
   </section>;
 }

@@ -1,12 +1,13 @@
 import CyberButtonLabel from '../ui/CyberButtonLabel';
 import SpecialTextContent from '../ui/SpecialTextContent';
+import { ASSISTANT_NAME } from '../../src/config/assistant.js';
 
 const ROCKSTAR_SUPPORT_URL = 'https://support.rockstargames.com/';
 
 const STEPS = [
   { tag: '01', title: 'Busca su nombre', text: 'Escribe el nombre o RID. Si ya tiene historial, lo ves al instante.' },
   { tag: '02', title: 'Cuenta y adjunta', text: 'Explica lo que pasó con tus palabras y pega tus capturas. Sin formularios eternos.' },
-  { tag: '03', title: 'La IA marca las infracciones', text: 'Lee tu relato y selecciona modder, griefer, scam… Tú solo confirmas.' },
+  { tag: '03', title: `${ASSISTANT_NAME} marca las infracciones`, text: 'Lee tu relato y selecciona modder, griefer, scam… Tú solo confirmas.' },
   { tag: '04', title: 'Revisa y envía', text: 'Un último vistazo en un modal y listo. Tu reporte se suma a su expediente.' },
 ];
 
@@ -14,7 +15,7 @@ const BENEFITS = [
   { icon: '◎', title: 'Su historial no se borra', text: 'Cambió de nombre, de crew o de cuenta: el RID y los alias quedan vinculados al mismo expediente.' },
   { icon: '▲', title: 'La fuerza está en el número', text: 'Un reporte suelto se pierde. Decenas de reportes con pruebas sobre el mismo jugador son imposibles de ignorar.' },
   { icon: '⌖', title: 'Sabes con quién juegas', text: 'Antes de entrar a una sesión o aceptar un trato, búscalo. Si es un scammer conocido, lo sabrás.' },
-  { icon: '✦', title: 'La IA hace el trabajo aburrido', text: 'Escribe como hablas. La IA ordena tu relato y marca las infracciones por ti.' },
+  { icon: '✦', title: `${ASSISTANT_NAME} hace el trabajo aburrido`, text: `Escribe como hablas. ${ASSISTANT_NAME} ordena tu relato y marca las infracciones por ti.` },
   { icon: '✓', title: 'La comunidad verifica', text: 'Otros jugadores votan cada reporte. Las pruebas reales suben; los reportes falsos se hunden.' },
   { icon: '⧉', title: 'Pruebas en un solo lugar', text: 'Capturas, fechas, RID y crews organizados. Todo lo que necesitas cuando lo denuncias oficialmente.' },
 ];
@@ -89,7 +90,7 @@ export default function LandingScreen({ onLogin }) {
         </div>
         <ul className="lp-hero__trust">
           <li><b>2 min</b> por reporte</li>
-          <li><b>IA</b> que completa por ti</li>
+          <li><b>{ASSISTANT_NAME}</b> que completa por ti</li>
           <li><b>100%</b> gratis</li>
         </ul>
       </div>

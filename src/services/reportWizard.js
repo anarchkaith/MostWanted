@@ -1,3 +1,5 @@
+import { ASSISTANT_NAME } from '../config/assistant.js';
+
 export const REPORT_WIZARD_STEPS = [
   {
     id: 'identity',
@@ -17,7 +19,7 @@ export const REPORT_WIZARD_STEPS = [
     id: 'infraction',
     label: 'Infracciones',
     title: '¿Qué infracciones cometió?',
-    description: 'La IA marca las infracciones según tu relato. Revisa y ajusta lo que haga falta.',
+    description: `${ASSISTANT_NAME} marca las infracciones según tu relato. Revisa y ajusta lo que haga falta.`,
     fields: ['typesOfInfraction', 'labels'],
   },
 ];

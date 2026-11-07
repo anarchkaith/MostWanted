@@ -1,4 +1,5 @@
 import { buildApiUrl } from './apiConfig.js';
+import { ASSISTANT_NAME } from '../config/assistant.js';
 
 export const REPORT_ASSIST_MIN_REASON = 10;
 
@@ -27,12 +28,12 @@ export async function requestReportAssist(values, { fetchImpl = fetch, signal, u
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     const message = response.status === 401
-      ? 'Inicia sesión con Discord para usar la ayuda IA.'
+      ? `Inicia sesión con Discord para usar ${ASSISTANT_NAME}.`
       : response.status === 429
-        ? 'Llegaste al límite diario de la ayuda IA.'
+        ? `Llegaste al límite diario de ${ASSISTANT_NAME}.`
         : response.status === 404
-          ? 'La ayuda IA estará disponible muy pronto.'
-          : payload?.error || 'La ayuda IA no está disponible ahora.';
+          ? `${ASSISTANT_NAME} estará disponible muy pronto.`
+          : payload?.error || `${ASSISTANT_NAME} no está disponible ahora.`;
     throw Object.assign(new Error(message), { status: response.status });
   }
   return payload?.suggestion || null;

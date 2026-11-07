@@ -8,6 +8,8 @@ import PlayerNameHistory from './player/PlayerNameHistory';
 import PlayerCrewHistory from './player/PlayerCrewHistory';
 import Skeleton from './ui/Skeleton';
 
+const normalizeName = value => String(value || '').trim().toLowerCase();
+
 export default function PlayerBackgroundPanel({
   username = '',
   rid = '',
@@ -32,12 +34,18 @@ export default function PlayerBackgroundPanel({
     username, rid: investigation.rid || rid, profile: investigation.currentProfile,
     reportInsights: investigation.reportInsights, reports: reports || [], currentAvatars: investigation.avatares || [],
   }) : null, [investigation, username, rid, reports]);
+  const displayedName = normalizeName(investigation?.nombre || displayedProfile?.name);
+  const otherNameEntries = useMemo(() => (displayedProfile?.nameHistory || [])
+    .filter(entry => normalizeName(entry.name) !== displayedName), [displayedProfile, displayedName]);
+  const crewEntries = displayedProfile?.crewHistory || [];
   const avatarHistory = investigation && (
     <PlayerAvatarHistory avatars={displayedProfile?.historicalAvatars || []} playerName={investigation.nombre} onOpen={setExpandedAvatar} />
   );
   const showHistory = Boolean(investigation || !error);
-  const namesPanel = showHistory && <PlayerNameHistory entries={displayedProfile?.nameHistory || []} variant={variant} ready={Boolean(investigation)} />;
-  const crewsPanel = showHistory && <PlayerCrewHistory entries={displayedProfile?.crewHistory || []} variant={variant} ready={Boolean(investigation)} />;
+  const namesPanel = showHistory && <PlayerNameHistory entries={otherNameEntries} variant={variant} ready={Boolean(investigation)} />;
+  const crewsPanel = showHistory && <PlayerCrewHistory entries={crewEntries} variant={variant} ready={Boolean(investigation)} />;
+  const hasNames = Boolean(investigation && otherNameEntries.length);
+  const hasCrews = Boolean(investigation && crewEntries.length);
   const hasArchivedAvatars = Boolean(investigation && displayedProfile?.historicalAvatars.length);
 
   if ((!username || username.trim().length === 0) && !rid) {
@@ -81,7 +89,7 @@ export default function PlayerBackgroundPanel({
                   {classification}
                   {verification}
                 </div>}
-                {(namesPanel || crewsPanel || hasArchivedAvatars) && <div className="pbp-history" role="group" aria-label="Antecedentes del jugador">
+                {(hasNames || hasCrews || hasArchivedAvatars) && <div className="pbp-history" role="group" aria-label="Antecedentes del jugador">
                   {namesPanel}
                   {crewsPanel}
                   {hasArchivedAvatars && <div className="pbp-evidence-panel">{avatarHistory}</div>}

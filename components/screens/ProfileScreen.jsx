@@ -19,7 +19,7 @@ function ReportAvatar({ report }) {
       {!loaded && <Skeleton label="Cargando avatar…" rows={1} className="mw-skeleton--avatar" />}
       <PlayerAvatarImage src={src} alt="" loading="lazy" normalizeAlpha={isRockstarPlayerAvatar(src)}
         onLoad={() => setLoaded(true)} onError={() => { setLoaded(false); setIndex(value => value + 1); }} />
-    </> : <span>Sin foto</span>}
+    </> : <span className="profile-report-avatar__fallback" aria-hidden="true">{String(report.nickname || '?').charAt(0).toUpperCase()}</span>}
   </div>;
 }
 
@@ -47,32 +47,28 @@ export default function ProfileScreen({ user, canViewAccounts, onNavigate, onLog
         {loading && <Skeleton label="Cargando mis reportes…" rows={6} />}
         {error && <div className="rfm-submit-error" role="alert"><p>{error}</p><Button variant="secondary" onClick={retry}>Reintentar</Button></div>}
         {!loading && !error && data && <>
-          {data.items.length ? <div className="profile-reports">
-            <table className="profile-report-table">
-              <caption className="profile-report-caption">Página {page} · {data.items.length} reportes en esta página</caption>
-              <thead><tr><th scope="col">Jugador reportado</th><th scope="col">Reporte / fecha</th><th scope="col">Infracciones y motivo</th><th scope="col">Consultar</th></tr></thead>
-              <tbody>{data.items.map(report => <tr key={report.id}>
-                <th scope="row"><div className="profile-report-player">
-                  <ReportAvatar key={`${report.id}:${report.avatar1}:${report.avatar2}`} report={report} />
-                  <div><strong className="notranslate" translate="no">{report.nickname}</strong>
-                    <small>{report.rid ? `RID ${report.rid}` : 'Sin RID registrado'}</small></div>
-                </div></th>
-                <td className="profile-report-meta"><span>#{report.id}</span><small>{formatCaseDate(report.createdAt, true)}</small></td>
-                <td className="profile-report-description">
-                  <div className="profile-report-categories">{report.categories.length
-                    ? report.categories.map((category, index) => <span key={`${category}:${index}`}>{category}</span>)
-                    : <span>Sin infracciones registradas</span>}</div>
-                  <p className="profile-report-reason">{report.reason || 'Sin motivo registrado'}</p>
-                </td>
-                <td><div className="profile-report-actions">
+          {data.items.length ? <ul className="profile-report-grid" aria-label="Reportes vinculados a tu cuenta">
+            {data.items.map(report => <li key={report.id} className="profile-report-card">
+              <div className="profile-report-card__media">
+                <ReportAvatar key={`${report.id}:${report.avatar1}:${report.avatar2}`} report={report} />
+                <div className="profile-report-card__name">
+                  <strong className="notranslate" translate="no">{report.nickname}</strong>
+                  <small>#{report.id} · {formatCaseDate(report.createdAt, true)}</small>
+                </div>
+              </div>
+              <div className="profile-report-card__body">
+                <div className="profile-report-categories">{report.categories.length
+                  ? report.categories.map((category, index) => <span key={`${category}:${index}`}>{category}</span>)
+                  : <span>Sin infracciones</span>}</div>
+                <div className="profile-report-actions">
                   <Button variant="secondary" onClick={() => onOpenReport(mapReport(report))} aria-label={`Ver reporte #${report.id}`}>Ver reporte</Button>
                   <a href={`/jugador/${encodeURIComponent(report.rid || report.nickname)}`}
                     onClick={event => handleInternalLink(event, onNavigate, `/jugador/${encodeURIComponent(report.rid || report.nickname)}`)}
-                    aria-label={`Ver ficha de ${report.nickname}`}>Ficha del jugador ↗</a>
-                </div></td>
-              </tr>)}</tbody>
-            </table>
-          </div> : <p className="desk-empty">No tienes reportes vinculados en esta página.</p>}
+                    aria-label={`Ver ficha de ${report.nickname}`}>Ficha ↗</a>
+                </div>
+              </div>
+            </li>)}
+          </ul> : <p className="desk-empty">No tienes reportes vinculados en esta página.</p>}
           {(page > 1 || data.hasMore) && <nav className="case-pagination" aria-label="Páginas de mis reportes">
             <Button variant="secondary" disabled={page === 1} onClick={() => setPage(value => value - 1)}>Anterior</Button>
             <span>Página {page}</span>
