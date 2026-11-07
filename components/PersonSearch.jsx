@@ -128,14 +128,14 @@ export default function PersonSearch({ reports, knownPlayers, onSelect, revision
         </div>
         {loading && <Skeleton label="Buscando en reportes y resúmenes…" rows={2} />}
         {!loading && !matches.length && <p role="status">Sin coincidencias en el archivo disponible.</p>}
-        {matches.length > 1 && <p>Selecciona al jugador.</p>}
-        {!warnings.length && (matches.length > resultLimit || hasMore) && <button type="button" disabled={loading} onClick={() => {
+        {matches.length > 1 && <p className="person-search__instruction">Selecciona al jugador.</p>}
+        {!warnings.length && (matches.length > resultLimit || hasMore) && <button type="button" className="person-search__load-more" disabled={loading} onClick={() => {
           if (matches.length <= resultLimit && hasMore) setPage(value => value + 1);
           setResultLimit(value => value + 12);
         }}>Mostrar más coincidencias ({Math.min(resultLimit, matches.length)} de {Math.max(total, matches.length)})</button>}
-        <button type="button" onClick={() => choose({ nickname: /^\d+$/.test(term) ? '' : term, rid: /^\d+$/.test(term) ? term : '' })}>
-          Consultar perfil externo por nombre o RID: <SpecialTextContent>{term}</SpecialTextContent>
-        </button>
+        {!matches.length && <button type="button" className="person-search__external-lookup" onClick={() => choose({ nickname: /^\d+$/.test(term) ? '' : term, rid: /^\d+$/.test(term) ? term : '' })}>
+          Consultar perfil externo: <SpecialTextContent>{term}</SpecialTextContent>
+        </button>}
         {warnings.length > 0 && <>
           <p role="alert">{warnings.join(' · ')}</p>
           <button type="button" disabled={loading} onClick={() => setRetry(value => value + 1)}>Reintentar búsqueda del archivo</button>

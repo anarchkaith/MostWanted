@@ -102,6 +102,63 @@ a { color: var(--color-cream); text-underline-offset: 3px; }
 .person-search__results button span { font-size: 0.8125rem; color: var(--color-text-muted); }
 .person-search__results p { margin: 8px; font-size: 0.875rem; overflow-wrap: anywhere; }
 .person-search__results [role='alert'] { color: #ffb3b3; }
+
+/* Instruction text - centered and subtle */
+.person-search__instruction {
+  text-align: center;
+  color: var(--color-text-muted);
+  margin: 16px 8px !important;
+  font-size: 0.8125rem;
+}
+
+/* Load more button - normal cyber styling */
+.person-search__load-more {
+  width: 100% !important;
+  padding: 12px !important;
+  min-height: 44px !important;
+  border: 1px solid var(--surface-border) !important;
+  border-bottom: 0 !important;
+  background: transparent !important;
+  color: var(--color-cream) !important;
+  font: 0.875rem/1.5 var(--font-stencil) !important;
+  cursor: pointer !important;
+  margin: 8px -8px 0 -8px !important;
+  margin-bottom: 8px !important;
+}
+.person-search__load-more:hover:not(:disabled) {
+  background: #302020 !important;
+  box-shadow: inset 3px 0 var(--color-red-alert) !important;
+}
+.person-search__load-more:disabled {
+  opacity: 0.6;
+  cursor: not-allowed !important;
+}
+
+/* External lookup button - subtle and secondary */
+.person-search__external-lookup {
+  width: 100% !important;
+  padding: 12px !important;
+  min-height: 44px !important;
+  border: 1px solid #444 !important;
+  border-bottom: 0 !important;
+  background: #1a1a1a !important;
+  color: #999 !important;
+  font: 0.8125rem/1.5 var(--font-typewriter) !important;
+  cursor: pointer !important;
+  margin: 8px -8px 0 -8px !important;
+  text-align: left;
+  transition: all 200ms ease-in-out;
+}
+.person-search__external-lookup:hover:not(:disabled) {
+  background: #222 !important;
+  border-color: var(--color-text-muted) !important;
+  color: var(--color-text-muted) !important;
+  box-shadow: inset 3px 0 transparent !important;
+}
+.person-search__external-lookup:disabled {
+  opacity: 0.4;
+  cursor: not-allowed !important;
+}
 .app-container--search { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; }
 .app-container--search > .site-header { grid-template-columns: minmax(0, 1fr) auto; }
 .search-landing { display: grid; place-items: center; flex: 1; padding: 48px 0; min-height: 360px; }
