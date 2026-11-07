@@ -23,7 +23,9 @@
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 16px;
+  margin: 0;
   padding: 0 0 32px;
+  list-style: none;
   border-bottom: 1px solid var(--surface-border);
   position: relative;
 }
@@ -35,12 +37,7 @@
   left: 0;
   right: 0;
   height: 2px;
-  background: linear-gradient(90deg,
-    var(--color-red-alert) 0%,
-    var(--color-red-alert) 25%,
-    var(--surface-border) 25%,
-    var(--surface-border) 100%
-  );
+  background: var(--surface-border);
   pointer-events: none;
   z-index: 0;
 }
@@ -113,6 +110,13 @@
   letter-spacing: 0.04em;
 }
 
+.wizard-step-header__progress {
+  margin: 0 0 8px;
+  color: var(--color-text-muted);
+  font: 0.75rem/1.5 var(--font-mono);
+  text-transform: uppercase;
+}
+
 .wizard-step-header__subtitle {
   font: 1.125rem/1.5 var(--font-typewriter);
   color: var(--color-red-alert);
@@ -132,25 +136,17 @@
   border-top: 1px solid var(--surface-border);
 }
 
-.report-wizard__content .report-form {
-  display: grid;
-  gap: 20px;
-}
-
-.report-wizard__content .rfm-stack {
-  display: grid;
-  gap: 20px;
-}
-
-.report-wizard__content .rfm-stack > * {
-  padding: 0;
-  margin: 0;
-  border: 0;
-}
-
-.report-wizard__content .rfm-submit-wrap {
-  display: none;
-}
+.wizard-section:not([hidden]) { display: grid; gap: 20px; }
+.report-wizard .rfm-panel__title::before { content: none; }
+.wizard-optional { border: 1px solid var(--surface-border); }
+.wizard-optional summary { min-height: 44px; padding: 12px 16px; cursor: pointer; }
+.wizard-optional summary span { color: var(--color-text-muted); font-size: 0.875rem; }
+.wizard-optional .rfm-panel { border: 0; border-top: 1px solid var(--surface-border); }
+.wizard-review__list { display: grid; gap: 0; margin: 0; }
+.wizard-review__list > div { padding: 12px 0; border-bottom: 1px solid var(--surface-border); }
+.wizard-review__list dt { color: var(--color-text-muted); font: 0.75rem/1.5 var(--font-mono); }
+.wizard-review__list dd { margin: 4px 0 0; overflow-wrap: anywhere; }
+.wizard-review__reason { white-space: pre-wrap; }
 
 /* Pie de página con navegación */
 .report-wizard__footer {
@@ -205,7 +201,7 @@
   }
 
   .wizard-step__label {
-    font-size: 0.6rem;
+    font-size: 0.6875rem;
     max-width: 80px;
   }
 
@@ -263,8 +259,8 @@
   }
 
   .wizard-step__label {
-    font-size: 0.5rem;
-    max-width: 60px;
+    font-size: 0.6875rem;
+    max-width: 70px;
     line-height: 1.2;
   }
 

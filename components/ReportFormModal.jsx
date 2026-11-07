@@ -4,7 +4,7 @@ import { reportFormValidationSchema } from './reportFormValidation';
 import { reportPlayerDraft } from '../src/services/reportPlayerDraft';
 import useReportSubmission from '../src/hooks/useReportSubmission';
 import ReportSubmissionConfirmation from './reports/ReportSubmissionConfirmation';
-import ReportFormFields from './reports/ReportFormFields';
+import ReportFormWizard from './reports/ReportFormWizard';
 
 const initialValues = {
   investigation_status: 'not_attempted',
@@ -40,6 +40,7 @@ export default function ReportFormModal({ onSubmit, currentUser = null, isDemo =
   const imageUploadRef = useRef(null);
   const [images, setImages] = useState([]);
   const [evidenceBlocked, setEvidenceBlocked] = useState(false);
+  const [wizardRevision, setWizardRevision] = useState(0);
   const { submit, error: submitError, confirmation, closeConfirmation } = useReportSubmission({
     user: currentUser, images, onSaved: onSubmit, imageUploadRef,
   });
@@ -65,6 +66,7 @@ export default function ReportFormModal({ onSubmit, currentUser = null, isDemo =
     setImages([]);
     imageUploadRef.current?.clearImages?.();
     closeConfirmation();
+    setWizardRevision(value => value + 1);
     onReturnToCase?.();
   };
 
@@ -81,8 +83,8 @@ export default function ReportFormModal({ onSubmit, currentUser = null, isDemo =
           setSubmitting(false);
         }
       }}>
-      <ReportFormFields initialPlayer={initialPlayer} isDemo={isDemo} onPaste={handleGlobalPaste}
-        imageUploadRef={imageUploadRef} onImagesChange={setImages} submitError={submitError}
+      <ReportFormWizard key={wizardRevision} initialPlayer={initialPlayer} isDemo={isDemo} onPaste={handleGlobalPaste}
+        imageUploadRef={imageUploadRef} images={images} onImagesChange={setImages} submitError={submitError}
         evidenceBlocked={evidenceBlocked} onEvidenceBlockedChange={setEvidenceBlocked}
         submitErrorRef={submitErrorRef} submitButtonRef={submitButtonRef} />
     </Formik>

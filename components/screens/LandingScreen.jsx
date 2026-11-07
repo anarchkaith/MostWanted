@@ -23,7 +23,7 @@ function FAQItem({ question, answer, open = false }) {
   );
 }
 
-export default function LandingScreen({ onNavigate }) {
+export default function LandingScreen({ onLogin }) {
   return (
     <main className="landing-screen">
       {/* HERO SECTION */}
@@ -36,23 +36,17 @@ export default function LandingScreen({ onNavigate }) {
           <p className="landing-hero__subtitle">
             Sistema de reportes para modders, griefers y ardidos. 
             <br />
-            <strong>La comunidad decide quién se va.</strong>
+            <strong>Comparte evidencias para que la comunidad pueda evaluar cada reporte.</strong>
           </p>
           <div className="landing-hero__actions">
             <button
               type="button"
               className="cyber-button mw-cyber-button"
-              onClick={() => onNavigate('/denunciar')}
+              onClick={onLogin}
             >
-              <CyberButtonLabel>🚨 Reportar Jugador</CyberButtonLabel>
+              <CyberButtonLabel>Iniciar sesión para empezar</CyberButtonLabel>
             </button>
-            <button
-              type="button"
-              className="cyber-button mw-cyber-button mw-cyber-button--secondary"
-              onClick={() => onNavigate('/#reportes-lista')}
-            >
-              <CyberButtonLabel>🔎 Ver Reportes</CyberButtonLabel>
-            </button>
+            <a className="landing-hero__learn-more" href="#landing-tutorial-title">Ver cómo funciona ↓</a>
           </div>
         </div>
         <div className="landing-hero__graphic">
@@ -80,13 +74,13 @@ export default function LandingScreen({ onNavigate }) {
             number="2"
             icon="📝"
             title="Haz tu reporte"
-            description="Describe lo que pasó, adjunta evidencias (fotos, videos). Selecciona el tipo de infracción: modding, griefing, comportamiento tóxico, etc."
+            description="Describe lo que pasó, adjunta imágenes si tienes pruebas y selecciona el tipo de infracción."
           />
           <TutorialStep
             number="3"
             icon="📊"
             title="Acumula reportes"
-            description="Más reportes = mayor credibilidad. La comunidad vota. Con suficientes reportes validados, el jugador puede ser baneado."
+            description="La comunidad puede votar los reportes. Las evidencias ayudan a identificar patrones; Rockstar decide si aplica una sanción."
           />
         </div>
       </section>
@@ -103,7 +97,7 @@ export default function LandingScreen({ onNavigate }) {
             <span className="landing-importance__icon">✓</span>
             <div>
               <h3>Reportes con evidencia = Más creíbles</h3>
-              <p>Las capturas o videos demuestran que el jugador estaba haciendo algo ilícito.</p>
+              <p>Las capturas ayudan a mostrar lo ocurrido y facilitan la revisión del reporte.</p>
             </div>
           </div>
           <div className="landing-importance__item">
@@ -116,8 +110,8 @@ export default function LandingScreen({ onNavigate }) {
           <div className="landing-importance__item">
             <span className="landing-importance__icon">✓</span>
             <div>
-              <h3>Reportes fraudulentos se detectan</h3>
-              <p>La comunidad vota. Reportes falsos bajan tu credibilidad. Reporta solo si es real.</p>
+              <h3>Revisa antes de enviar</h3>
+              <p>La comunidad puede revisar y votar los reportes. Comprueba los datos antes de enviarlos.</p>
             </div>
           </div>
         </div>
@@ -133,7 +127,7 @@ export default function LandingScreen({ onNavigate }) {
         <div className="landing-faq__items">
           <FAQItem
             question="¿Es anónimo reportar?"
-            answer="No, tu nombre de Discord se adjunta al reporte. Esto aumenta la credibilidad. No te preocupes, los datos privados no se publican."
+            answer="El reporte se vincula a tu cuenta de Discord. Evita incluir datos privados en el motivo o en las evidencias."
           />
           <FAQItem
             question="¿Qué tipo de infracciones se pueden reportar?"
@@ -141,7 +135,7 @@ export default function LandingScreen({ onNavigate }) {
           />
           <FAQItem
             question="¿Mi reporte puede ser rechazado?"
-            answer="Sí. Si no hay evidencia clara, si es spam, o si la comunidad vota que no es válido. Asegúrate de incluir detalles y pruebas."
+            answer="La comunidad puede votar si un reporte le parece válido. Incluye detalles y pruebas para facilitar su revisión."
           />
           <FAQItem
             question="¿Cuánto tarda en banear a alguien?"
@@ -149,11 +143,11 @@ export default function LandingScreen({ onNavigate }) {
           />
           <FAQItem
             question="¿Puedo editar mi reporte después de enviarlo?"
-            answer="Sí, en la sección 'Mis reportes' puedes editar detalles, agregar evidencias, o cambiar la clasificación antes de ser validado."
+            answer="Puedes consultar tus reportes desde tu perfil y revisar la información disponible."
           />
           <FAQItem
             question="¿Qué pasa si reporto a alguien falsamente?"
-            answer="Tu reputación baja. Si haces muchos reportes falsos, la comunidad no confiará en ti y tus futuros reportes tendrán menos peso."
+            answer="Un reporte falso puede perjudicar a otra persona. Comprueba siempre los datos y aporta pruebas reales."
             open={true}
           />
         </div>
@@ -167,9 +161,9 @@ export default function LandingScreen({ onNavigate }) {
           <button
             type="button"
             className="cyber-button mw-cyber-button"
-            onClick={() => onNavigate('/denunciar')}
+            onClick={onLogin}
           >
-            <CyberButtonLabel>🚨 Hacer reporte ahora</CyberButtonLabel>
+            <CyberButtonLabel>Iniciar sesión para reportar</CyberButtonLabel>
           </button>
         </div>
       </section>

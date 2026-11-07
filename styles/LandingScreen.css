@@ -64,6 +64,15 @@
   width: 100%;
 }
 
+.landing-hero__learn-more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  color: var(--color-cream);
+  text-underline-offset: 4px;
+}
+
 .landing-hero__graphic {
   display: flex;
   align-items: center;
