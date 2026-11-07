@@ -54,14 +54,21 @@ export function mergePlayerMatches(reported, known, query) {
     const serverMatch = player.matchedQuery === text;
     const searchMatches = serverMatch ? player.searchMatches || [] : searchFieldMatches(fields, query);
     if (!serverMatch && !searchMatches.length) continue;
-    const key = rid ? `rid:${rid}` : `name:${nickname.toLocaleLowerCase()}`;
+    // Merge by normalized nickname, not by rid. This deduplicates "laceration_vi with RID" and "laceration_vi without RID"
+    const normalizedNickname = normalizeSearchText(nickname);
+    const key = normalizedNickname || `rid:${rid}`;
     const previous = matches.get(key);
+    
+    // Prefer RID from any source when merging
+    const bestRid = rid || previous?.rid || '';
+    const bestNickname = nickname || previous?.nickname || '';
+    
     matches.set(key, {
-      ...player, nickname, rid, key,
+      ...player, nickname: bestNickname, rid: bestRid, key,
       count: Math.max(Number(player.count) || 0, previous?.count || 0),
       names: [...(previous?.names || []), previous?.nickname, ...texts(player.names), ...texts(player.aliases)]
         .map(name => String(name || '').trim())
-        .filter((name, index, names) => name && normalizeSearchText(name) !== normalizeSearchText(nickname)
+        .filter((name, index, names) => name && normalizeSearchText(name) !== normalizedNickname
           && names.findIndex(other => normalizeSearchText(other) === normalizeSearchText(name)) === index),
       searchMatches: [...(previous?.searchMatches || []), ...searchMatches]
         .filter((item, index, items) => items.findIndex(other => other.field === item.field && other.text === item.text && other.reportId === item.reportId) === index),

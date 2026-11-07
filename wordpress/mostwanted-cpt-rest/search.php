@@ -92,9 +92,19 @@ function mw_rest_search($request) {
                 $rid = mw_str($item['rid'] ?? '');
                 if ($nickname === '' && $rid === '') continue;
                 $name_key = function_exists('mb_strtolower') ? mb_strtolower($nickname, 'UTF-8') : strtolower($nickname);
-                $key = $rid !== '' ? 'rid:' . $rid : 'name:' . $name_key;
+                // Deduplicate by normalized nickname (not by rid). This merges "laceration_vi with RID" and "laceration_vi without RID"
+                $key = $name_key !== '' ? 'name:' . $name_key : 'rid:' . $rid;
                 if (!isset($players[$key])) {
                     $players[$key] = ['nickname' => $nickname, 'rid' => $rid, 'names' => [], 'count' => 0, 'searchMatches' => []];
+                } else {
+                    // Prefer RID from any source when merging duplicates
+                    if ($rid !== '' && $players[$key]['rid'] === '') {
+                        $players[$key]['rid'] = $rid;
+                    }
+                    // Prefer non-empty nickname
+                    if ($nickname !== '' && $players[$key]['nickname'] === '') {
+                        $players[$key]['nickname'] = $nickname;
+                    }
                 }
                 $players[$key]['names'] = array_values(array_unique(array_merge(
                     $players[$key]['names'], [$nickname], mw_search_texts($item['aliases'] ?? [])
