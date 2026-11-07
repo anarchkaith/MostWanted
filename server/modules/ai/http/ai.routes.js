@@ -1,6 +1,7 @@
 ﻿import { executeChatUseCase } from '../../../ai/usecases/chat.js';
 import { executeIntentUseCase } from '../../../ai/usecases/intent.js';
 import { executeReportCorrelationUseCase } from '../../../ai/usecases/reportCorrelation.js';
+import { executeReportAssistUseCase } from '../../../ai/usecases/reportAssist.js';
 import { hasAiProvider } from '../../../ai/client.js';
 import { AI_DAILY_QUOTA_PER_USER, consumeAiDailyQuota } from '../../../ai/dailyQuota.js';
 
@@ -101,4 +102,12 @@ export function registerAiRoutes(app, deps) {
     }
     return res.status(result.status).json(result.payload);
   }, 'La correlacion HEX no respondio a tiempo.', 'No se pudo correlacionar el reporte.', mapUpstreamError));
+
+  app.post('/api/ia-report-assist', rateLimits.ai, requireAiSession, ensureAiProviderMiddleware, requireBodyObject, enforceAiDailyQuota, withAiErrorHandler(async (req, res) => {
+    const result = await executeReportAssistUseCase({ config: aiConfig, body: req.body });
+    if (!result.ok) {
+      return res.status(result.status).json({ error: result.error, details: result.details });
+    }
+    return res.status(result.status).json(result.payload);
+  }, 'La ayuda HEX no respondio a tiempo.', 'No se pudo generar la ayuda HEX.', mapUpstreamError));
 }

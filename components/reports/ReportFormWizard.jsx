@@ -8,6 +8,7 @@ import { firstInvalidReportStep, REPORT_WIZARD_STEPS, reportStepIssues } from '.
 import ReportAdditionalDetails from './ReportAdditionalDetails';
 import { ReportBehaviorFields, ReportInfractionFields } from './ReportInfractionFields';
 import ReportEvidenceFields from './ReportEvidenceFields';
+import ReportAiAssist from './ReportAiAssist';
 
 function StepIndicator({ currentStep }) {
   return <ol className="wizard-steps" aria-label="Progreso del reporte">
@@ -145,6 +146,7 @@ export default function ReportFormWizard({
           <div className="wizard-section" hidden={currentStep !== 2}>
             <ReportEvidenceFields imageUploadRef={imageUploadRef} onImagesChange={onImagesChange}
               onBlockedChange={onEvidenceBlockedChange} />
+            <ReportAiAssist />
           </div>
           <div className="wizard-section" hidden={!isLastStep}>
             <Review values={values} images={images} />
