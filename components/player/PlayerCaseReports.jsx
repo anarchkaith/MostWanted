@@ -11,6 +11,8 @@ const PAGE_SIZE = 10;
 export default function PlayerCaseReports({ reports, payload, player, caseId, loading, error, onOpenReport }) {
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [page, setPage] = useState(1);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const activeFilters = Object.values(filters).filter(Boolean).length;
   const filtered = useMemo(() => filterCaseReports(reports, filters), [reports, filters]);
   const categories = useMemo(() => [...new Set(reports.flatMap(reportCategories))], [reports]);
   const updateFilter = (key, value) => { setFilters(current => ({ ...current, [key]: value })); setPage(1); };
@@ -20,7 +22,8 @@ export default function PlayerCaseReports({ reports, payload, player, caseId, lo
     <header className="case-reports__header"><h2 id="linked-reports-title">Reportes <span>({payload ? reports.length : '—'})</span></h2>{payload && filtered.length !== reports.length && <p className="case-report-count" role="status" aria-live="polite">{filtered.length} resultados</p>}</header>
     {loading && (player || caseId) && <Skeleton label="Cargando reportes del jugador…" rows={4} />}
     {payload?.nameOnlyReportIds?.length > 0 && <p className="case-association-note" role="status">{payload.nameOnlyReportIds.length} reporte(s) solo por nombre; identidad sin confirmar.</p>}
-    {reports.length > 0 && <div className="case-filters" role="group" aria-label="Filtrar reportes">
+    {reports.length > 0 && <button type="button" className="case-filters-toggle cyber-button-small mw-cyber-button mw-cyber-button--secondary" aria-expanded={filtersOpen} aria-controls="case-filters" onClick={() => setFiltersOpen(open => !open)}><CyberButtonLabel>{filtersOpen ? 'Ocultar filtros' : activeFilters ? `Filtros (${activeFilters})` : 'Filtrar reportes'}</CyberButtonLabel></button>}
+    {reports.length > 0 && <div id="case-filters" className={`case-filters${filtersOpen ? ' case-filters--open' : ''}`} role="group" aria-label="Filtrar reportes">
       <label htmlFor="filter-category">Infracción<CyberSelect id="filter-category" value={filters.category} onChange={value => updateFilter('category', value)} options={[{ value: '', label: 'Todas las infracciones' }, ...categories.map(category => ({ value: category, label: category }))]} /></label>
       <label htmlFor="filter-validation">Validación<CyberSelect id="filter-validation" value={filters.validation} onChange={value => updateFilter('validation', value)} options={[{ value: '', label: 'Todos los estados' }, ...Object.entries(VALIDATION_LABELS).map(([value, label]) => ({ value, label }))]} /></label>
       <label htmlFor="filter-from">Desde<div className="cyber-input-full mw-cyber-input"><input id="filter-from" type="date" value={filters.from} max={filters.to || undefined} onChange={event => updateFilter('from', event.target.value)} /></div></label>

@@ -520,10 +520,19 @@ a { color: var(--color-cream); text-underline-offset: 3px; }
   color: #ff9944;
   cursor: pointer;
   font-size: 0.875rem;
+  display: inline-grid;
+  place-items: center;
+  min-width: 32px;
+  min-height: 32px;
+  margin: -6px -6px -6px 0;
   padding: 0;
-  padding-left: 4px;
   opacity: 0.7;
   transition: opacity 0.2s ease;
+}
+
+@media (max-width: 640px) {
+  .warning-notice { top: auto; bottom: calc(12px + env(safe-area-inset-bottom)); right: 12px; left: 12px; max-width: none; }
+  .warning-notice__close { min-width: 44px; min-height: 44px; margin: -12px -10px -12px 0; }
 }
 
 .warning-notice__close:hover {
@@ -1032,7 +1041,8 @@ table.case-table th { color: var(--color-cream); font: inherit; font-weight: 700
 .player-background-panel--dossier .pbp-photo-archive .pbp-history-avatar { max-width: 128px; }
 .pbp-observations, .pbp-observation { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 0.75rem; color: var(--color-text-muted); }
 .pbp-observations { flex-direction: column; }
-.pbp-observation a { color: inherit; }
+.pbp-observation a { color: inherit; display: inline-flex; align-items: center; min-height: 32px; }
+.case-filters-toggle { display: none; }
 .pbp-current__crews .pbp-chip { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 .player-background-panel--dossier .pbp-history-list { max-height: none; overflow: visible; }
 .player-background-panel--dossier .pbp-evidence-card { padding: 0; border: 0; background: transparent; }
@@ -1172,6 +1182,9 @@ table.case-table th { color: var(--color-cream); font: inherit; font-weight: 700
   
   .desk-search__row { grid-template-columns: minmax(0, 1fr); }
   .case-filters { grid-template-columns: minmax(0, 1fr); }
+  .case-filters:not(.case-filters--open) { display: none; }
+  .case-filters-toggle { display: flex; width: calc(100% - 32px); margin: 0 16px 8px; min-height: 44px; }
+  .pbp-observation a { min-height: 44px; }
   table.cyber-table.case-table { width: calc(100% - 32px); margin: 16px; }
   table.cyber-table.case-table, .case-table tbody, .case-table tr, .case-table td { display: block; }
   .case-table tbody, .case-table tr, .case-table td { width: 100%; }
