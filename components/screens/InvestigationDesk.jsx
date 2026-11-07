@@ -36,8 +36,9 @@ export default function InvestigationDesk({ initialPlayer, onPlayerResolved, rep
   const route = useMemo(() => readPlayerRoute(path), [path]);
   const caseId = route.caseId;
   const lookupPlayer = foundPlayer || selection || route.player;
+  const requestPlayer = selection || route.player;
   const { payload, loading, error, refresh } = usePlayerCase({
-    caseId, nickname: lookupPlayer?.nickname, rid: lookupPlayer?.rid, revision,
+    caseId, nickname: requestPlayer?.nickname, rid: requestPlayer?.rid, revision,
   });
   const dossier = payload?.case || null;
   const player = dossier?.player || lookupPlayer;
