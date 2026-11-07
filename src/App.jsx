@@ -8,6 +8,7 @@ import InterfaceSounds from '../components/InterfaceSounds';
 import PersonSearch from '../components/PersonSearch';
 import ProfileScreen from '../components/screens/ProfileScreen';
 import PrivateAccountsPanel from '../components/PrivateAccountsPanel';
+import LandingScreen from '../components/screens/LandingScreen';
 import Skeleton from '../components/ui/Skeleton';
 import AppHeader from '../components/layout/AppHeader';
 import SiteFooter from '../components/layout/SiteFooter';
@@ -139,6 +140,7 @@ function App() {
   };
   const returnPath = path === '/denunciar' ? formReturnPath.current
     : path.startsWith('/reporte/') ? detailReturnPath.current : path;
+  const isLandingPage = path === '/' && !searchPlayer && !user;
   const isProfileScreen = path === '/perfil' || (path.startsWith('/reporte/') && detailReturnPath.current === '/perfil');
   const isAdminScreen = path === '/admin' || (path.startsWith('/reporte/') && detailReturnPath.current === '/admin');
   const openAdminReport = nextPath => {
@@ -181,6 +183,8 @@ function App() {
             {reportsError && <p className="rfm-submit-error" role="alert">{reportsError}</p>}
           </div>
         </main>
+      ) : isLandingPage ? (
+        <LandingScreen onNavigate={navigate} />
       ) : canUseReports ? (
       <>
       {isAdminScreen ? user && capabilities.viewAccounts ? <PrivateAccountsPanel key={user.id} onNavigate={openAdminReport} /> : <main className="desk-empty"><h2>Acceso restringido</h2><p>Solo el administrador autorizado puede consultar este panel.</p></main> : isProfileScreen ? user ? <ProfileScreen key={user.id} user={user} canViewAccounts={capabilities.viewAccounts} onNavigate={navigate} onLogout={handleLogout} onOpenReport={handleCardClick} mapReport={mapWordpressReportToReporte} revision={caseRevision} /> : <main className="desk-empty"><h2>Mi perfil</h2><p>Inicia sesión para consultar tu cuenta y tus reportes.</p><button type="button" className="cyber-button-small mw-cyber-button" onClick={handleLogin}>Iniciar sesión con Discord</button></main> : path === '/denunciar' ? hasReportPlayerName ? <ReportScreen onSubmit={handleNewReport} currentUser={user} isDemo={isDemo} initialPlayer={reportPlayer} onReturnToCase={() => navigate(formReturnPath.current)} /> : <main className="desk-empty"><p>Primero busca y selecciona un jugador para registrar un reporte.</p></main> : <InvestigationDesk key={deskReset} initialPlayer={searchPlayer} onPlayerResolved={rememberPlayer} reportsError={reportsError} path={path} onNavigate={navigate} onOpenReport={handleCardClick} onStartReport={startReport} mapReport={mapWordpressReportToReporte} canManageCases={isAuthChecked && Boolean(user) && capabilities.manageCases} revision={caseRevision} />}
