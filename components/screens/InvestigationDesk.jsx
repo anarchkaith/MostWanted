@@ -3,6 +3,7 @@ import { unwrapMarkdownFence } from '../markdownUtils';
 import PlayerBackgroundPanel from '../PlayerBackgroundPanel';
 import CaseStaffPanel from '../CaseStaffPanel';
 import CyberButtonLabel from '../ui/CyberButtonLabel';
+import ErrorAlert from '../ui/ErrorAlert';
 import SpecialText from '../ui/SpecialText';
 import HighlightedText from '../ui/HighlightedText';
 import SpecialTextContent from '../ui/SpecialTextContent';
@@ -80,10 +81,10 @@ export default function InvestigationDesk({ initialPlayer, onPlayerResolved, rep
   return (
     <main className="investigation-desk" id="reportes-lista">
       {!player && !caseId && <header className="desk-intro"><SpecialTextContent><><h2><SpecialText>Busca un jugador</SpecialText></h2><p>Usa su nombre o RID para <HighlightedText>consultar su ficha o registrar un reporte</HighlightedText>.</p></></SpecialTextContent></header>}
-      {reportsError && <p className="rfm-submit-error" role="alert">{reportsError}</p>}
-      {route.error && <p className="rfm-submit-error" role="alert">{route.error}</p>}
-      {error && <div className="rfm-submit-error" role="alert"><p>{error}</p>{payload && <p>Los datos anteriores pueden estar desactualizados.</p>}<button type="button" className="retry-icon-button" onClick={refresh} title="Reintentar consulta" aria-label="Reintentar consulta">↻</button></div>}
-      {payload?.source?.stale && <div className="rfm-submit-error" role="alert"><p>Los reportes pueden estar desactualizados. {payload.source.error || 'No se pudo completar la actualización.'}</p><button type="button" className="retry-icon-button" onClick={refresh} title="Actualizar expediente" aria-label="Actualizar expediente">↻</button></div>}
+      {reportsError && <ErrorAlert error={reportsError} />}
+      {route.error && <ErrorAlert error={route.error} />}
+      {error && <ErrorAlert error={error} onRetry={refresh} retryLabel={payload ? 'Actualizar' : 'Reintentar'} />}
+      {payload?.source?.stale && <ErrorAlert error={`Los reportes pueden estar desactualizados: ${payload.source.error || 'No se pudo completar la actualización.'}`} onRetry={refresh} retryLabel="Actualizar expediente" />}
       <div className="desk-columns" aria-busy={loading}>
         <section className="case-file" aria-label="Expediente del jugador">
           <header className="case-file__header">
