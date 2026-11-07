@@ -4,6 +4,7 @@ import PlayerBackgroundPanel from '../PlayerBackgroundPanel';
 import CaseStaffPanel from '../CaseStaffPanel';
 import CyberButtonLabel from '../ui/CyberButtonLabel';
 import ErrorAlert from '../ui/ErrorAlert';
+import WarningNotice from '../ui/WarningNotice';
 import SpecialText from '../ui/SpecialText';
 import HighlightedText from '../ui/HighlightedText';
 import SpecialTextContent from '../ui/SpecialTextContent';
@@ -81,10 +82,13 @@ export default function InvestigationDesk({ initialPlayer, onPlayerResolved, rep
   return (
     <main className="investigation-desk" id="reportes-lista">
       {!player && !caseId && <header className="desk-intro"><SpecialTextContent><><h2><SpecialText>Busca un jugador</SpecialText></h2><p>Usa su nombre o RID para <HighlightedText>consultar su ficha o registrar un reporte</HighlightedText>.</p></></SpecialTextContent></header>}
-      {reportsError && <ErrorAlert error={reportsError} />}
+      {reportsError && <WarningNotice error={reportsError} />}
       {route.error && <ErrorAlert error={route.error} />}
-      {error && <ErrorAlert error={error} onRetry={refresh} retryLabel={payload ? 'Actualizar' : 'Reintentar'} />}
-      {payload?.source?.stale && <ErrorAlert error={`Los reportes pueden estar desactualizados: ${payload.source.error || 'No se pudo completar la actualización.'}`} onRetry={refresh} retryLabel="Actualizar expediente" />}
+      {error && (error.toLowerCase().includes('reports_source') || error.toLowerCase().includes('wordpress')) 
+        ? <WarningNotice error={error} />
+        : <ErrorAlert error={error} onRetry={refresh} retryLabel={payload ? 'Actualizar' : 'Reintentar'} />
+      }
+      {payload?.source?.stale && <WarningNotice error="stale_data" />}
       <div className="desk-columns" aria-busy={loading}>
         <section className="case-file" aria-label="Expediente del jugador">
           <header className="case-file__header">
