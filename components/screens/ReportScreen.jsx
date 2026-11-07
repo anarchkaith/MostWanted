@@ -1,4 +1,4 @@
-import ReportFormModal from '../ReportFormModal';
+import ReportFormWizard from '../reports/ReportFormWizard';
 import SpecialText from '../ui/SpecialText';
 
 export default function ReportScreen(formProps) {
@@ -9,7 +9,7 @@ export default function ReportScreen(formProps) {
           <h2 className="cyber-h"><SpecialText>Registrar un reporte</SpecialText></h2>
         </div>
       </div>
-      <ReportFormModal {...formProps} />
+      <ReportFormWizard {...formProps} />
     </main>
   );
 }

@@ -1,0 +1,308 @@
+/* Report Form Wizard - Step-by-step interface */
+
+.report-wizard {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0;
+}
+
+.report-wizard__container {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 32px;
+  padding: 32px;
+  background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%);
+  border: 1px solid var(--surface-border);
+  border-top: 3px solid var(--color-red-alert);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+/* Indicador de pasos */
+.wizard-steps {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  padding: 0 0 32px;
+  border-bottom: 1px solid var(--surface-border);
+  position: relative;
+}
+
+.wizard-steps::after {
+  content: '';
+  position: absolute;
+  top: 20px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg,
+    var(--color-red-alert) 0%,
+    var(--color-red-alert) 25%,
+    var(--surface-border) 25%,
+    var(--surface-border) 100%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.wizard-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  z-index: 1;
+}
+
+.wizard-step__number {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--surface-raised);
+  border: 2px solid var(--surface-border);
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 0.9rem/1.4 var(--font-stencil);
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.wizard-step__number--active {
+  background: var(--color-red-alert);
+  color: var(--color-black);
+  border-color: var(--color-red-alert);
+  box-shadow: 0 0 12px rgba(255, 51, 51, 0.4);
+  transform: scale(1.15);
+}
+
+.wizard-step__number--done {
+  background: var(--color-success);
+  color: var(--color-black);
+  border-color: var(--color-success);
+}
+
+.wizard-step__label {
+  font: 0.6875rem/1.4 var(--font-mono);
+  color: var(--color-text-muted);
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  max-width: 100px;
+  word-break: break-word;
+}
+
+.wizard-step__number--active ~ .wizard-step__label {
+  color: var(--color-cream);
+  font-weight: bold;
+}
+
+/* Encabezado del paso */
+.wizard-step-header {
+  padding: 24px;
+  background: var(--surface-raised);
+  border: 1px solid var(--surface-border);
+  border-left: 3px solid var(--color-red-alert);
+}
+
+.wizard-step-header__title {
+  font: 1.5rem/1.3 var(--font-stencil);
+  color: var(--color-cream);
+  margin: 0 0 8px;
+  letter-spacing: 0.04em;
+}
+
+.wizard-step-header__subtitle {
+  font: 1.125rem/1.5 var(--font-typewriter);
+  color: var(--color-red-alert);
+  margin: 0 0 12px;
+}
+
+.wizard-step-header__description {
+  font: 1rem/1.6 var(--font-typewriter);
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+/* Contenido del paso */
+.report-wizard__content {
+  min-height: 200px;
+  padding: 24px 0;
+  border-top: 1px solid var(--surface-border);
+}
+
+.report-wizard__content .report-form {
+  display: grid;
+  gap: 20px;
+}
+
+.report-wizard__content .rfm-stack {
+  display: grid;
+  gap: 20px;
+}
+
+.report-wizard__content .rfm-stack > * {
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+
+.report-wizard__content .rfm-submit-wrap {
+  display: none;
+}
+
+/* Pie de página con navegación */
+.report-wizard__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 24px 0;
+  border-top: 1px solid var(--surface-border);
+}
+
+.report-wizard__footer .cyber-button-secondary,
+.report-wizard__footer .mw-cyber-button {
+  flex: 0 1 auto;
+  min-height: 44px;
+  --button-padding-h: 1.5rem;
+  --button-font-size: 0.875rem;
+  letter-spacing: 1px;
+}
+
+.report-wizard__footer .cyber-button-secondary {
+  --ac: var(--surface-border);
+  --button-shadow-primary: transparent;
+}
+
+.report-wizard__footer .cyber-button-secondary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.report-wizard__footer .mw-cyber-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Responsivo para tablets */
+@media (max-width: 768px) {
+  .report-wizard__container {
+    gap: 24px;
+    padding: 24px;
+  }
+
+  .wizard-steps {
+    gap: 12px;
+    padding: 0 0 24px;
+  }
+
+  .wizard-step__number {
+    width: 36px;
+    height: 36px;
+    font-size: 0.8rem;
+  }
+
+  .wizard-step__label {
+    font-size: 0.6rem;
+    max-width: 80px;
+  }
+
+  .wizard-step-header {
+    padding: 16px;
+  }
+
+  .wizard-step-header__title {
+    font-size: 1.25rem;
+  }
+
+  .wizard-step-header__subtitle {
+    font-size: 1rem;
+  }
+
+  .wizard-step-header__description {
+    font-size: 0.9375rem;
+  }
+}
+
+/* Responsivo para móviles pequeños */
+@media (max-width: 480px) {
+  .report-wizard {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .report-wizard__container {
+    gap: 20px;
+    padding: 16px 12px;
+    border: 1px solid var(--surface-border);
+    border-top: 3px solid var(--color-red-alert);
+  }
+
+  .wizard-steps {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    padding: 0 0 20px;
+    margin: 0 -12px 0;
+    padding: 0 12px 20px;
+  }
+
+  .wizard-steps::after {
+    top: 18px;
+  }
+
+  .wizard-step {
+    gap: 6px;
+  }
+
+  .wizard-step__number {
+    width: 32px;
+    height: 32px;
+    font-size: 0.75rem;
+  }
+
+  .wizard-step__label {
+    font-size: 0.5rem;
+    max-width: 60px;
+    line-height: 1.2;
+  }
+
+  .wizard-step-header {
+    padding: 12px;
+    border-left-width: 3px;
+  }
+
+  .wizard-step-header__title {
+    font-size: 1.125rem;
+    margin-bottom: 6px;
+  }
+
+  .wizard-step-header__subtitle {
+    font-size: 0.95rem;
+    margin-bottom: 8px;
+  }
+
+  .wizard-step-header__description {
+    font-size: 0.875rem;
+  }
+
+  .report-wizard__content {
+    min-height: 150px;
+    padding: 16px 0;
+  }
+
+  .report-wizard__footer {
+    gap: 8px;
+    padding: 16px 0;
+  }
+
+  .report-wizard__footer button {
+    flex: 1;
+    min-height: 44px;
+    --button-font-size: 0.75rem;
+    --button-padding-h: 0.75rem;
+    padding: 12px 8px !important;
+    font-size: 0.75rem;
+  }
+}
