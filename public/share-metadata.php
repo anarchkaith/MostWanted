@@ -91,6 +91,17 @@ function mw_share_join($values, $separator = ' ') {
     return implode($separator, array_filter($values, static fn($value) => $value !== ''));
 }
 
+function mw_share_rid($data) {
+    $rid = mw_share_text($data['rid'] ?? '');
+    if ($rid === '') $rid = preg_replace('/^RID-/i', '', mw_share_text($data['playerId'] ?? ''));
+    return ctype_digit($rid) ? $rid : '';
+}
+
+function mw_share_date($value) {
+    $text = mw_share_text($value);
+    return preg_match('/^(\d{4}-\d{2}-\d{2})/', $text, $match) ? $match[1] : '';
+}
+
 function mw_share_report_description($summary) {
     return mw_share_join([
         $summary['reason'] !== '' ? 'Motivo reportado: ' . $summary['reason'] : '',
@@ -196,6 +207,13 @@ function mw_share_metadata($path, callable $fetch) {
             'description' => mw_share_report_description($summary),
             'imageAlt' => 'Reporte #' . $id . ($nickname !== '' ? ' de ' . $nickname : ''),
             'type' => 'article',
+            'seo' => [
+                'id' => $id, 'name' => $nickname, 'rid' => mw_share_rid($report),
+                'date' => mw_share_date($report['createdAt'] ?? ''),
+                'categories' => $summary['categories'], 'reason' => $summary['reason'],
+                'evidence' => $summary['evidence'], 'verification' => $summary['verification'],
+                'avatar' => mw_share_avatars($report)[0] ?? '',
+            ],
         ], [
             'heading' => 'REPORTE #' . $id, 'name' => $nickname,
             'risk' => mw_share_risk([$report]),
@@ -260,6 +278,23 @@ function mw_share_metadata($path, callable $fetch) {
             'description' => $description,
             'imageAlt' => 'Perfil de ' . $nickname,
             'type' => 'profile',
+            'seo' => [
+                'name' => $nickname, 'rid' => mw_share_rid($player), 'aliases' => $aliases, 'crews' => $crews,
+                'count' => $count, 'socialClubOnly' => $socialClubOnly,
+                'categories' => mw_share_identity_names(array_map(
+                    static fn($report) => $report['typesOfInfraction'] ?? $report['categories'] ?? [], $reports
+                ), ['name', 'label']),
+                'avatar' => mw_share_avatars($player)[0] ?? '',
+                'reports' => array_map(static function ($report) {
+                    $summary = mw_share_report_summary($report);
+                    return [
+                        'id' => ctype_digit((string) ($report['id'] ?? '')) ? (string) $report['id'] : '',
+                        'date' => mw_share_date($report['createdAt'] ?? ''),
+                        'categories' => $summary['categories'],
+                        'reason' => mw_share_text($summary['reason'], 240),
+                    ];
+                }, array_slice($reports, 0, 5)),
+            ],
         ], [
             'heading' => '', 'name' => $nickname,
             'risk' => mw_share_risk($reports),
@@ -318,7 +353,7 @@ function mw_share_discord_json($metadata) {
 
 function mw_share_html($template, $metadata, $indexable = true) {
     $escape = static fn($value) => htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-    $template = preg_replace('~<title\b[^>]*>.*?</title>\s*|<link\b(?=[^>]*\brel=["\']canonical["\'])[^>]*>\s*|<meta\b(?=[^>]*\b(?:name|property)=["\'](?:title|description|robots|og:[^"\']+|twitter:[^"\']+)["\'])[^>]*>\s*|<script\b(?=[^>]*\bid=["\']discord:component-embed["\'])[^>]*>.*?</script>\s*~is', '', $template);
+    $template = preg_replace('~<title\b[^>]*>.*?</title>\s*|<link\b(?=[^>]*\brel=["\']canonical["\'])[^>]*>\s*|<meta\b(?=[^>]*\b(?:name|property)=["\'](?:title|description|robots|og:[^"\']+|twitter:[^"\']+)["\'])[^>]*>\s*|<script\b(?=[^>]*\bid=["\'](?:discord:component-embed|site-structured-data)["\'])[^>]*>.*?</script>\s*~is', '', $template);
     $tags = [
         '<title>' . $escape($metadata['title']) . '</title>',
         '<link rel="canonical" href="' . $escape($metadata['url']) . '" />',
@@ -350,23 +385,116 @@ function mw_share_html($template, $metadata, $indexable = true) {
     if ($indexable) {
         $discord = mw_share_discord_json($metadata);
         if ($discord !== null) $tags[] = '<script id="discord:component-embed" type="application/json">' . $discord . '</script>';
-        $schema = [
-            '@context' => 'https://schema.org',
-            '@type' => $metadata['type'] === 'profile' ? 'ProfilePage' : 'WebPage',
-            '@id' => $metadata['url'] . '#webpage', 'url' => $metadata['url'],
-            'name' => $metadata['title'], 'description' => $metadata['description'],
-            'inLanguage' => 'es', 'image' => $metadata['image'],
-            'isPartOf' => ['@type' => 'WebSite', 'name' => 'MostWanted', 'url' => MW_SHARE_ORIGIN . '/'],
-        ];
-        if ($metadata['type'] === 'profile') $schema['mainEntity'] = ['@type' => 'Person', 'name' => $metadata['card']['name']];
         $tags[] = '<script id="share-structured-data" type="application/ld+json">'
-            . json_encode($schema, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_THROW_ON_ERROR) . '</script>';
+            . json_encode(mw_share_schema($metadata), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_THROW_ON_ERROR) . '</script>';
     }
     if (!str_contains($template, '</head>')) throw new RuntimeException('Missing HTML head.', 503);
     $template = str_replace('</head>', implode("\n    ", $tags) . "\n  </head>", $template);
-    $content = '<main><h1>' . $escape(str_replace(' | MostWanted', '', $metadata['title'])) . '</h1><p>'
-        . $escape($metadata['fullDescription'] ?? $metadata['description']) . '</p></main>';
-    return str_replace('<div id="root"></div>', '<div id="root">' . $content . '</div>', $template);
+    $content = mw_share_body($metadata, $escape);
+    $count = 0;
+    $template = preg_replace('~<div id="root">(?:<!--app-shell-->.*?<!--/app-shell-->)?</div>~s',
+        '<div id="root">' . str_replace(['\\', '$'], ['\\\\', '\\$'], $content) . '</div>', $template, 1, $count);
+    if ($count !== 1) throw new RuntimeException('Missing application root.', 503);
+    return $template;
+}
+
+function mw_share_schema($metadata) {
+    $seo = $metadata['seo'] ?? [];
+    $home = MW_SHARE_ORIGIN . '/';
+    $crumbs = [['name' => 'MostWanted', 'item' => $home]];
+    $schema = [
+        '@context' => 'https://schema.org',
+        '@type' => $metadata['type'] === 'profile' ? 'ProfilePage' : 'WebPage',
+        '@id' => $metadata['url'] . '#webpage', 'url' => $metadata['url'],
+        'name' => $metadata['title'], 'description' => $metadata['description'],
+        'inLanguage' => 'es', 'image' => $metadata['image'],
+        'isPartOf' => ['@type' => 'WebSite', '@id' => $home . '#website', 'name' => 'MostWanted', 'url' => $home],
+    ];
+    $person = static function ($seo, $url) {
+        $entity = ['@type' => 'Person', '@id' => $url . '#player', 'name' => $seo['name'], 'url' => $url];
+        if (!empty($seo['aliases'])) $entity['alternateName'] = array_values($seo['aliases']);
+        if (!empty($seo['rid'])) $entity['identifier'] = ['@type' => 'PropertyValue', 'propertyID' => 'Rockstar ID', 'value' => $seo['rid']];
+        if (!empty($seo['avatar'])) $entity['image'] = $seo['avatar'];
+        if (!empty($seo['crews'])) $entity['memberOf'] = array_map(static fn($crew) => ['@type' => 'Organization', 'name' => $crew], array_values($seo['crews']));
+        return $entity;
+    };
+    if ($metadata['type'] === 'profile' && !empty($seo['name'])) {
+        $schema['mainEntity'] = $person($seo, $metadata['url']);
+        $dates = array_filter(array_column($seo['reports'] ?? [], 'date'));
+        if ($dates) $schema['dateModified'] = max($dates);
+        if (!empty($seo['categories'])) $schema['keywords'] = implode(', ', $seo['categories']);
+        $crumbs[] = ['name' => 'Perfil de ' . $seo['name'], 'item' => $metadata['url']];
+    } elseif ($metadata['type'] === 'article' && !empty($seo['id'])) {
+        if (!empty($seo['name']) && !empty($metadata['playerUrl'])) {
+            $schema['about'] = $person($seo, $metadata['playerUrl']);
+            $crumbs[] = ['name' => 'Perfil de ' . $seo['name'], 'item' => $metadata['playerUrl']];
+        }
+        if (!empty($seo['date'])) $schema['datePublished'] = $seo['date'];
+        if (!empty($seo['categories'])) $schema['keywords'] = $seo['categories'];
+        $crumbs[] = ['name' => 'Reporte #' . $seo['id'], 'item' => $metadata['url']];
+    } elseif ($metadata['type'] === 'profile' && !empty($metadata['card']['name'])) {
+        $schema['mainEntity'] = ['@type' => 'Person', 'name' => $metadata['card']['name']];
+    }
+    if (count($crumbs) > 1) {
+        $schema['breadcrumb'] = ['@type' => 'BreadcrumbList', 'itemListElement' => array_map(
+            static fn($crumb, $index) => ['@type' => 'ListItem', 'position' => $index + 1] + $crumb,
+            $crumbs, array_keys($crumbs)
+        )];
+    }
+    return $schema;
+}
+
+function mw_share_body($metadata, callable $escape) {
+    $seo = $metadata['seo'] ?? [];
+    $description = $metadata['fullDescription'] ?? $metadata['description'];
+    $notice = '<p><small>Contenido reportado por la comunidad de MostWanted. No implica una confirmación oficial de Rockstar Games.</small></p>';
+    $home = '<p><a href="/">MostWanted: sistema comunitario de reportes de jugadores de GTA Online</a></p>';
+    $facts = static function ($rows) use ($escape) {
+        $items = '';
+        foreach ($rows as $label => $value) {
+            if ($value !== '' && $value !== null) $items .= '<dt>' . $escape($label) . '</dt><dd>' . $escape((string) $value) . '</dd>';
+        }
+        return $items !== '' ? '<dl>' . $items . '</dl>' : '';
+    };
+    if ($metadata['type'] === 'profile' && !empty($seo['name'])) {
+        $html = '<main><h1>' . $escape('Perfil de ' . $seo['name']) . '</h1><p>' . $escape($description) . '</p>'
+            . $facts([
+                'Jugador' => $seo['name'],
+                'RID (Rockstar ID)' => $seo['rid'] ?? '',
+                'Otros nombres' => implode(', ', $seo['aliases'] ?? []),
+                'Crews' => implode(', ', $seo['crews'] ?? []),
+                'Infracciones reportadas' => implode(', ', $seo['categories'] ?? []),
+                'Reportes registrados' => $seo['count'] ?? '',
+            ]);
+        $items = '';
+        foreach ($seo['reports'] ?? [] as $report) {
+            if ($report['id'] === '') continue;
+            $items .= '<li><a href="/reporte/' . $escape($report['id']) . '">Reporte #' . $escape($report['id']) . '</a>'
+                . ($report['date'] !== '' ? ' · <time datetime="' . $escape($report['date']) . '">' . $escape($report['date']) . '</time>' : '')
+                . ($report['categories'] !== '' ? ' · ' . $escape($report['categories']) : '')
+                . ($report['reason'] !== '' ? '<p>' . $escape($report['reason']) . '</p>' : '') . '</li>';
+        }
+        if ($items !== '') $html .= '<h2>Últimos reportes de ' . $escape($seo['name']) . '</h2><ul>' . $items . '</ul>';
+        return $html . (empty($seo['socialClubOnly']) ? $notice : '') . $home . '</main>';
+    }
+    if ($metadata['type'] === 'article' && !empty($seo['id'])) {
+        $html = '<main><h1>' . $escape(str_replace(' | MostWanted', '', $metadata['title'])) . '</h1><p>' . $escape($description) . '</p>'
+            . $facts([
+                'Jugador reportado' => $seo['name'],
+                'RID (Rockstar ID)' => $seo['rid'],
+                'Fecha' => $seo['date'],
+                'Infracciones' => $seo['categories'],
+                'Evidencias' => $seo['evidence'],
+                'Votos de la comunidad' => $seo['verification'],
+            ]);
+        if (!empty($metadata['playerUrl'])) {
+            $html .= '<p><a href="' . $escape(substr($metadata['playerUrl'], strlen(MW_SHARE_ORIGIN))) . '">Ver perfil y todos los reportes de '
+                . $escape($seo['name']) . '</a></p>';
+        }
+        return $html . $notice . $home . '</main>';
+    }
+    return '<main><h1>' . $escape(str_replace(' | MostWanted', '', $metadata['title'])) . '</h1><p>'
+        . $escape($description) . '</p></main>';
 }
 
 function mw_share_decode_response($body, $status) {

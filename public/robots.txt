@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Allow: /share-image.php
+Disallow: /api/
+Disallow: /*?demo=
+Disallow: /*&demo=
+
+Sitemap: https://mostwanted.kaithsrebels.com/sitemap.xml

@@ -63,6 +63,23 @@ function App() {
     }
   }, [isAuthChecked, path, hasReportPlayerName, navigate]);
 
+  // The first title comes from the server-rendered metadata; keep the tab title in sync after SPA navigation.
+  const initialTitlePath = useRef(path);
+  useEffect(() => {
+    if (initialTitlePath.current === path) return;
+    initialTitlePath.current = null;
+    const playerMatch = path.match(/^\/(?:jugador|usuario)\/([^/]+)/);
+    let name = '';
+    if (playerMatch) {
+      try { name = decodeURIComponent(playerMatch[1]); } catch { name = playerMatch[1]; }
+    }
+    const reportMatch = path.match(/^\/reporte\/(\d+)/);
+    document.title = playerMatch ? `Perfil de ${name} · MostWanted`
+      : reportMatch ? `Reporte #${reportMatch[1]} · MostWanted`
+        : path === '/denunciar' && hasReportPlayerName ? `Reportar a ${reportPlayer.nickname} · MostWanted`
+          : 'MOST WANTED · Reportes de modders y griefers de GTA Online';
+  }, [path, hasReportPlayerName, reportPlayer?.nickname]);
+
   // Estado de modo demo (activar con ?demo=true)
   const [isDemo] = useState(() => {
     const urlParams = new URLSearchParams(window.location.search);

@@ -112,7 +112,8 @@ foreach (['/jugador/Jugador%20con%20espacios', '/usuario/Jugador%20con%20espacio
     check(meta_value($response['html'], 'og:type') === 'profile', 'Profile type');
     $description = html_entity_decode(strip_tags($response['html']), ENT_QUOTES | ENT_HTML5, 'UTF-8');
     check(meta_value($response['html'], 'og:description') === $player['reports'][1]['reason'], 'Fallback uses the complete reason without labels or supplementary fields');
-    check(str_contains($description, 'Expulsa y crashea') && !str_contains($description, 'Motivo antiguo'), 'Summarize the most recent report, not just labels');
+    check(str_contains($description, 'Expulsa y crashea') && !str_contains(meta_value($response['html'], 'description'), 'Motivo antiguo'), 'Summarize the most recent report, not just labels');
+    check(strpos($response['html'], 'Reporte #42') < strpos($response['html'], 'Reporte #1<'), 'List latest reports newest first');
     check(str_starts_with(meta_value($response['html'], 'og:image'), MW_SHARE_ORIGIN . '/share-image.php?path=%2Fjugador%2F'), 'Generate a player-specific image');
 }
 $response = mw_share_response('/jugador/123', $template, static function ($endpoint) use ($player) {
@@ -538,4 +539,57 @@ try {
 } finally {
     if (is_file($cacheFile)) unlink($cacheFile);
 }
+
+$seoPlayer = ['nickname' => 'Seo & Co', 'rid' => '177292272', 'totalReports' => 2,
+    'aliases' => [['alias' => 'OldName']], 'crews' => [['name' => 'Crew Seo']],
+    'avatar1' => 'https://example.com/seo.png',
+    'reports' => [
+        ['id' => 7, 'createdAt' => '2026-10-22 22:41:00', 'reason' => 'Primer motivo', 'categories' => ['GRIEFER']],
+        ['id' => 9, 'createdAt' => '2026-10-31 23:50:38', 'reason' => 'Crash al apuntarle', 'categories' => ['MODDER'],
+            'reporter' => ['id' => 'private-reporter']],
+    ]];
+$seoHtml = mw_share_response('/jugador/Seo%20%26%20Co', $template,
+    static fn() => ['ok' => true, 'found' => true, 'player' => $seoPlayer])['html'];
+check(!str_contains($seoHtml, '<!--app-shell-->') && !str_contains($seoHtml, 'id="site-structured-data"'), 'Replace the homepage shell and homepage structured data');
+check(substr_count($seoHtml, '<h1>') === 1 && str_contains($seoHtml, '<h1>Perfil de Seo &amp; Co</h1>'), 'Escaped player heading');
+check(str_contains($seoHtml, '<a href="/reporte/9">Reporte #9</a>') && str_contains($seoHtml, '<time datetime="2026-10-31">'), 'List crawlable latest reports');
+check(str_contains($seoHtml, '<dd>177292272</dd>') && str_contains($seoHtml, '<dd>OldName</dd>') && str_contains($seoHtml, '<dd>Crew Seo</dd>'), 'Expose identity facts in HTML');
+check(str_contains($seoHtml, 'No implica una confirmación oficial'), 'Community disclaimer is visible to crawlers');
+check(!str_contains($seoHtml, 'private-reporter'), 'Never expose reporter identity');
+$seoDom = new DOMDocument();
+@$seoDom->loadHTML('<?xml encoding="UTF-8">' . $seoHtml);
+$seoSchemaNodes = (new DOMXPath($seoDom))->query('//script[@type="application/ld+json"]');
+check($seoSchemaNodes->length === 1, 'Exactly one structured-data block on profile pages');
+$seoSchema = json_decode($seoSchemaNodes->item(0)->textContent, true, 512, JSON_THROW_ON_ERROR);
+check($seoSchema['@type'] === 'ProfilePage' && $seoSchema['mainEntity']['name'] === 'Seo & Co', 'Profile entity');
+check($seoSchema['mainEntity']['identifier']['value'] === '177292272' && $seoSchema['mainEntity']['alternateName'] === ['OldName'], 'Person RID and aliases');
+check($seoSchema['dateModified'] === '2026-10-31' && count($seoSchema['breadcrumb']['itemListElement']) === 2, 'Freshness and breadcrumbs');
+
+$seoReport = mw_share_response('/reporte/9', $template, static fn() => ['ok' => true, 'report' =>
+    ['id' => 9, 'nickname' => 'Seo & Co', 'rid' => '177292272', 'createdAt' => '2026-10-31 23:50:38', 'reason' => 'Crash', 'categories' => ['MODDER']]])['html'];
+check(str_contains($seoReport, 'href="/jugador/Seo%20%26%20Co"'), 'Report links to the player profile');
+$seoDom = new DOMDocument();
+@$seoDom->loadHTML('<?xml encoding="UTF-8">' . $seoReport);
+$seoSchema = json_decode((new DOMXPath($seoDom))->query('//script[@type="application/ld+json"]')->item(0)->textContent, true, 512, JSON_THROW_ON_ERROR);
+check($seoSchema['datePublished'] === '2026-10-31' && $seoSchema['about']['identifier']['value'] === '177292272'
+    && count($seoSchema['breadcrumb']['itemListElement']) === 3, 'Report structured data references the player');
+
+require dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'sitemap.php';
+$sitemapCalls = [];
+$entries = mw_sitemap_entries(static function ($endpoint) use (&$sitemapCalls) {
+    $sitemapCalls[] = $endpoint;
+    if (str_contains($endpoint, 'page=1&')) {
+        return ['ok' => true, 'items' => array_map(static fn($i) => ['id' => $i, 'nickname' => $i % 2 ? 'Odd Player' : 'even', 'createdAt' => '2026-10-' . sprintf('%02d', $i % 28 + 1) . ' 10:00:00'], range(1, 100))];
+    }
+    return ['ok' => true, 'items' => [['id' => 101, 'nickname' => 'odd player', 'createdAt' => '2026-11-05 10:00:00'], ['id' => 102, 'nickname' => 'bad/name']]];
+});
+check($sitemapCalls === ['/reports?page=1&per_page=100', '/reports?page=2&per_page=100'], 'Paginate the report list');
+$locs = array_column($entries, 'loc');
+check($locs[0] === MW_SHARE_ORIGIN . '/' && $entries[0]['lastmod'] === '2026-11-05', 'Homepage first with latest change');
+check(in_array(MW_SHARE_ORIGIN . '/jugador/Odd%20Player', $locs, true) && !in_array(MW_SHARE_ORIGIN . '/jugador/odd%20player', $locs, true), 'Deduplicate players case-insensitively');
+check(!array_filter($locs, static fn($loc) => str_contains($loc, 'bad')), 'Skip unroutable player names');
+check(count(array_filter($locs, static fn($loc) => str_contains($loc, '/reporte/'))) === 102, 'Include every report');
+$xml = mw_sitemap_xml($entries);
+check(str_starts_with($xml, '<?xml') && simplexml_load_string($xml) !== false, 'Valid sitemap XML');
+echo "OK SEO profile/report content, structured data and sitemap\n";
 echo "OK route-specific report/player HTML, canonical, images, escaping, errors and application shell\n";

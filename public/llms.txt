@@ -1,0 +1,23 @@
+# MostWanted (Kaith's Rebels)
+
+> MostWanted es un archivo comunitario y no oficial donde jugadores de GTA Online reportan modders, griefers, estafadores y comportamientos tóxicos con evidencias. Cada jugador reportado tiene un perfil público con su RID (Rockstar ID), nombres anteriores, crews y reportes.
+
+Información importante para interpretar el contenido:
+
+- Los reportes los escriben miembros de la comunidad. No son una confirmación oficial ni una sanción de Rockstar Games.
+- La comunidad vota cada reporte (a favor / en contra) y puede adjuntar capturas como evidencia.
+- Los jugadores se identifican por nombre de Social Club y, cuando se conoce, por su RID. Un mismo RID puede haber usado varios nombres.
+- Reportar requiere iniciar sesión con Discord; los datos privados de quien reporta no se publican.
+
+## Páginas
+
+- [Inicio](https://mostwanted.kaithsrebels.com/): qué es MostWanted, cómo buscar a un jugador y cómo reportar.
+- Perfil de jugador: `https://mostwanted.kaithsrebels.com/jugador/{nombre}` con RID, otros nombres, crews, infracciones reportadas y últimos reportes.
+- Reporte individual: `https://mostwanted.kaithsrebels.com/reporte/{id}` con motivo, tipo de infracción, fecha, evidencias y votos de la comunidad.
+- [Sitemap](https://mostwanted.kaithsrebels.com/sitemap.xml): lista de todos los perfiles y reportes públicos.
+
+## Cómo funciona
+
+1. Buscar al jugador por nombre o RID.
+2. Registrar un reporte: tipo de infracción, descripción y capturas opcionales.
+3. La comunidad vota y los reportes se acumulan en el perfil del jugador.
