@@ -1448,6 +1448,11 @@ function mw_rest_reports_list($request) {
 
     $rid = mw_str($request->get_param('rid'));
     $nickname = mw_str($request->get_param('nickname'));
+    
+    // Log búsqueda para diagnosticar
+    if (defined('MW_DEBUG_LOG_SEARCHES') && MW_DEBUG_LOG_SEARCHES) {
+        error_log("MW_SEARCH: nickname='{$nickname}', rid='{$rid}'");
+    }
 
     $query_args = [
         'post_type' => 'mw_report',
@@ -1461,10 +1466,12 @@ function mw_rest_reports_list($request) {
 
     $all_posts = get_posts($query_args);
     $filtered_posts = [];
+    $search_count = 0;
 
     foreach ($all_posts as $post_id) {
         $item = mw_map_report_item(intval($post_id));
         $match = false;
+        $search_count++;
 
         if ($rid !== '') {
             $item_rid = mw_str($item['rid'] ?? '');
@@ -1473,7 +1480,15 @@ function mw_rest_reports_list($request) {
             }
         } elseif ($nickname !== '') {
             $item_nickname = mw_str($item['nickname'] ?? '');
-            if (mw_search_normalize($item_nickname) === mw_search_normalize($nickname)) {
+            $normalized_search = mw_search_normalize($nickname);
+            $normalized_item = mw_search_normalize($item_nickname);
+            
+            // Log cada comparación si estamos buscando por nombre y vemos el nombre objetivo
+            if (defined('MW_DEBUG_LOG_SEARCHES') && MW_DEBUG_LOG_SEARCHES && stripos($item_nickname, 'Laceration') !== false) {
+                error_log("MW_COMPARE: id={$post_id}, item_nick='{$item_nickname}' (norm='{$normalized_item}') vs search_nick='{$nickname}' (norm='{$normalized_search}'): " . ($normalized_item === $normalized_search ? 'MATCH' : 'NO MATCH'));
+            }
+            
+            if ($normalized_item === $normalized_search) {
                 $match = true;
             }
         } else {
@@ -1482,11 +1497,18 @@ function mw_rest_reports_list($request) {
 
         if ($match) {
             $filtered_posts[] = $item;
+            if (defined('MW_DEBUG_LOG_SEARCHES') && MW_DEBUG_LOG_SEARCHES) {
+                error_log("MW_MATCHED: id={$post_id}, nickname='{$item['nickname']}'");
+            }
         }
 
         if (count($filtered_posts) >= $per_page) {
             break;
         }
+    }
+
+    if (defined('MW_DEBUG_LOG_SEARCHES') && MW_DEBUG_LOG_SEARCHES) {
+        error_log("MW_SEARCH_RESULT: searched {$search_count} posts, found " . count($filtered_posts) . " matches");
     }
 
     $filtered_posts = array_slice($filtered_posts, $offset, $per_page);
