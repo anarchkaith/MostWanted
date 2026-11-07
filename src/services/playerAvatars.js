@@ -1,9 +1,4 @@
-export function getPlayerAvatarUrl(rid, index = 0, version = '') {
-  if (!rid) throw new Error('RID invalido para obtener avatar');
-  const url = `https://prod.cloud.rockstargames.com/members/sc/6266/${encodeURIComponent(String(rid))}/publish/gta5/mpchars/${index}.png`;
-  return version ? `${url}?v=${encodeURIComponent(String(version))}` : url;
-}
-
+// Solo para reconocer URLs legacy de Social Club en reportes aún no migrados; el cliente nunca las construye.
 export function isRockstarPlayerAvatar(url) {
   try {
     const parsed = new URL(url);

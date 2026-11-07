@@ -1,20 +1,14 @@
-import { useReducer, useState } from 'react';
-import CORSPermission from '../CORSPermission';
+import { useReducer } from 'react';
 import PlayerAvatarImage from '../PlayerAvatarImage';
 import Skeleton from '../ui/Skeleton';
 import { isRockstarPlayerAvatar } from '../../src/services/playerAvatars';
-import { createPlayerAvatarSlots, needsAvatarProxyPermission, playerAvatarReducer, visiblePlayerAvatarSlots } from '../../src/services/playerAvatarState';
+import { createPlayerAvatarSlots, playerAvatarReducer, visiblePlayerAvatarSlots } from '../../src/services/playerAvatarState';
 
 export default function CurrentPlayerAvatars({ investigation, onOpen, label }) {
   const [slots, dispatch] = useReducer(playerAvatarReducer, investigation.avatares || [], createPlayerAvatarSlots);
-  const [permissionDismissed, setPermissionDismissed] = useState(false);
   const visible = visiblePlayerAvatarSlots(slots);
   const hasVisibleAvatars = visible.length > 0;
-  return <>
-    <CORSPermission href={investigation.corsPermissionUrl} variant="modal"
-      open={needsAvatarProxyPermission(slots) && !permissionDismissed}
-      onClose={() => setPermissionDismissed(true)} />
-    {hasVisibleAvatars && <div className="pbp-current-photos">
+  return hasVisibleAvatars ? <div className="pbp-current-photos">
       <div className="pbp-current__label">{label || (investigation.rid ? 'Avatares actuales' : 'Avatares archivados')}</div>
       <div className="pbp-current__avatars">
         {visible.map(slot => (
@@ -30,6 +24,5 @@ export default function CurrentPlayerAvatars({ investigation, onOpen, label }) {
           </button>
         ))}
       </div>
-    </div>}
-  </>;
+    </div> : null;
 }

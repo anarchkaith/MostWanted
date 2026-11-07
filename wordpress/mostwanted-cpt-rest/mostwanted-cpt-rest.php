@@ -20,6 +20,7 @@ require_once __DIR__ . DIRECTORY_SEPARATOR . 'search.php';
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'report-edit.php';
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'report-readonly.php';
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'report-fields.php';
+require_once __DIR__ . DIRECTORY_SEPARATOR . 'avatar-rehost.php';
 
 function mw_register_post_types() {
     register_post_type('mw_player', [
@@ -1191,6 +1192,7 @@ function mw_render_settings_page() {
         <?php if ($using_constant) : ?>
             <div class="notice notice-info"><p>El plugin esta usando el secreto definido en <code>wp-config.php</code> (MOSTWANTED_API_SECRET).</p></div>
         <?php endif; ?>
+        <?php mw_render_avatar_migration_panel(); ?>
         <form method="post" action="options.php">
             <?php settings_fields('mw_settings_group'); ?>
             <table class="form-table" role="presentation">
@@ -1277,6 +1279,7 @@ function mw_ingest_payload_array($payload) {
         $player_post_id = intval($player_post_id);
     }
 
+    $payload = mw_localize_report_avatars($payload, $rid);
     mw_merge_player_profile($player_post_id, $payload);
 
     $report_post_id = mw_store_report($player_post_id, $payload);

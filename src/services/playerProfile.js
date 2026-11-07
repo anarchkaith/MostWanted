@@ -1,4 +1,3 @@
-import { getPlayerAvatarUrl } from './playerAvatars.js';
 import { buildCrewLink } from '../../shared/crewLink.js';
 
 const text = value => String(value ?? '').trim();
@@ -14,10 +13,9 @@ export function mergePlayerProfile({ username = '', rid = '', profile = null, re
   const names = new Map();
   const crews = new Map();
   const avatars = new Map();
-  const currentUrls = new Set([
-    ...(rid ? [0, 1].map(index => getPlayerAvatarUrl(rid, index)) : []),
-    ...currentAvatars.flatMap(avatar => typeof avatar === 'string' ? [avatar] : [avatar?.avatarUrl, avatar?.avatarDataUrl]),
-  ].filter(Boolean));
+  const currentUrls = new Set(
+    currentAvatars.flatMap(avatar => typeof avatar === 'string' ? [avatar] : [avatar?.avatarUrl, avatar?.avatarDataUrl]).filter(Boolean),
+  );
   const addObservation = (collection, value, time, source, reportId = null) => {
     const name = text(typeof value === 'string' ? value : value?.name || value?.raw);
     if (!name) return;

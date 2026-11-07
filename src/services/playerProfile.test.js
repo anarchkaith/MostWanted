@@ -3,7 +3,7 @@ import test from 'node:test';
 import { mergePlayerProfile } from './playerProfile.js';
 import { completeReportPlayerDraft, reportPlayerDraft } from './reportPlayerDraft.js';
 import { playerPath, readPlayerRoute } from './playerRoute.js';
-import { getPlayerAvatarUrl, isRockstarPlayerAvatar } from './playerAvatars.js';
+import { isRockstarPlayerAvatar } from './playerAvatars.js';
 import { buildCrewLink } from '../../shared/crewLink.js';
 
 test('crew links preserve hyphens and normalize names, URLs and legacy hierarchy links', () => {
@@ -30,11 +30,11 @@ test('crew history links use registered URLs ahead of generated name slugs', () 
     'https://socialclub.rockstargames.com/crew/another-crew');
 });
 
-test('recognizes Rockstar portrait images without altering evidence or unrelated archived images', () => {
-  assert.equal(isRockstarPlayerAvatar(getPlayerAvatarUrl('298932732', 0)), true);
-  assert.equal(isRockstarPlayerAvatar(`${getPlayerAvatarUrl('298932732', 1)}?v=2`), true);
-  assert.equal(getPlayerAvatarUrl('298932732', 0, 123), `${getPlayerAvatarUrl('298932732', 0)}?v=123`);
-  assert.equal(getPlayerAvatarUrl('298932732', 0, 'a b'), `${getPlayerAvatarUrl('298932732', 0)}?v=a%20b`);
+const LEGACY_SC_AVATAR = 'https://prod.cloud.rockstargames.com/members/sc/6266/298932732/publish/gta5/mpchars/0.png';
+
+test('recognizes legacy Rockstar portrait images without altering evidence or unrelated archived images', () => {
+  assert.equal(isRockstarPlayerAvatar(LEGACY_SC_AVATAR), true);
+  assert.equal(isRockstarPlayerAvatar(`${LEGACY_SC_AVATAR.replace('0.png', '1.png')}?v=2`), true);
   for (const url of ['', undefined, 'invalid', 'https://images.test/avatar.png',
     'https://prod.cloud.rockstargames.com.example.com/members/sc/6266/298932732/publish/gta5/mpchars/0.png',
     'https://prod.cloud.rockstargames.com/evidence.png']) {
@@ -43,7 +43,7 @@ test('recognizes Rockstar portrait images without altering evidence or unrelated
 });
 
 test('carries automatic avatar metadata without requiring report form input', () => {
-  const avatars = [0, 1].map(index => ({ avatarUrl: getPlayerAvatarUrl('298932732', index) }));
+  const avatars = [0, 1].map(index => ({ avatarUrl: `https://images.test/avatar-${index}.png` }));
   const draft = reportPlayerDraft({
     nickname: 'Player', rid: '298932732', investigationCompleted: true,
     investigation: { nombre: 'Player', avatares: avatars },
@@ -129,12 +129,12 @@ test('groups names and crews across report aggregates and preserves distinct rep
 });
 
 test('avatar history excludes both current Rockstar slots and explicitly supplied current URLs', () => {
-  const current = getPlayerAvatarUrl('123');
-  const second = getPlayerAvatarUrl('123', 1);
+  const current = 'https://images.test/rid-0.png';
+  const second = 'https://images.test/rid-1.png';
   const custom = 'https://images.test/current.png';
   const old = 'https://images.test/previous.png';
   const result = mergePlayerProfile({
-    rid: '123', currentAvatars: [{ avatarUrl: custom }],
+    rid: '123', currentAvatars: [{ avatarUrl: custom }, { avatarUrl: current }, { avatarUrl: second }],
     reportInsights: { avatars: [current, second, custom, old], avatarHistory: [{ url: current }, { url: old, lastSeen: 100 }] },
     reports: [{ id: 1, avatar1: current, avatar2: old }, { id: 2, avatar1: second, avatar2: custom }],
   });

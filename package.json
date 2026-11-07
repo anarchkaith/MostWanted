@@ -17,8 +17,8 @@
     "test:reports": "node server/reports/payload.test.js && node server/shared/auth/privateIdentity.test.js && node server/modules/auth/http/auth.routes.test.js && node server/modules/reports/http/privateAccounts.test.js && node --test server/modules/reports/services/reportsHealth.service.test.js server/modules/reports/services/ownedReports.service.test.js server/modules/reports/services/accountDashboard.service.test.js server/reportes/store.test.js",
     "test:report-editing": "node --test server/modules/reports/services/editReport.service.test.js server/modules/reports/services/reportReads.service.test.js src/services/reportEditing.test.js && php wordpress/mostwanted-cpt-rest/reportFields.test.php",
     "pretest:metadata": "node scripts/generate-share-scores.js",
-    "test:metadata": "php server/reports/shareMetadata.test.php && php wordpress/mostwanted-cpt-rest/ownedReports.test.php && php wordpress/mostwanted-cpt-rest/playerSummary.test.php && php wordpress/mostwanted-cpt-rest/privacy.test.php && php wordpress/mostwanted-cpt-rest/accountActivity.test.php",
-    "test:interface": "node --test src/services/interfaceAudio.test.js src/services/interfaceKeystroke.test.js src/services/playerProfile.test.js src/services/playerAvatarState.test.js src/services/appNavigation.test.js src/services/reportViewModel.test.js src/services/reportArchive.test.js src/services/reportVoting.test.js src/services/reportEvidence.test.js src/services/jsonResponse.test.js src/services/dialogLifecycle.test.js src/services/ownedReports.test.js src/services/reportSubmissionWorkflow.test.js src/services/reportSubmissionService.test.js src/services/reportWizard.test.js src/services/reportAssist.test.js",
+    "test:metadata": "php server/reports/shareMetadata.test.php && php wordpress/mostwanted-cpt-rest/ownedReports.test.php && php wordpress/mostwanted-cpt-rest/playerSummary.test.php && php wordpress/mostwanted-cpt-rest/privacy.test.php && php wordpress/mostwanted-cpt-rest/accountActivity.test.php && php wordpress/mostwanted-cpt-rest/avatarRehost.test.php",
+    "test:interface": "node --test src/services/interfaceAudio.test.js src/services/interfaceKeystroke.test.js src/services/playerProfile.test.js src/services/playerAvatarState.test.js src/services/appNavigation.test.js src/services/reportViewModel.test.js src/services/reportArchive.test.js src/services/reportVoting.test.js src/services/reportEvidence.test.js src/services/jsonResponse.test.js src/services/dialogLifecycle.test.js src/services/ownedReports.test.js src/services/reportSubmissionWorkflow.test.js src/services/reportSubmissionService.test.js src/services/reportWizard.test.js src/services/reportAssist.test.js src/services/onboardingTour.test.js",
     "test:cases": "node src/services/casePresentation.test.js && node server/modules/expedientes/http/cases.routes.test.js && node server/modules/expedientes/services/caseSummary.service.test.js && node server/modules/expedientes/services/caseSummaryPublication.service.test.js",
     "test:search": "node --test src/services/playerSearch.test.js server/modules/reports/services/archiveSearch.service.test.js && node src/services/casePresentation.test.js && php wordpress/mostwanted-cpt-rest/search.test.php",
     "webhook:playground": "node server/modules/webhooks/playground/discordEmbedPlayground.js"
@@ -28,6 +28,7 @@
     "concurrently": "^9.2.1",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
+    "driver.js": "^1.10.2",
     "express": "^5.2.1",
     "express-session": "^1.19.0",
     "formik": "^2.4.9",

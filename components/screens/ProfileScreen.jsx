@@ -3,6 +3,7 @@ import useOwnedReports from '../../src/hooks/useOwnedReports';
 import { formatCaseDate, severityClassName } from '../../src/services/casePresentation';
 import { isRockstarPlayerAvatar } from '../../src/services/playerAvatars';
 import { handleInternalLink } from '../../src/services/appNavigation';
+import { startOnboardingTour } from '../../src/services/onboardingTour';
 import PlayerAvatarImage from '../PlayerAvatarImage';
 import DiscordAvatar from '../ui/DiscordAvatar';
 import Skeleton from '../ui/Skeleton';
@@ -67,7 +68,10 @@ export default function ProfileScreen({ user, canViewAccounts, onNavigate, onLog
                 </div>
               </div>
             </li>)}
-          </ul> : <p className="desk-empty">No tienes reportes vinculados en esta página.</p>}
+          </ul> : <div className="desk-empty">
+            <p>No tienes reportes vinculados en esta página.</p>
+            {page === 1 && <Button variant="secondary" className="mw-cyber-button--compact" onClick={() => startOnboardingTour()}>Ver tutorial</Button>}
+          </div>}
           {(page > 1 || data.hasMore) && <nav className="case-pagination" aria-label="Páginas de mis reportes">
             <Button variant="secondary" disabled={page === 1} onClick={() => setPage(value => value - 1)}>Anterior</Button>
             <span>Página {page}</span>
