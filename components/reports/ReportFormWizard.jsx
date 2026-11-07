@@ -4,7 +4,7 @@ import ReportPlayerIdentity from '../ReportPlayerIdentity';
 import CyberButtonLabel from '../ui/CyberButtonLabel';
 import SpecialTextContent from '../ui/SpecialTextContent';
 import { TIPOS_ETIQUETAS } from '../tiposEtiquetas';
-import { firstInvalidReportStep, REPORT_WIZARD_STEPS, reportStepIssues } from '../../src/services/reportWizard.js';
+import { firstInvalidReportStep, REPORT_EVIDENCE_STEP, REPORT_INFRACTION_STEP, REPORT_WIZARD_STEPS, reportStepIssues } from '../../src/services/reportWizard.js';
 import ReportAdditionalDetails from './ReportAdditionalDetails';
 import { ReportBehaviorFields, ReportInfractionFields } from './ReportInfractionFields';
 import ReportEvidenceFields from './ReportEvidenceFields';
@@ -22,20 +22,53 @@ function StepIndicator({ currentStep }) {
   </ol>;
 }
 
-function Review({ values, images }) {
+function ReviewDialog({ open, values, images, isSubmitting, onEdit, onConfirm, confirmRef }) {
+  const dialogRef = useRef(null);
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (open && !dialog.open) dialog.showModal?.();
+    if (!open && dialog.open) dialog.close();
+  }, [open]);
+
   const categories = values.typesOfInfraction.map(key => TIPOS_ETIQUETAS.find(type => type.key === key)?.nombre || key);
-  return <section className="wizard-review" aria-label="Resumen del reporte">
-    <dl className="wizard-review__list">
-      <div><dt>Jugador</dt><dd className="notranslate" translate="no">{values.nickname}</dd></div>
-      <div><dt>RID</dt><dd>{values.rid || 'No especificado'}</dd></div>
-      <div><dt>Crews</dt><dd>{values.crews || 'No especificadas'}</dd></div>
-      <div><dt>Otros nombres</dt><dd>{values.aliases || 'No especificados'}</dd></div>
-      <div><dt>Infracciones</dt><dd>{categories.join(', ')}</dd></div>
-      <div><dt>Conductas</dt><dd>{values.labels.length ? values.labels.join(', ') : 'No especificadas'}</dd></div>
-      <div><dt>Motivo</dt><dd className="wizard-review__reason">{values.reason}</dd></div>
-      <div><dt>Evidencias</dt><dd>{images.length ? images.map(image => image.name).join(', ') : 'Sin imágenes adjuntas'}</dd></div>
-    </dl>
-  </section>;
+  const optional = [['RID', values.rid], ['Crews', values.crews], ['Otros nombres', values.aliases]].filter(([, value]) => value);
+  return <dialog ref={dialogRef} className="wizard-review-dialog" aria-labelledby="wizard-review-title"
+    onCancel={event => { event.preventDefault(); if (!isSubmitting) onEdit(); }}>
+    {open && <div className="wizard-review-dialog__panel">
+      <header className="wizard-review-dialog__header">
+        <p className="wizard-review-dialog__eyebrow">Último vistazo</p>
+        <h3 id="wizard-review-title" className="wizard-review-dialog__title">¿Todo en orden?</h3>
+      </header>
+      <dl className="wizard-review__list">
+        <div className="wizard-review__row wizard-review__row--target">
+          <dt>Jugador</dt><dd className="notranslate" translate="no">{values.nickname}</dd>
+        </div>
+        {optional.map(([label, value]) => <div key={label} className="wizard-review__row"><dt>{label}</dt><dd>{value}</dd></div>)}
+        <div className="wizard-review__row">
+          <dt>Infracciones</dt>
+          <dd><ul className="wizard-review__chips">
+            {categories.map(name => <li key={name}>{name}</li>)}
+            {values.labels.map(label => <li key={label} className="wizard-review__chip--soft">{label}</li>)}
+          </ul></dd>
+        </div>
+        <div className="wizard-review__row"><dt>Lo que pasó</dt><dd className="wizard-review__reason">{values.reason}</dd></div>
+        <div className="wizard-review__row">
+          <dt>Pruebas</dt>
+          <dd>{images.length ? `${images.length} ${images.length === 1 ? 'imagen adjunta' : 'imágenes adjuntas'}` : <span className="wizard-review__warn">Sin imágenes · tu reporte tendrá menos peso</span>}</dd>
+        </div>
+      </dl>
+      <footer className="wizard-review-dialog__footer">
+        <button type="button" className="cyber-button-small mw-cyber-button mw-cyber-button--secondary"
+          onClick={onEdit} disabled={isSubmitting}>
+          <CyberButtonLabel>Editar</CyberButtonLabel>
+        </button>
+        <button ref={confirmRef} type="button" className="cyber-button mw-cyber-button" onClick={onConfirm} disabled={isSubmitting}>
+          <CyberButtonLabel>{isSubmitting ? 'Enviando...' : 'Enviar reporte'}</CyberButtonLabel>
+        </button>
+      </footer>
+    </div>}
+  </dialog>;
 }
 
 export default function ReportFormWizard({
@@ -47,7 +80,9 @@ export default function ReportFormWizard({
   const [showAdditional, setShowAdditional] = useState(false);
   const [validationMessages, setValidationMessages] = useState([]);
   const [checking, setChecking] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
   const checkingRef = useRef(false);
+  const confirmRef = useRef(null);
   const titleRef = useRef(null);
   const validationRef = useRef(null);
   const firstRender = useRef(true);
@@ -84,8 +119,8 @@ export default function ReportFormWizard({
     checkingRef.current = true;
     setChecking(true);
     try {
-      if (currentStep >= 2 && evidenceBlocked) {
-        setCurrentStep(2);
+      if (currentStep >= REPORT_EVIDENCE_STEP && evidenceBlocked) {
+        setCurrentStep(REPORT_EVIDENCE_STEP);
         setValidationMessages(['Revisa las evidencias o espera a que terminen de procesarse.']);
         return;
       }
@@ -98,14 +133,25 @@ export default function ReportFormWizard({
         return;
       }
 
-      if (isLastStep) await submitForm();
-      else goToStep(currentStep + 1);
+      if (isLastStep) {
+        setValidationMessages([]);
+        setReviewOpen(true);
+      } else goToStep(currentStep + 1);
     } catch (error) {
       console.error('[reports] No se pudo validar o enviar el reporte.', error);
       setValidationMessages(['No se pudo procesar el reporte. Revisa los datos e inténtalo de nuevo.']);
     } finally {
       checkingRef.current = false;
       setChecking(false);
+    }
+  };
+
+  const confirmSubmit = async () => {
+    if (isSubmitting) return;
+    try {
+      await submitForm();
+    } finally {
+      setReviewOpen(false);
     }
   };
 
@@ -139,17 +185,14 @@ export default function ReportFormWizard({
               <ReportAdditionalDetails initialPlayer={initialPlayer} />
             </details>
           </div>
-          <div className="wizard-section" hidden={currentStep !== 1}>
-            <ReportInfractionFields />
-            <ReportBehaviorFields />
-          </div>
-          <div className="wizard-section" hidden={currentStep !== 2}>
+          <div className="wizard-section" hidden={currentStep !== REPORT_EVIDENCE_STEP}>
             <ReportEvidenceFields imageUploadRef={imageUploadRef} onImagesChange={onImagesChange}
               onBlockedChange={onEvidenceBlockedChange} />
-            <ReportAiAssist />
           </div>
-          <div className="wizard-section" hidden={!isLastStep}>
-            <Review values={values} images={images} />
+          <div className="wizard-section" hidden={currentStep !== REPORT_INFRACTION_STEP}>
+            <ReportAiAssist autoRun={currentStep === REPORT_INFRACTION_STEP} />
+            <ReportInfractionFields />
+            <ReportBehaviorFields />
           </div>
         </div>
 
@@ -158,12 +201,14 @@ export default function ReportFormWizard({
             onClick={() => goToStep(currentStep - 1)} disabled={currentStep === 0 || isSubmitting || checking}>
             <CyberButtonLabel>← Anterior</CyberButtonLabel>
           </button>
-          <button ref={isLastStep ? submitButtonRef : undefined} type="submit"
+          <button ref={submitButtonRef} type="submit"
             className="cyber-button mw-cyber-button" disabled={isSubmitting || checking}>
-            <CyberButtonLabel>{isSubmitting ? 'Enviando...' : isLastStep ? 'Enviar reporte' : 'Siguiente →'}</CyberButtonLabel>
+            <CyberButtonLabel>{isSubmitting ? 'Enviando...' : isLastStep ? 'Revisar y enviar' : 'Siguiente →'}</CyberButtonLabel>
           </button>
         </div>
       </div>
+      <ReviewDialog open={reviewOpen} values={values} images={images} isSubmitting={isSubmitting}
+        onEdit={() => setReviewOpen(false)} onConfirm={confirmSubmit} confirmRef={confirmRef} />
     </form>
   </div>;
 }

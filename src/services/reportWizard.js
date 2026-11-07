@@ -7,27 +7,23 @@ export const REPORT_WIZARD_STEPS = [
     fields: ['nickname', 'investigation_status', 'rid', 'crews', 'aliases', 'avatar1', 'avatar2', 'ip', 'time'],
   },
   {
-    id: 'infraction',
-    label: 'Infracción',
-    title: '¿Qué ocurrió?',
-    description: 'Elige al menos una categoría y, si quieres, añade las conductas observadas.',
-    fields: ['typesOfInfraction', 'labels'],
-  },
-  {
     id: 'evidence',
     label: 'Pruebas',
     title: 'Cuenta lo que viste',
-    description: 'Describe el incidente y adjunta imágenes si tienes pruebas.',
+    description: 'Explícalo con tus palabras y adjunta capturas si las tienes.',
     fields: ['reason', 'evidence'],
   },
   {
-    id: 'review',
-    label: 'Revisar',
-    title: 'Revisa antes de enviar',
-    description: 'Comprueba los datos y vuelve atrás si necesitas corregir algo.',
-    fields: [],
+    id: 'infraction',
+    label: 'Infracciones',
+    title: '¿Qué infracciones cometió?',
+    description: 'La IA marca las infracciones según tu relato. Revisa y ajusta lo que haga falta.',
+    fields: ['typesOfInfraction', 'labels'],
   },
 ];
+
+export const REPORT_EVIDENCE_STEP = REPORT_WIZARD_STEPS.findIndex(step => step.id === 'evidence');
+export const REPORT_INFRACTION_STEP = REPORT_WIZARD_STEPS.findIndex(step => step.id === 'infraction');
 
 const assignedFields = new Set(REPORT_WIZARD_STEPS.flatMap(step => step.fields));
 
