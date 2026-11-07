@@ -34,7 +34,7 @@ export default function LandingScreen({ onLogin }) {
             <SpecialTextContent>MOST WANTED</SpecialTextContent>
           </h1>
           <p className="landing-hero__subtitle">
-            Sistema de reportes para modders, griefers y ardidos. 
+            Sistema de reportes para modders, griefers y ardidos.
             <br />
             <strong>Comparte evidencias para que la comunidad pueda evaluar cada reporte.</strong>
           </p>
