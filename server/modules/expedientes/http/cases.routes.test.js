@@ -196,6 +196,18 @@ try {
   assert.equal(combinedUrls[0].searchParams.get('nickname'), 'Player');
   assert.equal(combinedUrls[0].searchParams.get('rid'), '123');
   assert.equal(combined.length, 1);
+  let clock = 0;
+  let cachedCalls = 0;
+  const cachedSource = createCaseReportsSource({ config: { enabled: true, baseUrl: 'https://wp.test', apiSecret: 'test-secret' }, cacheTtlMs: 1000, now: () => clock, fetchImpl: async () => {
+    cachedCalls++;
+    return { ok: true, json: async () => ({ ok: true, hasMore: false, items: [{ id: 2, nickname: 'Cached', rid: '456' }] }) };
+  } });
+  await Promise.all([cachedSource({ nickname: 'Cached', rid: '456' }), cachedSource({ nickname: 'Cached', rid: '456' })]);
+  await cachedSource({ nickname: 'Cached', rid: '456' });
+  assert.equal(cachedCalls, 1, 'Concurrent and repeated lookups share one WordPress fetch');
+  clock = 1001;
+  await cachedSource({ nickname: 'Cached', rid: '456' });
+  assert.equal(cachedCalls, 2, 'Cache expires after its TTL');
   const migrationRoot = path.join(rootDir, 'legacy-migration');
   updateExpedientes(migrationRoot, (items) => items.push({
     expedienteId: 'exp-legacy', playerKey: 'rid:777', player: { nickname: 'Legacy', rid: '777' },

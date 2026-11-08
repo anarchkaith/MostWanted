@@ -92,8 +92,11 @@ export function matchReports(reports, { nickname = '', rid = '' }) {
     || String(a.id).localeCompare(String(b.id), undefined, { numeric: true }));
 }
 
-export function createCaseReportsSource({ config, fetchImpl = fetch }) {
-  return async ({ nickname = '', rid = '' }) => {
+const CASE_REPORTS_CACHE_TTL_MS = 2 * 60 * 1000;
+
+export function createCaseReportsSource({ config, fetchImpl = fetch, cacheTtlMs = CASE_REPORTS_CACHE_TTL_MS, now = Date.now }) {
+  const cache = new Map();
+  const fetchReports = async ({ nickname = '', rid = '' }) => {
     if (!config?.enabled || !config?.baseUrl || !config?.apiSecret) throw new Error('wordpress_source_not_configured');
     if (!nickname && !rid) throw new Error('player_identity_required');
     const reports = [];
@@ -115,5 +118,18 @@ export function createCaseReportsSource({ config, fetchImpl = fetch }) {
       if (!hasMore) return reports;
     }
     throw new Error('wordpress_source_pagination_limit');
+  };
+
+  // Cache per player identity; concurrent requests for the same player share one WordPress fetch.
+  return async ({ nickname = '', rid = '' }) => {
+    const key = `${normalizeName(nickname)}|${normalizeRid(rid)}`;
+    const current = now();
+    const hit = cache.get(key);
+    if (hit && hit.expiresAt > current) return [...await hit.promise];
+    for (const [cachedKey, entry] of cache) if (entry.expiresAt <= current) cache.delete(cachedKey);
+    const promise = fetchReports({ nickname, rid });
+    cache.set(key, { promise, expiresAt: current + cacheTtlMs });
+    promise.catch(() => { if (cache.get(key)?.promise === promise) cache.delete(key); });
+    return [...await promise];
   };
 }
