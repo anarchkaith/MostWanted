@@ -101,9 +101,9 @@ export function createCaseReportsSource({ config, fetchImpl = fetch }) {
       const url = new URL(`${String(config.baseUrl).replace(/\/+$/, '')}/wp-json/mostwanted/v1/reports`);
       url.searchParams.set('page', String(page));
       url.searchParams.set('per_page', '100');
-      // Fetch by name as well for RID-less historical reports; matching below never joins conflicting RIDs.
+      // One query: the plugin matches the RID and also RID-less historical reports with the same name.
       if (nickname) url.searchParams.set('nickname', nickname);
-      else if (rid) url.searchParams.set('rid', rid);
+      if (rid) url.searchParams.set('rid', rid);
       const response = await fetchImpl(url, { headers: {
         Accept: 'application/json', Authorization: `Bearer ${config.apiSecret}`,
       }, signal: AbortSignal.timeout(config.timeoutMs || 9000) });
@@ -111,14 +111,8 @@ export function createCaseReportsSource({ config, fetchImpl = fetch }) {
       const payload = await response.json();
       if (payload.ok === false || !Array.isArray(payload.items)) throw new Error('wordpress_source_invalid_payload');
       reports.push(...payload.items.map(publicReport));
-      if (payload.items.length < 100) {
-        // A renamed player can have additional RID-linked reports under historical names.
-        if (rid && nickname) {
-          const byRid = await createCaseReportsSource({ config, fetchImpl })({ rid });
-          reports.push(...byRid);
-        }
-        return reports;
-      }
+      const hasMore = typeof payload.hasMore === 'boolean' ? payload.hasMore : payload.items.length === 100;
+      if (!hasMore) return reports;
     }
     throw new Error('wordpress_source_pagination_limit');
   };

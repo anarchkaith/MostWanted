@@ -187,6 +187,15 @@ try {
   } });
   assert.equal((await paginated({ rid: '123' })).length, 101);
   assert.equal(pages, 2);
+  const combinedUrls = [];
+  const combined = await createCaseReportsSource({ config: { enabled: true, baseUrl: 'https://wp.test', apiSecret: 'test-secret' }, fetchImpl: async (url) => {
+    combinedUrls.push(url);
+    return { ok: true, json: async () => ({ ok: true, hasMore: false, items: [{ id: 1, nickname: 'Player', rid: '123' }] }) };
+  } })({ nickname: 'Player', rid: '123' });
+  assert.equal(combinedUrls.length, 1, 'One WordPress request for name and RID');
+  assert.equal(combinedUrls[0].searchParams.get('nickname'), 'Player');
+  assert.equal(combinedUrls[0].searchParams.get('rid'), '123');
+  assert.equal(combined.length, 1);
   const migrationRoot = path.join(rootDir, 'legacy-migration');
   updateExpedientes(migrationRoot, (items) => items.push({
     expedienteId: 'exp-legacy', playerKey: 'rid:777', player: { nickname: 'Legacy', rid: '777' },

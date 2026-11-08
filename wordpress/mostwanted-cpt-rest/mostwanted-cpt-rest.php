@@ -1457,70 +1457,52 @@ function mw_rest_reports_list($request) {
         error_log("MW_SEARCH: nickname='{$nickname}', rid='{$rid}'");
     }
 
-    $query_args = [
-        'post_type' => 'mw_report',
-        'post_status' => 'publish',
-        'numberposts' => $per_page + 100,
-        'offset' => 0,
-        'orderby' => 'date',
-        'order' => 'DESC',
-        'fields' => 'ids',
-    ];
+    $normalized_nickname = $nickname !== '' ? mw_search_normalize($nickname) : '';
+    // Un reporte coincide por RID, o (si no tiene RID) por nombre. Con ambos datos
+    // se busca en una sola consulta: el RID trae los reportes actuales y el nombre
+    // trae los antiguos sin RID.
+    $matches_player = static function ($item) use ($rid, $normalized_nickname) {
+        $item_rid = mw_str($item['rid'] ?? '');
+        if ($rid !== '' && $item_rid === $rid) return true;
+        if ($normalized_nickname === '') return $rid === '';
+        if ($rid !== '' && $item_rid !== '') return false;
+        return mw_search_normalize(mw_str($item['nickname'] ?? '')) === $normalized_nickname;
+    };
+    $filters_requested = $rid !== '' || $normalized_nickname !== '';
 
-    $all_posts = get_posts($query_args);
-    $filtered_posts = [];
-    $search_count = 0;
-
-    foreach ($all_posts as $post_id) {
-        $item = mw_map_report_item(intval($post_id));
-        $match = false;
-        $search_count++;
-
-        if ($rid !== '') {
-            $item_rid = mw_str($item['rid'] ?? '');
-            if ($item_rid === $rid) {
-                $match = true;
-            }
-        } elseif ($nickname !== '') {
-            $item_nickname = mw_str($item['nickname'] ?? '');
-            $normalized_search = mw_search_normalize($nickname);
-            $normalized_item = mw_search_normalize($item_nickname);
-            
-            // Log cada comparación si estamos buscando por nombre y vemos el nombre objetivo
-            if (defined('MW_DEBUG_LOG_SEARCHES') && MW_DEBUG_LOG_SEARCHES && stripos($item_nickname, 'Laceration') !== false) {
-                error_log("MW_COMPARE: id={$post_id}, item_nick='{$item_nickname}' (norm='{$normalized_item}') vs search_nick='{$nickname}' (norm='{$normalized_search}'): " . ($normalized_item === $normalized_search ? 'MATCH' : 'NO MATCH'));
-            }
-            
-            if ($normalized_item === $normalized_search) {
-                $match = true;
-            }
-        } else {
-            $match = true;
-        }
-
-        if ($match) {
-            $filtered_posts[] = $item;
-            if (defined('MW_DEBUG_LOG_SEARCHES') && MW_DEBUG_LOG_SEARCHES) {
-                error_log("MW_MATCHED: id={$post_id}, nickname='{$item['nickname']}'");
+    $matched = [];
+    $batch_offset = 0;
+    // Recorre todos los reportes publicados por lotes, del más nuevo al más antiguo.
+    do {
+        $post_ids = get_posts([
+            'post_type' => 'mw_report',
+            'post_status' => 'publish',
+            'numberposts' => 100,
+            'offset' => $batch_offset,
+            'orderby' => 'date',
+            'order' => 'DESC',
+            'fields' => 'ids',
+        ]);
+        update_meta_cache('post', $post_ids);
+        foreach ($post_ids as $post_id) {
+            $item = mw_map_report_item(intval($post_id));
+            if (!$filters_requested || $matches_player($item)) {
+                $matched[] = $item;
             }
         }
+        $batch_offset += count($post_ids);
+    } while (count($post_ids) === 100);
 
-        if (count($filtered_posts) >= $per_page) {
-            break;
-        }
-    }
-
-    if (defined('MW_DEBUG_LOG_SEARCHES') && MW_DEBUG_LOG_SEARCHES) {
-        error_log("MW_SEARCH_RESULT: searched {$search_count} posts, found " . count($filtered_posts) . " matches");
-    }
-
-    $filtered_posts = array_slice($filtered_posts, $offset, $per_page);
+    $total = count($matched);
+    $items = array_slice($matched, $offset, $per_page);
 
     return new WP_REST_Response([
         'ok' => true,
         'page' => $page,
         'perPage' => $per_page,
-        'items' => $filtered_posts,
+        'total' => $total,
+        'hasMore' => $offset + $per_page < $total,
+        'items' => $items,
     ], 200);
 }
 
