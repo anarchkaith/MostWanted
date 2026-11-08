@@ -7,7 +7,6 @@
   --lp-line: rgba(255, 255, 255, 0.09);
   --lp-muted: #a3a8b3;
   position: relative;
-  width: 100%;
   min-height: 100vh;
   overflow-x: clip;
   background:
@@ -17,6 +16,14 @@
   color: var(--color-cream);
   font-family: var(--font-typewriter);
 }
+
+/* La landing es el único fondo: ocupa todo el viewport y oculta la textura global del body. */
+.lp {
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+}
+body:has(.lp) { background: var(--lp-ink); }
+body:has(.lp)::before, body:has(.lp)::after { content: none; }
 
 .lp em { font-style: normal; color: var(--lp-red); }
 .lp-eyebrow { margin: 0 0 10px; font: 0.75rem/1 var(--font-mono); letter-spacing: 0.18em; text-transform: uppercase; color: var(--lp-cyan); }
