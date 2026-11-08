@@ -44,7 +44,8 @@
   z-index: 0;
   background-image: linear-gradient(var(--lp-line) 1px, transparent 1px), linear-gradient(90deg, var(--lp-line) 1px, transparent 1px);
   background-size: 56px 56px;
-  mask-image: radial-gradient(ellipse 70% 70% at 60% 40%, #000 20%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse 50% 50% at 50% 45%, #000 10%, transparent 100%);
+  mask-image: radial-gradient(ellipse 50% 50% at 50% 45%, #000 10%, transparent 100%);
   pointer-events: none;
 }
 .lp-hero__copy, .lp-hero__visual { position: relative; z-index: 1; }
