@@ -33,7 +33,7 @@ try {
     rootDir, config: { baseUrl: 'https://wordpress.test', apiSecret: 'test-secret', timeoutMs: 1000 }, logger,
   });
   const query = { rootDir, nickname: 'Player', rid: '123', source: async () => reports,
-    generateCaseSummary: async () => `Resumen ${++generations}`, publishCaseSummary };
+    generateCaseSummary: async () => `Resumen ${++generations}`, publishCaseSummary, awaitSummary: true };
   await readCase({ ...query, publishCaseSummary: undefined });
   assert.equal(generations, 1);
   assert.equal(writes, 0);

@@ -21,7 +21,7 @@ export function publicCase(item, reports = item.caseSnapshot?.reports || []) {
   };
 }
 
-export async function readCase({ rootDir, source, generateCaseSummary, publishCaseSummary, id, nickname = '', rid = '' }) {
+export async function readCase({ rootDir, source, generateCaseSummary, publishCaseSummary, id, nickname = '', rid = '', awaitSummary = false }) {
   rid = normalizeRid(rid);
   let item = findCase(readExpedientes(rootDir), { id, nickname, rid });
   if (id && !item) return { status: 404, payload: { ok: false, error: 'case_not_found' } };
@@ -77,9 +77,15 @@ export async function readCase({ rootDir, source, generateCaseSummary, publishCa
       return current;
     });
     if (generateCaseSummary) {
-      item = await refreshCaseSummary({ rootDir, id: item.expedienteId, generate: generateCaseSummary });
-    }
-    if (publishCaseSummary && item && publicClassification(item, reports)?.stale === false) {
+      // La IA puede tardar hasta 45 s; el resumen se actualiza en segundo plano y la respuesta no espera.
+      const caseId = item.expedienteId;
+      const refreshing = refreshCaseSummary({ rootDir, id: caseId, generate: generateCaseSummary })
+        .then((done) => (publishCaseSummary && done && publicClassification(done, reports)?.stale === false
+          ? publishCaseSummary(done) : done));
+      refreshing.catch((cause) => console.error('[cases] Falló la actualización en segundo plano de HEX:', cause));
+      if (awaitSummary) await refreshing;
+      item = findCase(readExpedientes(rootDir), { id: caseId }) || item;
+    } else if (publishCaseSummary && item && publicClassification(item, reports)?.stale === false) {
       item = await publishCaseSummary(item);
     }
   }

@@ -21,7 +21,7 @@ const generateCaseSummary = async ({ reports: input }) => {
   assert.equal(JSON.stringify(summaryInput(input)).includes('PRIVATE'), false);
   return `Resumen HEX de ${input.length} reportes; no implica culpabilidad.`;
 };
-const query = { rootDir, source: async () => reports, nickname: 'Player', rid: '123', generateCaseSummary };
+const query = { rootDir, source: async () => reports, nickname: 'Player', rid: '123', generateCaseSummary, awaitSummary: true };
 const logger = { error() {} };
 const originalFetch = globalThis.fetch;
 try {
