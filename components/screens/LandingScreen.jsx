@@ -73,7 +73,6 @@ export default function LandingScreen({ onLogin }) {
 
   return <main className="lp">
     <section className="lp-hero" aria-labelledby="lp-hero-title">
-      <div className="lp-hero__grid" aria-hidden="true" />
       <div className="lp-hero__copy">
         <p className="lp-kicker"><span className="lp-kicker__dot" /> Comunidad GTA Online · Reportes con pruebas</p>
         <h1 id="lp-hero-title" className="lp-hero__title">
