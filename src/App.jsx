@@ -40,8 +40,6 @@ function App() {
   }, []);
   const detailReturnPath = useRef('/');
   const formReturnPath = useRef('/');
-  const [reportModalOpen, setReportModalOpen] = useState(false);
-  useEffect(() => { setReportModalOpen(false); }, [path]);
   const resetDesk = useCallback(() => {
     setSearchPlayer(null);
     setDeskReset(value => value + 1);
@@ -51,6 +49,8 @@ function App() {
   const { reportes, setReportes, reportsError, isLoading, voteOnReport, getUserVotes } = useReportArchive({ userId: user?.id, reportId });
   // Estado para el modal de ayuda
   const [showHelp, setShowHelp] = useState(false);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  useEffect(() => { setReportModalOpen(false); }, [path]);
   // Estado para el modal de detalle
   const [reporteSeleccionado, setReporteSeleccionado] = useState(null);
   useEffect(() => {
