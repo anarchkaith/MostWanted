@@ -300,13 +300,116 @@
 }
 
 .player-background-panel--dossier .pbp-identity-panel {
-  display: flex;
-  grid-template-columns: none;
-  align-items: stretch;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
   gap: 0;
   border-top: 0;
 }
 
 .player-background-panel--dossier .pbp-identity-header {
   max-width: none;
+}
+
+.player-background-panel--dossier .pbp-identity-header__eyebrow,
+.player-background-panel--dossier .pbp-current-photos > .pbp-current__label,
+.player-background-panel--dossier .pbp-photo-archive > .pbp-current__label {
+  display: none;
+}
+
+.player-background-panel--dossier .pbp-identity-header {
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--rec-line);
+}
+
+.player-background-panel--dossier .pbp-current__avatar {
+  width: 96px;
+  height: 96px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.player-background-panel--dossier .pbp-current__avatar-stage {
+  width: 100%;
+  height: 100%;
+}
+
+.player-background-panel--dossier .pbp-current__avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.player-background-panel--dossier .pbp-history-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+  border-top: 0;
+}
+
+.player-background-panel--dossier .pbp-history-item {
+  padding: 8px 10px;
+  border: 1px solid var(--rec-line);
+  border-bottom: 1px solid var(--rec-line);
+}
+
+.player-background-panel--dossier .pbp-current__info {
+  padding: 10px 16px;
+}
+
+.player-background-panel--dossier .pbp-current-photos,
+.player-background-panel--dossier .pbp-names-panel,
+.player-background-panel--dossier .pbp-photo-archive {
+  padding: 12px 16px;
+}
+
+.player-background-panel--dossier .pbp-assessment,
+.player-background-panel--dossier .pbp-history {
+  padding: 12px 16px;
+}
+
+.player-background-panel--dossier .pbp-identity-actions {
+  padding: 12px 16px;
+}
+
+@media (min-width: 900px) {
+  .player-background-panel--dossier .pbp-identity-panel {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "head photos"
+      "status photos"
+      "names names"
+      "archive archive";
+  }
+
+  .player-background-panel--dossier .pbp-identity-header {
+    grid-area: head;
+    border-bottom: 0;
+  }
+
+  .player-background-panel--dossier .pbp-current__info {
+    grid-area: status;
+    padding-top: 0;
+  }
+
+  .player-background-panel--dossier .pbp-current-photos {
+    grid-area: photos;
+    border-top: 0;
+    border-left: 1px solid var(--rec-line);
+    align-self: stretch;
+    align-content: start;
+  }
+
+  .player-background-panel--dossier .pbp-names-panel {
+    grid-area: names;
+  }
+
+  .player-background-panel--dossier .pbp-photo-archive {
+    grid-area: archive;
+  }
+
+  .player-background-panel--dossier .pbp-current__avatar {
+    width: 112px;
+    height: 112px;
+  }
 }
