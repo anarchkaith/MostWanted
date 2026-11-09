@@ -1,5 +1,25 @@
 # MostWanted Deploy Guide
 
+## Backend (VPS, pm2)
+
+El frontend se despliega solo desde `main` (Hostinger). El backend `mw-api.kaithsrebels.com` corre en un VPS con pm2 y **no** se despliega con `deploy`.
+
+- Servidor: `srv1213196.hstgr.cloud` (IP 72.60.242.190), puerto 22, usuario `root`
+- Clave SSH local: `%USERPROFILE%\.ssh\mostwanted_vps` (ed25519, no subir a Git)
+- Conexión: `ssh -i "$HOME\.ssh\mostwanted_vps" root@srv1213196.hstgr.cloud`
+- Proceso pm2: `mostwanted-api`, directorio `/opt/mostwanted-api`
+- Credenciales de respaldo (contraseñas): `vps-credentials.env` en la raíz del repo (ignorado por Git)
+
+Pasos para actualizar el backend:
+
+1. En local, exporta el commit: `git archive --format=tar -o mw-backend.tar origin/main server`
+2. Sube el archivo: `scp -i "$HOME\.ssh\mostwanted_vps" mw-backend.tar root@srv1213196.hstgr.cloud:/tmp/`
+3. En el VPS, haz respaldo de `/opt/mostwanted-api/server`, extrae el tar en `/tmp/mw-new` y copia `server/` sobre `/opt/mostwanted-api`. No toques `.env` ni `data/`.
+4. Reinicia: `pm2 restart mostwanted-api` y revisa `pm2 logs mostwanted-api --lines 50`.
+5. Verifica: `https://mw-api.kaithsrebels.com/api/players/public-lookup?username=BetterCallsSaul`
+
+Rota las contraseñas que se compartieron en el chat (hosting compartido y root).
+
 ## ⚡ Quick Start
 
 ```powershell

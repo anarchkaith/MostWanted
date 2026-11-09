@@ -24,9 +24,8 @@ function extractPanelAvatarsFromInsights(reportInsights = null) {
 async function getPlayerReportInsights({ username, rid = '' }) {
   try {
     return await fetchWordpressPlayerInsights({ username, rid, signal: AbortSignal.timeout(12000) });
-  } catch (error) {
-    // Sin sesión, WordPress no responde: se usa el perfil público (nombres y avatares externos).
-    if (error?.status !== 401) throw error;
+  } catch {
+    // Sin sesión o con WordPress caído, se usa el perfil público (nombres y avatares externos).
     return fetchPublicPlayerLookup({ username, rid, signal: AbortSignal.timeout(12000) });
   }
 }

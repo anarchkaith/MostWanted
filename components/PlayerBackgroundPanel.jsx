@@ -44,7 +44,6 @@ export default function PlayerBackgroundPanel({
   const showHistory = Boolean(investigation || !error);
   const namesPanel = showHistory && <PlayerNameHistory entries={otherNameEntries} variant={variant} ready={Boolean(investigation)} />;
   const crewsPanel = showHistory && <PlayerCrewHistory entries={crewEntries} variant={variant} ready={Boolean(investigation)} />;
-  const hasNames = Boolean(investigation && otherNameEntries.length);
   const hasCrews = Boolean(investigation && crewEntries.length);
   const hasArchivedAvatars = Boolean(investigation && displayedProfile?.historicalAvatars.length);
 
@@ -79,30 +78,32 @@ export default function PlayerBackgroundPanel({
           )}
           {investigation?.warnings?.map(warning => <p className="pbp-status-detail" role="status" key={warning}>{warning}</p>)}
 
-          {(investigation || variant === 'dossier') && (
+          {variant === 'dossier' && <>
             <div className="pbp-current">
               <PlayerIdentification investigation={investigation} username={username} rid={rid} variant={variant}
-                isLoading={isLoading} error={error} actions={caseManagement} onOpenAvatar={setExpandedAvatar} />
-
-              {variant === 'dossier' ? <>
-                {(classification || verification) && <div className="pbp-assessment" role="group" aria-label="Análisis y valoración del caso">
-                  {classification}
-                  {verification}
-                </div>}
-                {(hasNames || hasCrews || hasArchivedAvatars) && <div className="pbp-history" role="group" aria-label="Antecedentes del jugador">
-                  {namesPanel}
-                  {crewsPanel}
-                  {hasArchivedAvatars && <div className="pbp-evidence-panel">{avatarHistory}</div>}
-                </div>}
-              </> : investigation ? <section className="pbp-intel-panel" aria-label="Historial del jugador">
-                <h3 className="pbp-panel-title">Historial</h3>
+                isLoading={isLoading} error={error} onOpenAvatar={setExpandedAvatar}>
                 {namesPanel}
-                {crewsPanel}
-                {avatarHistory}
-              </section> : <>{namesPanel}{crewsPanel}</>}
+                {hasArchivedAvatars && avatarHistory}
+              </PlayerIdentification>
             </div>
+            {(classification || verification) && <div className="pbp-assessment" role="group" aria-label="Análisis y valoración del caso">
+              {classification}
+              {verification}
+            </div>}
+            {hasCrews && <div className="pbp-history" role="group" aria-label="Antecedentes del jugador">{crewsPanel}</div>}
+            {caseManagement}
+          </>}
 
-          )}
+          {variant !== 'dossier' && investigation && <div className="pbp-current">
+            <PlayerIdentification investigation={investigation} username={username} rid={rid} variant={variant}
+              isLoading={isLoading} error={error} onOpenAvatar={setExpandedAvatar} />
+            <section className="pbp-intel-panel" aria-label="Historial del jugador">
+              <h3 className="pbp-panel-title">Historial</h3>
+              {namesPanel}
+              {crewsPanel}
+              {avatarHistory}
+            </section>
+          </div>}
         </div>
       </div>
     </>

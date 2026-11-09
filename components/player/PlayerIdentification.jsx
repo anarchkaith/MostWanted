@@ -4,7 +4,7 @@ import CurrentPlayerAvatars from './CurrentPlayerAvatars';
 import SocialClubProfileLink from './SocialClubProfileLink';
 import { createPlayerAvatarSlots } from '../../src/services/playerAvatarState';
 
-export default function PlayerIdentification({ investigation, username, rid, variant, isLoading, error, actions, onOpenAvatar }) {
+export default function PlayerIdentification({ investigation, username, rid, variant, isLoading, error, onOpenAvatar, children }) {
   const playerName = investigation?.nombre || username || `RID ${rid}`;
   const socialClubName = playerName === `RID ${investigation?.rid || rid}` ? username : playerName;
   const accountStatus = investigation?.accountStatus;
@@ -13,7 +13,7 @@ export default function PlayerIdentification({ investigation, username, rid, var
     { label: 'Ultimo registro', value: investigation?.reportInsights?.lastReportAtReadable || investigation?.profile?.lastSeenReadable || 'Desconocido' },
   ];
   const avatarKey = JSON.stringify([investigation?.rid, investigation?.nombre, createPlayerAvatarSlots(investigation?.avatares || [])]);
-  return <div className="pbp-overview" role={variant === 'dossier' ? 'group' : undefined} aria-label={variant === 'dossier' ? 'Identidad y acciones del jugador' : undefined}>
+  return <div className="pbp-overview" role={variant === 'dossier' ? 'group' : undefined} aria-label={variant === 'dossier' ? 'Identificación del jugador' : undefined}>
     <div className="pbp-identity-panel">
       <div className="pbp-identity-header">
         <div className="pbp-identity-header__copy">
@@ -41,7 +41,7 @@ export default function PlayerIdentification({ investigation, username, rid, var
           <div className="pbp-stat-card__value">{item.value}</div>
         </div>)}
       </div>}
-      {variant === 'dossier' && actions}
+      {variant === 'dossier' && children}
     </div>
   </div>;
 }
