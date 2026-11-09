@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { buildApiUrl } from '../services/apiConfig.js';
 import { fetchSession, heartbeatSession, logoutSession } from '../services/sessionService.js';
-import { RETURN_PATH_STORAGE_KEY } from '../services/appNavigation.js';
+import { RETURN_PATH_STORAGE_KEY, resolveReturnPath } from '../services/appNavigation.js';
 
 const EMPTY_CAPABILITIES = { manageCases: false, viewAccounts: false };
 
@@ -41,7 +41,7 @@ export default function useSession({ isAuthCallback }) {
       .finally(() => {
         if (controller.signal.aborted) return;
         if (isAuthCallback) {
-          const returnPath = sessionStorage.getItem(RETURN_PATH_STORAGE_KEY) || '/denunciar';
+          const returnPath = sessionStorage.getItem(RETURN_PATH_STORAGE_KEY) || '/';
           sessionStorage.removeItem(RETURN_PATH_STORAGE_KEY);
           window.location.href = returnPath;
         } else {
@@ -86,7 +86,7 @@ export default function useSession({ isAuthCallback }) {
   }, [user?.id, isAuthCallback, expireSession]);
 
   const login = useCallback(() => {
-    sessionStorage.setItem(RETURN_PATH_STORAGE_KEY, '/denunciar');
+    sessionStorage.setItem(RETURN_PATH_STORAGE_KEY, resolveReturnPath(window.location));
     window.location.href = buildApiUrl('/auth/discord');
   }, []);
   const logout = useCallback(async () => {

@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { handleInternalLink, isSearchLanding, navigateApp, readAppRoute } from './appNavigation.js';
+import { handleInternalLink, isSearchLanding, navigateApp, readAppRoute, resolveReturnPath } from './appNavigation.js';
+
+test('login returns to the page the user was on, falling back to home', () => {
+  assert.equal(resolveReturnPath({ pathname: '/', search: '' }), '/');
+  assert.equal(resolveReturnPath({ pathname: '/denunciar', search: '?demo=true' }), '/denunciar?demo=true');
+  assert.equal(resolveReturnPath({ pathname: '/jugador/Player', search: '' }), '/jugador/Player');
+  assert.equal(resolveReturnPath({ pathname: '/auth-callback', search: '?auth=ok' }), '/');
+  assert.equal(resolveReturnPath({ pathname: '/missing', search: '' }), '/');
+});
 
 test('centered search is only the home screen without a selected player', () => {
   for (const player of [null, undefined, {}, { nickname: '', rid: '' }]) {

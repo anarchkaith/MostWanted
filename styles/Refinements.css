@@ -1,0 +1,37 @@
+/*
+ * Refinamientos visuales: tono más sobrio y profesional, manteniendo la estética cyberpunk.
+ * Se carga al final para sobreescribir los estilos base.
+ */
+
+/* Esquinas unificadas: se elimina el recorte chaflán y se usa un radio pequeño. */
+.mw-cyber-button,
+.mw-cyber-tile,
+.cyber-button,
+.cyber-button-small {
+  clip-path: none !important;
+  border-radius: 4px;
+}
+
+/* Etiquetas en mono: menos tracking y un poco más legibles. */
+.lp-eyebrow,
+.case-management__status > h3,
+.case-filters label,
+.pbp-identity-rid dt,
+.case-file__metadata dt,
+.wizard-review-dialog__eyebrow,
+.person-search label,
+.desk-navigation a span {
+  letter-spacing: 0.02em;
+  font-size: 0.75rem;
+}
+
+/* Sin jugador seleccionado no hay expediente que mostrar: se oculta la tarjeta vacía. */
+.case-file:has(> .desk-empty) {
+  display: none;
+}
+
+/* Resaltado del texto de introducción: menos agresivo. */
+.mw-highlighted-text__bar {
+  background: transparent !important;
+  border-bottom: 2px solid var(--color-red-alert);
+}

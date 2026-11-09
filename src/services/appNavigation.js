@@ -16,6 +16,12 @@ export function readAppRoute(path) {
   };
 }
 
+export function resolveReturnPath(location) {
+  const path = location.pathname;
+  if (path === '/auth-callback' || !readAppRoute(path).isValidPath) return '/';
+  return `${path}${location.search}`;
+}
+
 export function navigateApp(browser, nextPath, replace = false) {
   const previousPath = browser.location.pathname;
   browser.history[replace ? 'replaceState' : 'pushState']({}, '', `${nextPath}${browser.location.search}`);

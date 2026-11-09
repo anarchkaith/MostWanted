@@ -302,10 +302,12 @@ export async function investigatePlayerBackground(username, knownRid = '') {
 
   const warnings = [];
   let reportInsights = null;
+  let reportsUnavailable = false;
   try {
     reportInsights = await getPlayerReportInsights({ username: trimmedUsername, rid: knownRid });
   } catch (error) {
-    warnings.push(`Reportes no disponibles: ${error.message}`);
+    console.warn('[reportes] Consulta por nombre fallida.', error);
+    reportsUnavailable = true;
   }
 
   // El RID guardado en los reportes es estable: sc-cache solo se consulta si aún no se conoce.
@@ -326,8 +328,9 @@ export async function investigatePlayerBackground(username, knownRid = '') {
     try {
       reportInsights = await getPlayerReportInsights({ rid });
     } catch (error) {
+      console.warn('[reportes] Consulta por RID fallida.', error);
       reportInsights = null;
-      warnings.push(`Reportes por RID no disponibles: ${error.message}`);
+      reportsUnavailable = true;
     }
   }
   let currentProfile = null;
@@ -335,9 +338,11 @@ export async function investigatePlayerBackground(username, knownRid = '') {
     try {
       currentProfile = (await getPlayerProfile(rid)).profile;
     } catch (error) {
-      warnings.push(`Perfil externo no disponible: ${error.message}`);
+      console.warn('[perfil] Perfil público no disponible.', error);
+      warnings.push('No pudimos consultar el perfil público de este jugador. Inténtalo más tarde.');
     }
   }
+  if (reportsUnavailable) warnings.unshift('No pudimos cargar los reportes de este jugador. Inténtalo más tarde.');
   const profile = mergePlayerProfile({ username: trimmedUsername, rid, profile: currentProfile, reportInsights });
   if (!rid && !reportInsights) warnings.push('Sin antecedentes disponibles. Puedes registrar el jugador y aportar los datos que conozcas.');
   return {
