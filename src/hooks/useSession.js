@@ -41,7 +41,7 @@ export default function useSession({ isAuthCallback }) {
       .finally(() => {
         if (controller.signal.aborted) return;
         if (isAuthCallback) {
-          const returnPath = sessionStorage.getItem(RETURN_PATH_STORAGE_KEY) || '/';
+          const returnPath = sessionStorage.getItem(RETURN_PATH_STORAGE_KEY) || '/denunciar';
           sessionStorage.removeItem(RETURN_PATH_STORAGE_KEY);
           window.location.href = returnPath;
         } else {
@@ -86,8 +86,7 @@ export default function useSession({ isAuthCallback }) {
   }, [user?.id, isAuthCallback, expireSession]);
 
   const login = useCallback(() => {
-    const currentPath = `${window.location.pathname}${window.location.search}`;
-    if (currentPath !== '/') sessionStorage.setItem(RETURN_PATH_STORAGE_KEY, currentPath);
+    sessionStorage.setItem(RETURN_PATH_STORAGE_KEY, '/denunciar');
     window.location.href = buildApiUrl('/auth/discord');
   }, []);
   const logout = useCallback(async () => {

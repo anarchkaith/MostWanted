@@ -47,6 +47,7 @@ test('scoped backend requests use the existing WordPress secret and verified vot
   const originalFetch = globalThis.fetch;
   const calls = [];
   globalThis.fetch = async (url, options) => {
+    if (String(url).startsWith('https://sc-cache.com/')) return Response.json([{ name: 'Old Name', time: 1700000000 }]);
     calls.push({ url: new URL(url), options });
     assert.equal(options.headers.Authorization, 'Bearer test-secret');
     if (String(url).includes('community-verification')) {
@@ -65,6 +66,8 @@ test('scoped backend requests use the existing WordPress secret and verified vot
     const insights = await accessReportData({ config, username: 'Player', rid: '123', logger });
     assert.equal(insights.status, 200);
     assert.equal(calls[1].url.searchParams.get('rid'), '123');
+    assert.deepEqual(insights.payload.player.names, [{ name: 'Old Name', time: 1700000000 }]);
+    assert.equal(insights.payload.player.avatars.length, 2);
     const vote = await accessReportData({ config, reportId: '7', user: { id: '123' },
       vote: { voteType: 'up', reason: '', voterName: 'Player', voterId: 'FORGED' }, logger });
     assert.equal(vote.status, 200);

@@ -1,6 +1,59 @@
 import { readWordpressReport, readWordpressPlayerInsights, postWordpressReportVote } from '../../../reports/wordpressClient.js';
 import { hasWordpressReportsConfig } from '../../../reports/wordpressConfig.js';
 import { publicReport } from '../../expedientes/services/caseReports.service.js';
+import { buildScAvatarCandidates, fetchScCacheAliases } from '../../../reportes/store.js';
+
+const MAX_PLAYER_NAMES = 60;
+const MAX_PLAYER_AVATARS = 8;
+
+function nameKey(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function mergeNameEntries(...lists) {
+  const byName = new Map();
+  for (const entry of lists.flat()) {
+    const item = typeof entry === 'string' ? { name: entry, time: 0 } : entry;
+    const name = String(item?.name || '').trim();
+    if (!name) continue;
+    const key = nameKey(name);
+    const time = Number(item.time) || 0;
+    const previous = byName.get(key);
+    if (!previous || time > previous.time) byName.set(key, { name, time });
+  }
+  return [...byName.values()]
+    .sort((a, b) => b.time - a.time || a.name.localeCompare(b.name))
+    .slice(0, MAX_PLAYER_NAMES);
+}
+
+function mergeAvatarUrls(...lists) {
+  const urls = new Set();
+  for (const item of lists.flat()) {
+    const url = String(typeof item === 'string' ? item : item?.url || item?.avatarUrl || '').trim();
+    if (/^https?:\/\//i.test(url)) urls.add(url);
+  }
+  return [...urls].slice(0, MAX_PLAYER_AVATARS);
+}
+
+/**
+ * Completa el perfil con nombres historicos y avatares a partir del RID (sc-cache y Rockstar).
+ */
+async function enrichPlayerWithRid(player, rid) {
+  const normalizedRid = String(rid || player?.rid || '').trim();
+  if (!/^\d+$/.test(normalizedRid)) return player;
+
+  const scCache = await fetchScCacheAliases({ rid: normalizedRid });
+  const names = mergeNameEntries(player?.names || [], scCache.names || []);
+  const avatars = mergeAvatarUrls(player?.avatars || [], buildScAvatarCandidates(normalizedRid));
+  if (!player && names.length === 0 && avatars.length === 0) return null;
+
+  return {
+    ...(player || {}),
+    rid: normalizedRid,
+    names,
+    avatars,
+  };
+}
 
 export async function accessReportData({ config, reportId, username = '', rid = '', vote, user, logger = console }) {
   if (!hasWordpressReportsConfig(config)) {
@@ -43,7 +96,8 @@ export async function accessReportData({ config, reportId, username = '', rid = 
       return { status: 200, payload: { ok: true, report: publicReport(data.report) } };
     }
     if (data.player !== null && (!data.player || typeof data.player !== 'object' || Array.isArray(data.player))) throw new Error('invalid_player_response');
-    return { status: 200, payload: { ok: true, player: data.player } };
+    const player = await enrichPlayerWithRid(data.player, rid);
+    return { status: 200, payload: { ok: true, player } };
   } catch (error) {
     logger.error('[reports] No se pudo consultar o actualizar el reporte.', { status: error.status || 0, message: error.message });
     return { status: error.status === 404 && error.code !== 'rest_no_route' ? 404 : 502,

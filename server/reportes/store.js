@@ -147,7 +147,7 @@ function mapToSortedNameEntries(entriesMap, limit = 50) {
     .slice(0, limit);
 }
 
-function buildScAvatarCandidates(rid = '') {
+export function buildScAvatarCandidates(rid = '') {
   const normalizedRid = toTrimmedString(rid);
   if (!/^\d+$/.test(normalizedRid)) return [];
 
@@ -361,7 +361,7 @@ function parseScCacheNamesPayload(payload) {
 /**
  * Consulta aliases en sc-cache con timeout y error controlado.
  */
-async function fetchScCacheAliases({ rid = '', timeoutMs = 6000 } = {}) {
+export async function fetchScCacheAliases({ rid = '', timeoutMs = 6000 } = {}) {
   const normalizedRid = toTrimmedString(rid);
   if (!/^\d+$/.test(normalizedRid)) {
     return {

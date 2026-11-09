@@ -1,10 +1,15 @@
 import { useState } from 'react';
 import { ErrorMessage, Field, useFormikContext } from 'formik';
 import CyberButtonLabel from './ui/CyberButtonLabel';
+import PlayerIdentification from './player/PlayerIdentification';
 import usePlayerInvestigation from './usePlayerInvestigation';
 import { isBlockedReportedUsername } from './blockedUsernames';
 import { completeReportPlayerDraft } from '../src/services/reportPlayerDraft';
 import { buildPlayerTourSteps, startOnboardingTour } from '../src/services/onboardingTour';
+
+function openAvatarInNewTab(image) {
+  if (image?.src) window.open(image.src, '_blank', 'noopener,noreferrer');
+}
 
 export default function ReportPlayerIdentity({ initialPlayer, editMode = false }) {
   const { values, errors, touched, isSubmitting, setValues } = useFormikContext();
@@ -40,6 +45,7 @@ export default function ReportPlayerIdentity({ initialPlayer, editMode = false }
         <CyberButtonLabel>Ver tutorial</CyberButtonLabel>
       </button>}
       {isLoading && <p role="status">Consultando jugador…</p>}
+      {(isLoading || investigation) && <PlayerIdentification investigation={investigation} username={request?.username || username} rid={request?.rid || values.rid} isLoading={isLoading} error={error} onOpenAvatar={openAvatarInNewTab} />}
       {error && <p role="alert" className="rfm-submit-error">{error} Puedes aportar los datos manualmente.</p>}
       {investigation?.warnings?.length > 0 && <p role="status" className="rfm-note">{investigation.warnings.join(' · ')}</p>}
     </section>
