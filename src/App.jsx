@@ -15,6 +15,8 @@ import SiteFooter from '../components/layout/SiteFooter';
 import SessionActions from '../components/layout/SessionActions';
 import AccessScreen from '../components/screens/AccessScreen';
 import ReportScreen from '../components/screens/ReportScreen';
+import ReportFormModal from '../components/ReportFormModal';
+import ReportDialog from '../components/reports/ReportDialog';
 import useSession from './hooks/useSession';
 import useAppNavigation from './hooks/useAppNavigation';
 import useReportArchive from './hooks/useReportArchive';
@@ -38,6 +40,8 @@ function App() {
   }, []);
   const detailReturnPath = useRef('/');
   const formReturnPath = useRef('/');
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  useEffect(() => { setReportModalOpen(false); }, [path]);
   const resetDesk = useCallback(() => {
     setSearchPlayer(null);
     setDeskReset(value => value + 1);
@@ -145,10 +149,9 @@ function App() {
   const isLandingPage = path === '/inicio' || (path === '/' && !canUseReports);
   if (!canUseReports && !isLandingPage) return <AccessScreen onLogin={handleLogin} error={sessionError} />;
   const startReport = (player = null) => {
-    formReturnPath.current = player?.nickname ? playerPath(player.nickname) : path === '/denunciar' ? formReturnPath.current : path;
     setSearchPlayer(player);
     setReportPlayer(player);
-    navigate('/denunciar');
+    setReportModalOpen(true);
   };
   const returnPath = path === '/denunciar' ? formReturnPath.current
     : path.startsWith('/reporte/') ? detailReturnPath.current : path;
@@ -200,6 +203,11 @@ function App() {
       ) : canUseReports ? (
       <>
       {isAdminScreen ? user && capabilities.viewAccounts ? <PrivateAccountsPanel key={user.id} onNavigate={openAdminReport} /> : <main className="desk-empty"><h2>Acceso restringido</h2><p>Solo el administrador autorizado puede consultar este panel.</p></main> : isProfileScreen ? user ? <ProfileScreen key={user.id} user={user} canViewAccounts={capabilities.viewAccounts} onNavigate={navigate} onLogout={handleLogout} onOpenReport={handleCardClick} mapReport={mapWordpressReportToReporte} revision={caseRevision} /> : <main className="desk-empty"><h2>Mi perfil</h2><p>Inicia sesión para consultar tu cuenta y tus reportes.</p><button type="button" className="cyber-button-small mw-cyber-button" onClick={handleLogin}>Iniciar sesión con Discord</button></main> : path === '/denunciar' && hasReportPlayerName ? <ReportScreen onSubmit={handleNewReport} currentUser={user} isDemo={isDemo} initialPlayer={reportPlayer} onReturnToCase={() => navigate(formReturnPath.current)} /> : <InvestigationDesk key={deskReset} initialPlayer={searchPlayer} onPlayerResolved={rememberPlayer} reportsError={reportsError} path={path} onNavigate={navigate} onOpenReport={handleCardClick} onStartReport={startReport} mapReport={mapWordpressReportToReporte} canManageCases={isAuthChecked && Boolean(user) && capabilities.manageCases} revision={caseRevision} />}
+      {reportPlayer && !isProfileScreen && !isAdminScreen && path !== '/denunciar' && (
+        <ReportDialog open={reportModalOpen} onClose={() => setReportModalOpen(false)}>
+          <ReportFormModal key={reportPlayer.nickname} onSubmit={handleNewReport} currentUser={user} isDemo={isDemo} initialPlayer={reportPlayer} onReturnToCase={() => setReportModalOpen(false)} />
+        </ReportDialog>
+      )}
       </>
       ) : (
         <AccessScreen onLogin={handleLogin} />
