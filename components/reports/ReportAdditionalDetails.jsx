@@ -4,14 +4,6 @@ export default function ReportAdditionalDetails({ initialPlayer, editMode = fals
   const { values, errors, touched, isSubmitting } = useFormikContext();
   const ridResolved = editMode || Boolean(initialPlayer?.rid) || values.investigation_status === 'resolved';
   if (variant === 'inline') return <div className="rfm-inline-details">
-    <div className="form-group rfm-inline-details__aliases">
-      <label htmlFor="aliases" className="form-group__label">Otros nombres conocidos</label>
-      <div className="cyber-input-full mw-cyber-input">
-        <Field type="text" id="aliases" name="aliases" aria-invalid={Boolean(touched.aliases && errors.aliases)}
-          className="form-group__input" placeholder="Separados por coma" autoComplete="off" disabled={isSubmitting} />
-      </div>
-      <ErrorMessage name="aliases" component="span" className="form-group__hint" />
-    </div>
     {!ridLocked && <div className="form-group">
       <label htmlFor="rid" className="form-group__label">RID (opcional)</label>
       <div className="cyber-input-full mw-cyber-input">
@@ -20,13 +12,23 @@ export default function ReportAdditionalDetails({ initialPlayer, editMode = fals
       </div>
       <ErrorMessage name="rid" component="span" className="form-group__hint" style={{ color: '#ff3333' }} />
     </div>}
-    <div className="form-group">
-      <label htmlFor="crews" className="form-group__label">Crews</label>
-      <div className="cyber-input-full mw-cyber-input">
-        <Field type="text" id="crews" name="crews" aria-invalid={Boolean(touched.crews && errors.crews)}
-          className="form-group__input" placeholder="Separadas por coma" autoComplete="off" disabled={isSubmitting} />
+    <div className="rfm-inline-details__pair">
+      <div className="form-group">
+        <label htmlFor="aliases" className="form-group__label">Otros nombres conocidos</label>
+        <div className="cyber-input-full mw-cyber-input">
+          <Field type="text" id="aliases" name="aliases" aria-invalid={Boolean(touched.aliases && errors.aliases)}
+            className="form-group__input" placeholder="Separados por coma" autoComplete="off" disabled={isSubmitting} />
+        </div>
+        <ErrorMessage name="aliases" component="span" className="form-group__hint" />
       </div>
-      <ErrorMessage name="crews" component="span" className="form-group__hint" style={{ color: '#ff3333' }} />
+      <div className="form-group">
+        <label htmlFor="crews" className="form-group__label">Crews</label>
+        <div className="cyber-input-full mw-cyber-input">
+          <Field type="text" id="crews" name="crews" aria-invalid={Boolean(touched.crews && errors.crews)}
+            className="form-group__input" placeholder="Separadas por coma" autoComplete="off" disabled={isSubmitting} />
+        </div>
+        <ErrorMessage name="crews" component="span" className="form-group__hint" style={{ color: '#ff3333' }} />
+      </div>
     </div>
   </div>;
   return <div className="rfm-panel mw-cyber-panel">
