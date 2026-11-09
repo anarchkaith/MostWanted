@@ -73,4 +73,28 @@ export function suggestInfractionsFromText(text, catalog, rules = KEYWORD_RULES)
   return { categories, labels };
 }
 
+// Une las sugerencias al selector sin tocar lo que el usuario ya marcó. `previous` son las sugerencias aplicadas antes,
+// que se retiran primero para que una nueva lectura del motivo reemplace a la anterior.
+export function applyInfractionSuggestion({ text, catalog, typesOfInfraction = [], labels = [], previous = null }) {
+  const baseCategories = typesOfInfraction.filter(key => !(previous?.categories || []).includes(key));
+  const baseLabels = labels.filter(label => !(previous?.labels || []).includes(label));
+  const suggested = suggestInfractionsFromText(text, catalog);
+  const applied = {
+    categories: suggested.categories.filter(key => !baseCategories.includes(key)),
+    labels: suggested.labels.filter(label => !baseLabels.includes(label)),
+  };
+  return {
+    typesOfInfraction: [...baseCategories, ...applied.categories],
+    labels: [...baseLabels, ...applied.labels],
+    applied,
+  };
+}
+
+export function removeInfractionSuggestion({ typesOfInfraction = [], labels = [], applied = null }) {
+  return {
+    typesOfInfraction: typesOfInfraction.filter(key => !(applied?.categories || []).includes(key)),
+    labels: labels.filter(label => !(applied?.labels || []).includes(label)),
+  };
+}
+
 export { KEYWORD_RULES };

@@ -11,7 +11,7 @@ function openAvatarInNewTab(image) {
   if (image?.src) window.open(image.src, '_blank', 'noopener,noreferrer');
 }
 
-export default function ReportPlayerIdentity({ initialPlayer, editMode = false }) {
+export default function ReportPlayerIdentity({ initialPlayer, editMode = false, ridLocked = false, children }) {
   const { values, errors, touched, isSubmitting, setValues } = useFormikContext();
   const [request, setRequest] = useState(() => initialPlayer && !initialPlayer.investigationCompleted
     ? { username: initialPlayer.nickname, rid: initialPlayer.rid } : null);
@@ -29,6 +29,7 @@ export default function ReportPlayerIdentity({ initialPlayer, editMode = false }
       <div className="cyber-tile mw-cyber-frame" aria-hidden="true" />
       <h3 id="report-player-title" className="rfm-panel__title cyber-h mw-cyber-heading">Jugador</h3>
       {!editMode && (initialPlayer?.nickname || initialPlayer?.rid) ? <div className="form-group">
+        {ridLocked && <span className="rfm-rid-tag">RID {values.rid || initialPlayer?.rid}</span>}
         <strong className="rfm-player-name notranslate" translate="no">{values.nickname || `RID ${values.rid}`}</strong>
         <ErrorMessage name="nickname" component="span" className="form-group__hint" />
       </div> : <div className="form-group">
@@ -38,6 +39,7 @@ export default function ReportPlayerIdentity({ initialPlayer, editMode = false }
         </div>
         <ErrorMessage name="nickname" component="span" className="form-group__hint" />
       </div>}
+      {children}
       {!editMode && !initialPlayer?.investigationCompleted && <button type="button" className="cyber-button-small mw-cyber-button mw-cyber-button--secondary" disabled={isSubmitting || isLoading || username.length < 2 || isBlockedReportedUsername(username)} onClick={() => setRequest({ username, rid: initialPlayer?.rid || '' })}>
         <CyberButtonLabel>{isLoading ? 'Buscando...' : 'Completar datos disponibles'}</CyberButtonLabel>
       </button>}

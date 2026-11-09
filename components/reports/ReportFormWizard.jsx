@@ -10,11 +10,10 @@ import { ReportBehaviorFields, ReportInfractionFields } from './ReportInfraction
 import ReportEvidenceFields from './ReportEvidenceFields';
 import ReportInfractionPreload from './ReportInfractionPreload';
 import SubmitErrorMessage from './SubmitErrorMessage';
-
-const OPTIONAL_PLAYER_FIELDS = new Set(['investigation_status', 'rid', 'crews', 'aliases', 'avatar1', 'avatar2', 'ip', 'time']);
+import { applyInfractionSuggestion, removeInfractionSuggestion } from '../../src/services/reportKeywords.js';
 
 function StepIndicator({ currentStep }) {
-  return <ol className="wizard-steps" aria-label="Progreso del reporte">
+  return <ol className="wizard-steps" aria-label="Progreso del reporte" style={{ gridTemplateColumns: `repeat(${REPORT_WIZARD_STEPS.length}, 1fr)` }}>
     {REPORT_WIZARD_STEPS.map((step, index) => <li key={step.id} className="wizard-step"
       aria-current={currentStep === index ? 'step' : undefined}>
       <span className={`wizard-step__number${currentStep === index ? ' wizard-step__number--active' : currentStep > index ? ' wizard-step__number--done' : ''}`}>
@@ -78,9 +77,10 @@ export default function ReportFormWizard({
   initialPlayer, isDemo, onPaste, imageUploadRef, images, onImagesChange,
   evidenceBlocked, onEvidenceBlockedChange, submitError, submitRetryAt, submitErrorRef, submitButtonRef,
 }) {
-  const { values, touched, isSubmitting, setTouched, validateForm, submitForm } = useFormikContext();
+  const { values, touched, isSubmitting, setTouched, setFieldValue, validateForm, submitForm } = useFormikContext();
   const [currentStep, setCurrentStep] = useState(0);
-  const [showAdditional, setShowAdditional] = useState(false);
+  const [suggestion, setSuggestion] = useState(null);
+  const [ridLocked] = useState(() => Boolean(values.rid || initialPlayer?.rid));
   const [validationMessages, setValidationMessages] = useState([]);
   const [checking, setChecking] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -111,9 +111,32 @@ export default function ReportFormWizard({
       ...touched,
       ...Object.fromEntries(issues.map(issue => [issue.field, true])),
     }, false);
-    if (index === REPORT_EVIDENCE_STEP && issues.some(issue => OPTIONAL_PLAYER_FIELDS.has(issue.field))) setShowAdditional(true);
     setCurrentStep(index);
     setValidationMessages(issues.flatMap(issue => issue.messages));
+  };
+
+  const applyHexSuggestion = () => {
+    const next = applyInfractionSuggestion({
+      text: values.reason,
+      catalog: TIPOS_ETIQUETAS,
+      typesOfInfraction: values.typesOfInfraction,
+      labels: values.labels,
+      previous: suggestion,
+    });
+    setFieldValue('typesOfInfraction', next.typesOfInfraction);
+    setFieldValue('labels', next.labels);
+    setSuggestion(next.applied);
+  };
+
+  const undoHexSuggestion = () => {
+    const next = removeInfractionSuggestion({
+      typesOfInfraction: values.typesOfInfraction,
+      labels: values.labels,
+      applied: suggestion,
+    });
+    setFieldValue('typesOfInfraction', next.typesOfInfraction);
+    setFieldValue('labels', next.labels);
+    setSuggestion(null);
   };
 
   const handleSubmit = async event => {
@@ -139,7 +162,10 @@ export default function ReportFormWizard({
       if (isLastStep) {
         setValidationMessages([]);
         setReviewOpen(true);
-      } else goToStep(currentStep + 1);
+      } else {
+        if (currentStep === REPORT_EVIDENCE_STEP) applyHexSuggestion();
+        goToStep(currentStep + 1);
+      }
     } catch (error) {
       console.error('[reports] No se pudo validar o enviar el reporte.', error);
       setValidationMessages(['No se pudo procesar el reporte. Revisa los datos e inténtalo de nuevo.']);
@@ -182,16 +208,14 @@ export default function ReportFormWizard({
 
         <div className="report-wizard__content">
           <div className="wizard-section" hidden={currentStep !== REPORT_EVIDENCE_STEP}>
-            <ReportPlayerIdentity initialPlayer={initialPlayer} />
-            <details className="wizard-optional" open={showAdditional} onToggle={event => setShowAdditional(event.currentTarget.open)}>
-              <summary>Datos adicionales del jugador <span>Opcional</span></summary>
-              <ReportAdditionalDetails initialPlayer={initialPlayer} />
-            </details>
+            <ReportPlayerIdentity initialPlayer={initialPlayer} ridLocked={ridLocked}>
+              <ReportAdditionalDetails variant="inline" ridLocked={ridLocked} />
+            </ReportPlayerIdentity>
             <ReportEvidenceFields imageUploadRef={imageUploadRef} onImagesChange={onImagesChange}
               onBlockedChange={onEvidenceBlockedChange} />
           </div>
           <div className="wizard-section" hidden={currentStep !== REPORT_INFRACTION_STEP}>
-            <ReportInfractionPreload active={currentStep === REPORT_INFRACTION_STEP} />
+            <ReportInfractionPreload applied={suggestion} onUndo={undoHexSuggestion} />
             <ReportInfractionFields />
             <ReportBehaviorFields />
           </div>
