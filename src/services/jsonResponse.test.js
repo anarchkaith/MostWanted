@@ -23,3 +23,12 @@ test('cancellation during response parsing remains cancellation', async () => {
   const error = new DOMException('Cancelled', 'AbortError');
   await assert.rejects(readApiResponse({ json: async () => { throw error; } }, 'Fallback'), cause => cause === error);
 });
+
+test('rate-limited reports keep the HTTP status and the server retry time', async () => {
+  const response = Response.json({ error: 'Has enviado demasiados reportes.', retryAfterSeconds: 900 }, { status: 429 });
+  await assert.rejects(readApiResponse(response, 'Fallback'), error => {
+    assert.equal(error.status, 429);
+    assert.equal(error.retryAfterSeconds, 900);
+    return true;
+  });
+});

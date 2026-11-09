@@ -11,7 +11,10 @@ export async function readApiResponse(response, fallbackMessage) {
   }
   if (!response.ok || payload.ok === false) {
     const message = [payload.message, payload.error].find(value => typeof value === 'string' && value.trim());
-    throw new Error(message || `${fallbackMessage} (HTTP ${response.status}).`);
+    throw Object.assign(new Error(message || `${fallbackMessage} (HTTP ${response.status}).`), {
+      status: response.status,
+      retryAfterSeconds: Number(payload.retryAfterSeconds) || 0,
+    });
   }
   return payload;
 }

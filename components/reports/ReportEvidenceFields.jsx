@@ -1,5 +1,6 @@
 import { ErrorMessage, Field, useFormikContext } from 'formik';
 import ImageUpload from '../ImageUpload';
+import ReasonImproveButton from './ReasonImproveButton';
 
 export default function ReportEvidenceFields({ imageUploadRef, onImagesChange, onBlockedChange, existingEvidence, maxImages = 5, maxReasonLength = 500 }) {
   const { values, errors, touched, isSubmitting } = useFormikContext();
@@ -14,6 +15,7 @@ export default function ReportEvidenceFields({ imageUploadRef, onImagesChange, o
             placeholder="Describe lo que viste: qué hizo, cuándo, en qué sesión..." maxLength={maxReasonLength}
             disabled={isSubmitting} style={{ flex: 1, resize: 'none' }} />
         </div>
+        <ReasonImproveButton maxReasonLength={maxReasonLength} />
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
           <ErrorMessage name="reason" component="span" className="form-group__hint" style={{ color: '#ff3333' }} />
           <span className="form-group__hint" style={{ marginLeft: 'auto' }}>{values.reason.length}/{maxReasonLength}</span>

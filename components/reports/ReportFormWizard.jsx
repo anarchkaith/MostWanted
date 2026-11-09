@@ -8,7 +8,8 @@ import { firstInvalidReportStep, REPORT_EVIDENCE_STEP, REPORT_INFRACTION_STEP, R
 import ReportAdditionalDetails from './ReportAdditionalDetails';
 import { ReportBehaviorFields, ReportInfractionFields } from './ReportInfractionFields';
 import ReportEvidenceFields from './ReportEvidenceFields';
-import ReportAiAssist from './ReportAiAssist';
+import ReportInfractionPreload from './ReportInfractionPreload';
+import SubmitErrorMessage from './SubmitErrorMessage';
 
 function StepIndicator({ currentStep }) {
   return <ol className="wizard-steps" aria-label="Progreso del reporte">
@@ -73,7 +74,7 @@ function ReviewDialog({ open, values, images, isSubmitting, onEdit, onConfirm, c
 
 export default function ReportFormWizard({
   initialPlayer, isDemo, onPaste, imageUploadRef, images, onImagesChange,
-  evidenceBlocked, onEvidenceBlockedChange, submitError, submitErrorRef, submitButtonRef,
+  evidenceBlocked, onEvidenceBlockedChange, submitError, submitRetryAt, submitErrorRef, submitButtonRef,
 }) {
   const { values, touched, isSubmitting, setTouched, validateForm, submitForm } = useFormikContext();
   const [currentStep, setCurrentStep] = useState(0);
@@ -171,7 +172,7 @@ export default function ReportFormWizard({
           <div className="rfm-submitting__spinner" aria-hidden="true" />
           <span className="rfm-submitting__label">Enviando reporte...</span>
         </div>}
-        {submitError && <div ref={submitErrorRef} className="rfm-submit-error" role="alert" tabIndex={-1}>⚠ {submitError}</div>}
+        {submitError && <SubmitErrorMessage message={submitError} retryAt={submitRetryAt} errorRef={submitErrorRef} />}
         {validationMessages.length > 0 && <div ref={validationRef} className="rfm-submit-error" role="alert" tabIndex={-1}>
           <strong>Revisa estos datos para continuar:</strong>
           <ul>{validationMessages.map((message, index) => <li key={`${message}-${index}`}>{message}</li>)}</ul>
@@ -190,7 +191,7 @@ export default function ReportFormWizard({
               onBlockedChange={onEvidenceBlockedChange} />
           </div>
           <div className="wizard-section" hidden={currentStep !== REPORT_INFRACTION_STEP}>
-            <ReportAiAssist autoRun={currentStep === REPORT_INFRACTION_STEP} />
+            <ReportInfractionPreload active={currentStep === REPORT_INFRACTION_STEP} />
             <ReportInfractionFields />
             <ReportBehaviorFields />
           </div>

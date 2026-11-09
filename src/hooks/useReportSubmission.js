@@ -4,12 +4,14 @@ import { submitWordpressReport, uploadEvidenceImages } from '../services/reportS
 
 export default function useReportSubmission({ user, images, onSaved, imageUploadRef }) {
   const [error, setError] = useState('');
+  const [retryAt, setRetryAt] = useState(null);
   const [confirmation, setConfirmation] = useState(null);
   const pending = useRef(false);
   const submit = async values => {
     if (pending.current) return;
     pending.current = true;
     setError('');
+    setRetryAt(null);
     setConfirmation(null);
     try {
       const evidenceError = imageUploadRef?.current?.getValidationError();
@@ -21,9 +23,10 @@ export default function useReportSubmission({ user, images, onSaved, imageUpload
       setConfirmation(result);
     } catch (cause) {
       setError(cause.message || 'Error al enviar el reporte. Intenta de nuevo.');
+      if (cause.status === 429 && cause.retryAfterSeconds > 0) setRetryAt(Date.now() + cause.retryAfterSeconds * 1000);
     } finally {
       pending.current = false;
     }
   };
-  return { submit, error, confirmation, closeConfirmation: () => setConfirmation(null) };
+  return { submit, error, retryAt, confirmation, closeConfirmation: () => setConfirmation(null) };
 }

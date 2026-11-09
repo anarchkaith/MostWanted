@@ -59,9 +59,10 @@ function App() {
 
   useEffect(() => {
     if (isAuthChecked && path === '/denunciar' && !hasReportPlayerName) {
+      resetDesk();
       navigate('/', true);
     }
-  }, [isAuthChecked, path, hasReportPlayerName, navigate]);
+  }, [isAuthChecked, path, hasReportPlayerName, navigate, resetDesk]);
 
   // The first title comes from the server-rendered metadata; keep the tab title in sync after SPA navigation.
   const initialTitlePath = useRef(path);
@@ -148,7 +149,7 @@ function App() {
   }
 
   const canUseReports = Boolean(user) || isDemo;
-  const isLandingPage = path === '/' && !canUseReports;
+  const isLandingPage = path === '/inicio' || (path === '/' && !canUseReports);
   if (!canUseReports && !isLandingPage) return <AccessScreen onLogin={handleLogin} error={sessionError} />;
   const startReport = (player = null) => {
     formReturnPath.current = player?.nickname ? playerPath(player.nickname) : path === '/denunciar' ? formReturnPath.current : path;
@@ -202,7 +203,7 @@ function App() {
           </div>
         </main>
       ) : isLandingPage ? (
-        <LandingScreen onLogin={handleLogin} />
+        <LandingScreen onLogin={canUseReports ? () => navigate('/') : handleLogin} />
       ) : canUseReports ? (
       <>
       {isAdminScreen ? user && capabilities.viewAccounts ? <PrivateAccountsPanel key={user.id} onNavigate={openAdminReport} /> : <main className="desk-empty"><h2>Acceso restringido</h2><p>Solo el administrador autorizado puede consultar este panel.</p></main> : isProfileScreen ? user ? <ProfileScreen key={user.id} user={user} canViewAccounts={capabilities.viewAccounts} onNavigate={navigate} onLogout={handleLogout} onOpenReport={handleCardClick} mapReport={mapWordpressReportToReporte} revision={caseRevision} /> : <main className="desk-empty"><h2>Mi perfil</h2><p>Inicia sesión para consultar tu cuenta y tus reportes.</p><button type="button" className="cyber-button-small mw-cyber-button" onClick={handleLogin}>Iniciar sesión con Discord</button></main> : path === '/denunciar' ? hasReportPlayerName ? <ReportScreen onSubmit={handleNewReport} currentUser={user} isDemo={isDemo} initialPlayer={reportPlayer} onReturnToCase={() => navigate(formReturnPath.current)} /> : <main className="desk-empty"><p>Primero busca y selecciona un jugador para registrar un reporte.</p></main> : <InvestigationDesk key={deskReset} initialPlayer={searchPlayer} onPlayerResolved={rememberPlayer} reportsError={reportsError} path={path} onNavigate={navigate} onOpenReport={handleCardClick} onStartReport={startReport} mapReport={mapWordpressReportToReporte} canManageCases={isAuthChecked && Boolean(user) && capabilities.manageCases} revision={caseRevision} />}

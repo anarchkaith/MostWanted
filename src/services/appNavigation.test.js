@@ -15,7 +15,7 @@ test('centered search is only the home screen without a selected player', () => 
 });
 
 test('route parsing preserves public report, expediente, player, profile and callback paths', () => {
-  for (const path of ['/', '/denunciar', '/perfil', '/admin', '/usuario/Player', '/jugador/123', '/jugador/Player%20Name']) {
+  for (const path of ['/', '/inicio', '/denunciar', '/perfil', '/admin', '/usuario/Player', '/jugador/123', '/jugador/Player%20Name']) {
     assert.equal(readAppRoute(path).isValidPath, true, path);
   }
   assert.equal(readAppRoute('/reporte/42').reportId, 42);

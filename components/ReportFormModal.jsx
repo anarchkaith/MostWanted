@@ -41,7 +41,7 @@ export default function ReportFormModal({ onSubmit, currentUser = null, isDemo =
   const [images, setImages] = useState([]);
   const [evidenceBlocked, setEvidenceBlocked] = useState(false);
   const [wizardRevision, setWizardRevision] = useState(0);
-  const { submit, error: submitError, confirmation, closeConfirmation } = useReportSubmission({
+  const { submit, error: submitError, retryAt, confirmation, closeConfirmation } = useReportSubmission({
     user: currentUser, images, onSaved: onSubmit, imageUploadRef,
   });
   const [playerDraft] = useState(() => initialPlayer ? reportPlayerDraft(initialPlayer) : null);
@@ -84,7 +84,7 @@ export default function ReportFormModal({ onSubmit, currentUser = null, isDemo =
         }
       }}>
       <ReportFormWizard key={wizardRevision} initialPlayer={initialPlayer} isDemo={isDemo} onPaste={handleGlobalPaste}
-        imageUploadRef={imageUploadRef} images={images} onImagesChange={setImages} submitError={submitError}
+        imageUploadRef={imageUploadRef} images={images} onImagesChange={setImages} submitError={submitError} submitRetryAt={retryAt}
         evidenceBlocked={evidenceBlocked} onEvidenceBlockedChange={setEvidenceBlocked}
         submitErrorRef={submitErrorRef} submitButtonRef={submitButtonRef} />
     </Formik>
