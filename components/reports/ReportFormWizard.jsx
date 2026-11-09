@@ -11,6 +11,8 @@ import ReportEvidenceFields from './ReportEvidenceFields';
 import ReportInfractionPreload from './ReportInfractionPreload';
 import SubmitErrorMessage from './SubmitErrorMessage';
 
+const OPTIONAL_PLAYER_FIELDS = new Set(['investigation_status', 'rid', 'crews', 'aliases', 'avatar1', 'avatar2', 'ip', 'time']);
+
 function StepIndicator({ currentStep }) {
   return <ol className="wizard-steps" aria-label="Progreso del reporte">
     {REPORT_WIZARD_STEPS.map((step, index) => <li key={step.id} className="wizard-step"
@@ -109,7 +111,7 @@ export default function ReportFormWizard({
       ...touched,
       ...Object.fromEntries(issues.map(issue => [issue.field, true])),
     }, false);
-    if (index === 0 && issues.some(issue => issue.field !== 'nickname')) setShowAdditional(true);
+    if (index === REPORT_EVIDENCE_STEP && issues.some(issue => OPTIONAL_PLAYER_FIELDS.has(issue.field))) setShowAdditional(true);
     setCurrentStep(index);
     setValidationMessages(issues.flatMap(issue => issue.messages));
   };
@@ -179,14 +181,12 @@ export default function ReportFormWizard({
         </div>}
 
         <div className="report-wizard__content">
-          <div className="wizard-section" hidden={currentStep !== 0}>
+          <div className="wizard-section" hidden={currentStep !== REPORT_EVIDENCE_STEP}>
             <ReportPlayerIdentity initialPlayer={initialPlayer} />
             <details className="wizard-optional" open={showAdditional} onToggle={event => setShowAdditional(event.currentTarget.open)}>
               <summary>Datos adicionales del jugador <span>Opcional</span></summary>
               <ReportAdditionalDetails initialPlayer={initialPlayer} />
             </details>
-          </div>
-          <div className="wizard-section" hidden={currentStep !== REPORT_EVIDENCE_STEP}>
             <ReportEvidenceFields imageUploadRef={imageUploadRef} onImagesChange={onImagesChange}
               onBlockedChange={onEvidenceBlockedChange} />
           </div>

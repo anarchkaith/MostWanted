@@ -2,18 +2,11 @@ import { ASSISTANT_NAME } from '../config/assistant.js';
 
 export const REPORT_WIZARD_STEPS = [
   {
-    id: 'identity',
-    label: 'Jugador',
-    title: 'Identifica al jugador',
-    description: 'Comprueba que sea la persona correcta. Los datos adicionales son opcionales.',
-    fields: ['nickname', 'investigation_status', 'rid', 'crews', 'aliases', 'avatar1', 'avatar2', 'ip', 'time'],
-  },
-  {
     id: 'evidence',
     label: 'Pruebas',
     title: 'Cuenta lo que viste',
-    description: 'Explícalo con tus palabras y adjunta capturas si las tienes.',
-    fields: ['reason', 'evidence'],
+    description: 'Explícalo con tus palabras y adjunta capturas si las tienes. Los datos del jugador son opcionales.',
+    fields: ['nickname', 'investigation_status', 'rid', 'crews', 'aliases', 'avatar1', 'avatar2', 'ip', 'time', 'reason', 'evidence'],
   },
   {
     id: 'infraction',

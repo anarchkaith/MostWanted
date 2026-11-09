@@ -497,6 +497,19 @@ a { color: var(--color-cream); text-underline-offset: 3px; }
 }
 
 /* Subtle warning notice for non-critical issues */
+.warning-notice-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.warning-notice-stack .warning-notice {
+  position: static;
+  max-width: none;
+  animation: none;
+}
+
 .warning-notice {
   position: fixed;
   top: 20px;

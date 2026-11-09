@@ -8,6 +8,7 @@ import PlayerNameHistory from './player/PlayerNameHistory';
 import PlayerCrewHistory from './player/PlayerCrewHistory';
 import PlayerDossierFile from './player/PlayerDossierFile';
 import Skeleton from './ui/Skeleton';
+import WarningNotice from './ui/WarningNotice';
 
 const normalizeName = value => String(value || '').trim().toLowerCase();
 
@@ -74,7 +75,9 @@ export default function PlayerBackgroundPanel({
               <span className="pbp-status__detail">{error}</span>
             </div>
           )}
-          {investigation?.warnings?.map(warning => <p className="pbp-status-detail" role="status" key={warning}>{warning}</p>)}
+          {investigation?.warnings?.length > 0 && <div className="warning-notice-stack">
+            {investigation.warnings.map(warning => <WarningNotice key={`${investigation.timestamp}-${warning}`} error={warning} />)}
+          </div>}
 
           {variant === 'dossier' && <PlayerDossierFile investigation={investigation} username={username} rid={rid} isLoading={isLoading} error={error}
             names={otherNameEntries} crews={crewEntries} historicalAvatars={displayedProfile?.historicalAvatars || []}
