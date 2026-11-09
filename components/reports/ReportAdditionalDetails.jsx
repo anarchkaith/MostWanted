@@ -13,14 +13,10 @@ export default function ReportAdditionalDetails({ initialPlayer, editMode = fals
       <ErrorMessage name="rid" component="span" className="form-group__hint" style={{ color: '#ff3333' }} />
     </div>}
     <div className="rfm-inline-details__pair">
-      <div className="form-group">
-        <label htmlFor="aliases" className="form-group__label">Otros nombres conocidos</label>
-        <div className="cyber-input-full mw-cyber-input">
-          <Field type="text" id="aliases" name="aliases" aria-invalid={Boolean(touched.aliases && errors.aliases)}
-            className="form-group__input" placeholder="Separados por coma" autoComplete="off" disabled={isSubmitting} />
-        </div>
-        <ErrorMessage name="aliases" component="span" className="form-group__hint" />
-      </div>
+      {values.aliases && <div className="form-group">
+        <span id="report-aliases-label" className="form-group__label">Otros nombres conocidos</span>
+        <p className="rfm-player-aliases notranslate" translate="no" aria-labelledby="report-aliases-label">{values.aliases}</p>
+      </div>}
       <div className="form-group">
         <label htmlFor="crews" className="form-group__label">Crews</label>
         <div className="cyber-input-full mw-cyber-input">

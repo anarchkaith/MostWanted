@@ -426,7 +426,8 @@
 .infraction-preload__undo:focus-visible { outline: 2px solid #00e5ff; outline-offset: 2px; }
 
 .reason-improve { margin: 6px 0 4px; }
-.reason-improve__row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.reason-improve__row { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+.reason-improve__row > [role="status"]:empty { display: none; }
 .reason-improve__btn {
   min-height: 32px;
   padding: 4px 12px;

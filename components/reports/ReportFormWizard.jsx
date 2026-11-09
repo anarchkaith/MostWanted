@@ -88,6 +88,8 @@ export default function ReportFormWizard({
   const confirmRef = useRef(null);
   const titleRef = useRef(null);
   const validationRef = useRef(null);
+  const focusValidationRef = useRef(false);
+  const liveValidationRef = useRef(false);
   const firstRender = useRef(true);
   const step = REPORT_WIZARD_STEPS[currentStep];
   const isLastStep = currentStep === REPORT_WIZARD_STEPS.length - 1;
@@ -98,10 +100,24 @@ export default function ReportFormWizard({
   }, [currentStep]);
 
   useEffect(() => {
-    if (validationMessages.length) validationRef.current?.focus();
-  }, [validationMessages, currentStep]);
+    if (validationMessages.length && focusValidationRef.current) {
+      focusValidationRef.current = false;
+      validationRef.current?.focus();
+    }
+  }, [validationMessages]);
+
+  useEffect(() => {
+    if (!liveValidationRef.current) return undefined;
+    let active = true;
+    validateForm().then(errors => {
+      if (!active || !liveValidationRef.current) return;
+      setValidationMessages(reportStepIssues(errors, currentStep).flatMap(issue => issue.messages));
+    });
+    return () => { active = false; };
+  }, [values, currentStep, validateForm]);
 
   const goToStep = index => {
+    liveValidationRef.current = false;
     setValidationMessages([]);
     setCurrentStep(index);
   };
@@ -112,6 +128,8 @@ export default function ReportFormWizard({
       ...Object.fromEntries(issues.map(issue => [issue.field, true])),
     }, false);
     setCurrentStep(index);
+    focusValidationRef.current = true;
+    liveValidationRef.current = true;
     setValidationMessages(issues.flatMap(issue => issue.messages));
   };
 
@@ -143,6 +161,7 @@ export default function ReportFormWizard({
     event.preventDefault();
     if (checkingRef.current || isSubmitting) return;
     checkingRef.current = true;
+    liveValidationRef.current = false;
     setChecking(true);
     try {
       if (currentStep >= REPORT_EVIDENCE_STEP && evidenceBlocked) {
