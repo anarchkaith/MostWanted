@@ -60,10 +60,10 @@ export default function PlayerBackgroundPanel({
     <>
       {expandedAvatar && <ImageViewer image={expandedAvatar} onClose={closeAvatar} />}
       <div className={`player-background-panel${variant === 'dossier' ? ' player-background-panel--dossier' : ''}`}>
-        <div className="pbp-header">
+        {variant !== 'dossier' && <div className="pbp-header">
           <span className="pbp-icon">🔍</span>
           <span className="pbp-title">FICHA DE ANTECEDENTES</span>
-        </div>
+        </div>}
 
         <div className="pbp-content">
           {isLoading && (

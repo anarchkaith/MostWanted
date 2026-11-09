@@ -17,39 +17,6 @@
   counter-reset: rec-section;
 }
 
-.player-background-panel--dossier .pbp-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 18px;
-  border-bottom: 1px solid var(--rec-line);
-  background: repeating-linear-gradient(135deg, rgba(217, 55, 43, 0.07) 0 8px, transparent 8px 16px);
-}
-
-.player-background-panel--dossier .pbp-icon {
-  display: none;
-}
-
-.player-background-panel--dossier .pbp-title {
-  font-family: var(--font-stencil, 'Courier New', monospace);
-  font-size: 0.8rem;
-  letter-spacing: 0.18em;
-  color: var(--rec-ink);
-}
-
-.player-background-panel--dossier .pbp-header::after {
-  content: 'Confidencial';
-  font-family: var(--font-mono, 'Courier New', monospace);
-  font-size: 0.65rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--rec-stamp);
-  border: 1px solid var(--rec-stamp);
-  padding: 2px 6px;
-  transform: rotate(-2deg);
-}
-
 .player-background-panel--dossier .pbp-content {
   display: flex;
   flex-direction: column;
@@ -341,16 +308,28 @@
 }
 
 .player-background-panel--dossier .pbp-history-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
   border-top: 0;
 }
 
 .player-background-panel--dossier .pbp-history-item {
-  padding: 8px 10px;
-  border: 1px solid var(--rec-line);
-  border-bottom: 1px solid var(--rec-line);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--rec-line);
+}
+
+.player-background-panel--dossier .pbp-history-item:last-child {
+  border-bottom: 0;
+}
+
+.player-background-panel--dossier .pbp-history-item .pbp-name-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .player-background-panel--dossier .pbp-current__info {
@@ -374,34 +353,42 @@
 
 @media (min-width: 900px) {
   .player-background-panel--dossier .pbp-identity-panel {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
     grid-template-areas:
       "head photos"
       "status photos"
-      "names names"
-      "archive archive";
+      "names archive";
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .player-background-panel--dossier .pbp-identity-header,
+  .player-background-panel--dossier .pbp-current__info,
+  .player-background-panel--dossier .pbp-names-panel,
+  .player-background-panel--dossier .pbp-current-photos,
+  .player-background-panel--dossier .pbp-photo-archive {
+    border: 1px solid var(--rec-line);
+    background: rgba(230, 225, 207, 0.025);
+    padding: 14px 16px;
   }
 
   .player-background-panel--dossier .pbp-identity-header {
     grid-area: head;
-    border-bottom: 0;
   }
 
   .player-background-panel--dossier .pbp-current__info {
     grid-area: status;
-    padding-top: 0;
-  }
-
-  .player-background-panel--dossier .pbp-current-photos {
-    grid-area: photos;
-    border-top: 0;
-    border-left: 1px solid var(--rec-line);
-    align-self: stretch;
-    align-content: start;
+    padding: 10px 16px;
   }
 
   .player-background-panel--dossier .pbp-names-panel {
     grid-area: names;
+  }
+
+  .player-background-panel--dossier .pbp-current-photos {
+    grid-area: photos;
+    align-self: stretch;
+    align-content: start;
   }
 
   .player-background-panel--dossier .pbp-photo-archive {
@@ -413,3 +400,4 @@
     height: 112px;
   }
 }
+
