@@ -293,3 +293,20 @@
 .player-background-panel--dossier .pbp-avatar-history {
   justify-content: flex-start;
 }
+
+.player-background-panel--dossier .pbp-current {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
+
+.player-background-panel--dossier .pbp-identity-panel {
+  display: flex;
+  grid-template-columns: none;
+  align-items: stretch;
+  gap: 0;
+  border-top: 0;
+}
+
+.player-background-panel--dossier .pbp-identity-header {
+  max-width: none;
+}
