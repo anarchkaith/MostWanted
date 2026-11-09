@@ -84,6 +84,26 @@ test('scoped backend requests use the existing WordPress secret and verified vot
   } finally { globalThis.fetch = originalFetch; }
 });
 
+test('username-only lookups resolve RID server-side and enrich a player with no WordPress reports', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const href = String(url);
+    if (href.startsWith('https://sc-cache.com/n/')) return Response.json({ id: 171334841 });
+    if (href.startsWith('https://sc-cache.com/r/')) return Response.json([
+      { name: 'Magnate-_-420', time: 1778531574 }, { name: 'Rorrooh', time: 1722229603 },
+    ]);
+    if (href.includes('player-insights')) return Response.json({ ok: true, found: false, player: null });
+    throw new Error(`Unexpected request: ${href}`);
+  };
+  try {
+    const result = await accessReportData({ config, username: 'Magnate-_-420', logger });
+    assert.equal(result.status, 200);
+    assert.equal(result.payload.player.rid, '171334841');
+    assert.deepEqual(result.payload.player.names.map(entry => entry.name), ['Magnate-_-420', 'Rorrooh']);
+    assert.ok(result.payload.player.avatars.length > 0);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
 test('case source refuses an unscoped archive read or missing existing secret', async () => {
   const source = createCaseReportsSource({ config, fetchImpl: () => assert.fail('Unexpected bulk request') });
   await assert.rejects(source({}), /player_identity_required/);

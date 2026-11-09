@@ -1,7 +1,7 @@
 import { readWordpressReport, readWordpressPlayerInsights, postWordpressReportVote } from '../../../reports/wordpressClient.js';
 import { hasWordpressReportsConfig } from '../../../reports/wordpressConfig.js';
 import { publicReport } from '../../expedientes/services/caseReports.service.js';
-import { buildScAvatarCandidates, fetchScCacheAliases } from '../../../reportes/store.js';
+import { buildScAvatarCandidates, fetchScCacheAliases, fetchScCacheRidByName } from '../../../reportes/store.js';
 
 const MAX_PLAYER_NAMES = 60;
 const MAX_PLAYER_AVATARS = 8;
@@ -38,8 +38,9 @@ function mergeAvatarUrls(...lists) {
 /**
  * Completa el perfil con nombres historicos y avatares a partir del RID (sc-cache y Rockstar).
  */
-async function enrichPlayerWithRid(player, rid) {
-  const normalizedRid = String(rid || player?.rid || '').trim();
+async function enrichPlayerWithRid(player, { rid = '', username = '' } = {}) {
+  let normalizedRid = String(rid || player?.rid || '').trim();
+  if (!normalizedRid && username.trim()) normalizedRid = await fetchScCacheRidByName({ username: username.trim() });
   if (!/^\d+$/.test(normalizedRid)) return player;
 
   const scCache = await fetchScCacheAliases({ rid: normalizedRid });
@@ -96,7 +97,7 @@ export async function accessReportData({ config, reportId, username = '', rid = 
       return { status: 200, payload: { ok: true, report: publicReport(data.report) } };
     }
     if (data.player !== null && (!data.player || typeof data.player !== 'object' || Array.isArray(data.player))) throw new Error('invalid_player_response');
-    const player = await enrichPlayerWithRid(data.player, rid);
+    const player = await enrichPlayerWithRid(data.player, { rid, username: username.trim() });
     return { status: 200, payload: { ok: true, player } };
   } catch (error) {
     logger.error('[reports] No se pudo consultar o actualizar el reporte.', { status: error.status || 0, message: error.message });

@@ -414,6 +414,28 @@ export async function fetchScCacheAliases({ rid = '', timeoutMs = 6000 } = {}) {
 }
 
 /**
+ * Resuelve el RID de un nombre en sc-cache desde el servidor (sin depender de CORS del navegador).
+ */
+export async function fetchScCacheRidByName({ username = '', timeoutMs = 6000 } = {}) {
+  const normalizedName = toTrimmedString(username);
+  if (!normalizedName) return '';
+
+  try {
+    const response = await fetch(`https://sc-cache.com/n/${encodeURIComponent(normalizedName)}`, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (!response.ok) return '';
+    const payload = await response.json().catch(() => null);
+    const rid = toTrimmedString(String(payload?.id ?? ''));
+    return /^\d+$/.test(rid) ? rid : '';
+  } catch {
+    return '';
+  }
+}
+
+/**
  * Enriquece antecedentes locales con datos externos de sc-cache.
  */
 export async function buildPlayerInsightsWithScCache(reportes = [], { username = '', rid = '' } = {}) {
