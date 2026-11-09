@@ -19,9 +19,9 @@ function HistoricalAvatar({ avatar, playerName, onOpen }) {
   </figure>;
 }
 
-export default function PlayerAvatarHistory({ avatars, playerName, onOpen }) {
+export default function PlayerAvatarHistory({ avatars, playerName, onOpen, label = 'Avatares anteriores' }) {
   return <div className="pbp-section pbp-photo-archive">
-    <div className="pbp-current__label" title="Las imágenes enlazadas pueden cambiar; no son copias históricas.">Avatares anteriores</div>
+    <div className="pbp-current__label" title="Las imágenes enlazadas pueden cambiar; no son copias históricas.">{label}</div>
     {avatars.length ? <div className="pbp-avatar-history">
       {avatars.map(avatar => <HistoricalAvatar key={avatar.avatarUrl} avatar={avatar} playerName={playerName} onOpen={onOpen} />)}
     </div> : <p className="pbp-empty">Sin avatares archivados.</p>}
