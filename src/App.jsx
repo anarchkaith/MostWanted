@@ -181,6 +181,7 @@ function App() {
 
       {/* ============ HEADER ============ */}
       <AppHeader
+        onNavigate={navigate}
         search={!showSearchLanding && !isAdminScreen && personSearch}
         actions={<SessionActions user={user} isDemo={isDemo} canUseReports={canUseReports} isProfileScreen={isProfileScreen} onNavigate={navigate} onLogin={handleLogin} onHelp={() => setShowHelp(true)} />}
       />

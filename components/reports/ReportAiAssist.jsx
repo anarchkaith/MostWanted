@@ -83,7 +83,7 @@ export default function ReportAiAssist({ autoRun = false }) {
         {status === 'loading' ? 'Analizando tu relato…' : suggestion || applied ? 'Probar otra vez' : `✨ Completar con ${ASSISTANT_NAME}`}
       </button>
     </div>
-    {status === 'idle' && !suggestion && <p className="ai-assist__hint">{ASSISTANT_NAME} lee tu relato, marca las infracciones probables y te propone un texto más claro. Tú decides qué se envía.</p>}
+    {status === 'idle' && !suggestion && <p className="ai-assist__hint">{ASSISTANT_NAME} marca infracciones probables según tu relato. Tú decides.</p>}
     <div role="status" aria-live="polite">
       {status === 'loading' && <p className="ai-assist__hint ai-assist__hint--busy">Buscando infracciones en tu relato…</p>}
       {status === 'error' && <p className="ai-assist__hint ai-assist__hint--warn">{error}</p>}
@@ -91,15 +91,10 @@ export default function ReportAiAssist({ autoRun = false }) {
     </div>
     {status === 'ready' && <div className="ai-assist__result">
       {applied && <div className="ai-assist__block ai-assist__block--applied">
-        <p className="ai-assist__label">✓ {ASSISTANT_NAME} marcó por ti</p>
-        <ul className="ai-assist__chips">
-          {applied.categories.map(key => <li key={key}>{categoryName(key)}</li>)}
-          {applied.labels.map(label => <li key={label}>{label}</li>)}
-        </ul>
-        <p className="ai-assist__hint">Desmarca abajo lo que no corresponda.</p>
-        <div className="ai-assist__actions">
-          <button type="button" className="ai-assist__dismiss" onClick={undoPreload}>Deshacer</button>
-        </div>
+        <p className="ai-assist__applied-text">
+          HEX marcó {applied.categories.length + applied.labels.length} abajo. Desmarca lo que no corresponda.
+        </p>
+        <button type="button" className="ai-assist__dismiss ai-assist__undo" onClick={undoPreload}>Deshacer</button>
       </div>}
       {suggestion?.reason && <div className="ai-assist__block">
         <p className="ai-assist__label">Texto más claro (opcional)</p>
@@ -121,7 +116,7 @@ export default function ReportAiAssist({ autoRun = false }) {
         </div>
       </div>}
       {suggestion?.note && <p className="ai-assist__hint">💡 {suggestion.note}</p>}
-      <p className="ai-assist__disclaimer">{ASSISTANT_NAME} solo usa lo que escribiste. Nunca inventa pruebas: revisa todo antes de enviar.</p>
+      <p className="ai-assist__disclaimer">{ASSISTANT_NAME} solo usa lo que escribiste. Revisa todo antes de enviar.</p>
     </div>}
   </section>;
 }
