@@ -117,7 +117,7 @@ export default function InvestigationDesk({ initialPlayer, onPlayerResolved, rep
           </>}
         </section>
         <PlayerCaseReports reports={linkedReports} payload={payload} player={player} caseId={caseId}
-          loading={loading} error={error} onOpenReport={onOpenReport} />
+          loading={loading} onOpenReport={onOpenReport} />
       </div>
     </main>
   );

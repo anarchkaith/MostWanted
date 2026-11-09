@@ -316,8 +316,8 @@ export async function investigatePlayerBackground(username, knownRid = '') {
       const resolved = await getPlayerRid(trimmedUsername);
       rid = resolved.rid;
       usedCorsProxy = resolved.usedProxy;
-    } catch (error) {
-      warnings.push(`No se pudo resolver el RID externo: ${error.message}`);
+    } catch {
+      // Sin RID resuelto, el aviso de "Sin antecedentes" de más abajo ya informa al usuario.
     }
   }
   const hasStoredRid = Boolean(knownRid || reportInsights?.rid);

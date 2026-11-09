@@ -60,6 +60,11 @@
   color: var(--dz-muted);
 }
 
+.dz-identity {
+  padding: 0;
+  min-width: 0;
+}
+
 .dz-identity__body {
   display: grid;
   gap: 18px;
@@ -69,8 +74,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px 14px;
-  margin-bottom: 14px;
+  gap: 8px 12px;
 }
 
 .dz-file .dz-identity__player {
@@ -81,37 +85,19 @@
   overflow-wrap: anywhere;
 }
 
-.dz-facts {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 0;
-  margin: 0 0 16px;
-  border-top: 1px solid var(--dz-line);
-  border-left: 1px solid var(--dz-line);
-}
-
-.dz-facts > div {
-  padding: 8px 10px;
-  border-right: 1px solid var(--dz-line);
-  border-bottom: 1px solid var(--dz-line);
-}
-
-.dz-facts dt {
-  font-size: 0.68rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+.dz-rid {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 3px 8px;
+  border: 1px solid var(--dz-line);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
   color: var(--dz-muted);
+  font-variant-numeric: tabular-nums;
 }
 
-.dz-facts dd {
-  margin: 2px 0 0;
-  font-size: 0.95rem;
-  font-weight: 600;
-  overflow-wrap: anywhere;
-}
-
-.dz-subsection + .dz-subsection {
-  margin-top: 16px;
+.dz-subsection {
+  margin-top: 18px;
 }
 
 .dz-names {
@@ -329,8 +315,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 6px 12px;
-  padding: 8px 10px;
-  border: 1px solid var(--dz-line);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--dz-line);
 }
 
 .dz-crews__name {

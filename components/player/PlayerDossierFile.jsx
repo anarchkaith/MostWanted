@@ -36,35 +36,26 @@ export default function PlayerDossierFile({
   const playerName = investigation?.nombre || username || `RID ${rid}`;
   const socialClubName = playerName === `RID ${investigation?.rid || rid}` ? username : playerName;
   const accountStatus = investigation?.accountStatus;
-  const reportCount = investigation?.reportInsights ? String(investigation.reportInsights.reportCount ?? 'Desconocido') : 'Desconocido';
-  const lastReport = investigation?.reportInsights?.lastReportAtReadable || investigation?.profile?.lastSeenReadable || 'Desconocido';
   const loadingIdentity = isLoading || (!ready && !error);
 
-  return <div className="dz-file">
-    <section className="dz-section dz-identity" aria-labelledby="dz-identity-title">
-      <header className="dz-section__head">
-        <h3 id="dz-identity-title" className="dz-section__title"><span className="dz-section__index">01</span>Identificación</h3>
-        {accountStatus && <span className={`dz-stamp dz-stamp--${accountStatus.tone || 'neutral'}`}>{accountStatus.label}</span>}
-      </header>
+  const hasAvatars = Boolean(investigation?.avatares?.length) || historicalAvatars.length > 0;
+  const shownRid = investigation?.rid || rid;
 
+  return <div className="dz-file">
+    <section className="dz-identity" aria-label="Identificación">
       <div className="dz-identity__body">
         <div className="dz-identity__main">
           <div className="dz-identity__name">
             <p className="dz-identity__player notranslate" translate="no">{playerName}</p>
+            {accountStatus && <span className={`dz-stamp dz-stamp--${accountStatus.tone || 'neutral'}`}>{accountStatus.label}</span>}
             <SocialClubProfileLink name={socialClubName} />
           </div>
+          {shownRid && <span className="dz-rid">RID {shownRid}</span>}
 
-          <dl className="dz-facts">
-            <div><dt>RID</dt><dd>{investigation?.rid || rid || 'Sin confirmar'}</dd></div>
-            <div><dt>Reportes previos</dt><dd>{reportCount}</dd></div>
-            <div><dt>Último registro</dt><dd>{lastReport}</dd></div>
-          </dl>
-
-          {showHistory && <div className="dz-subsection">
+          {showHistory && (!ready || names.length > 0) && <div className="dz-subsection">
             <h4 className="dz-label">Nombres y alias</h4>
             {!ready ? <Skeleton label="Cargando nombres y alias…" rows={3} />
-              : names.length ? <NameList entries={names} />
-                : <p className="dz-empty">Sin otros nombres registrados.</p>}
+              : <NameList entries={names} />}
           </div>}
 
           {ready && crews.length > 0 && <div className="dz-subsection">
@@ -73,12 +64,12 @@ export default function PlayerDossierFile({
           </div>}
         </div>
 
-        <aside className="dz-identity__media" aria-label="Avatares del jugador">
+        {(loadingIdentity || hasAvatars) && <aside className="dz-identity__media" aria-label="Avatares del jugador">
           {loadingIdentity
             ? <Skeleton label="Cargando avatares…" rows={2} />
             : investigation && <CurrentPlayerAvatars key={`${investigation.rid}:${investigation.nombre}`} investigation={investigation} onOpen={onOpenAvatar} label="Avatares actuales" />}
           {ready && historicalAvatars.length > 0 && <PlayerAvatarHistory avatars={historicalAvatars} playerName={investigation.nombre} onOpen={onOpenAvatar} label="Avatares anteriores" />}
-        </aside>
+        </aside>}
       </div>
     </section>
 
