@@ -191,11 +191,12 @@
   padding: 0;
 }
 
-.dz-file .pbp-current__avatars,
-.dz-file .pbp-avatar-history {
+.dz-file .dz-identity__media .pbp-current__avatars,
+.dz-file .dz-identity__media .pbp-avatar-history {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
+  margin-top: 0;
 }
 
 .dz-file .pbp-current__avatar,

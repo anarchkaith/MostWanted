@@ -66,6 +66,11 @@ export default function PlayerDossierFile({
               : names.length ? <NameList entries={names} />
                 : <p className="dz-empty">Sin otros nombres registrados.</p>}
           </div>}
+
+          {ready && crews.length > 0 && <div className="dz-subsection">
+            <h4 className="dz-label">Crews y afiliaciones</h4>
+            <CrewList entries={crews} />
+          </div>}
         </div>
 
         <aside className="dz-identity__media" aria-label="Avatares del jugador">
@@ -81,13 +86,6 @@ export default function PlayerDossierFile({
       {classification && <div className="dz-section dz-analysis__item">{classification}</div>}
       {verification && <div className="dz-section dz-analysis__item">{verification}</div>}
     </div>}
-
-    {ready && crews.length > 0 && <section className="dz-section" aria-labelledby="dz-crews-title">
-      <header className="dz-section__head">
-        <h3 id="dz-crews-title" className="dz-section__title"><span className="dz-section__index">03</span>Crews y afiliaciones</h3>
-      </header>
-      <CrewList entries={crews} />
-    </section>}
 
     {caseManagement}
   </div>;
