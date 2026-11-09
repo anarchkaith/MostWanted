@@ -270,3 +270,26 @@
 .player-background-panel--dossier .pbp-identity-actions > .mw-cyber-button {
   margin-left: auto;
 }
+
+.player-background-panel--dossier .pbp-content,
+.player-background-panel--dossier .pbp-current,
+.player-background-panel--dossier .pbp-identity-panel,
+.player-background-panel--dossier .pbp-identity-header,
+.player-background-panel--dossier .pbp-current-photos,
+.player-background-panel--dossier .pbp-names-panel,
+.player-background-panel--dossier .pbp-photo-archive,
+.player-background-panel--dossier .pbp-assessment,
+.player-background-panel--dossier .pbp-history,
+.player-background-panel--dossier .pbp-identity-actions {
+  width: 100%;
+  max-width: none;
+  justify-self: stretch;
+  align-self: stretch;
+  box-sizing: border-box;
+  text-align: left;
+}
+
+.player-background-panel--dossier .pbp-current__avatars,
+.player-background-panel--dossier .pbp-avatar-history {
+  justify-content: flex-start;
+}
