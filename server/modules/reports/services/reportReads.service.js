@@ -56,6 +56,14 @@ async function enrichPlayerWithRid(player, { rid = '', username = '' } = {}) {
   };
 }
 
+/**
+ * Datos públicos de un jugador (nombres y avatares externos), sin reportes internos.
+ */
+export async function readPublicPlayerProfile({ username = '', rid = '' } = {}) {
+  const player = await enrichPlayerWithRid(null, { rid, username: username.trim() });
+  return { ok: true, player };
+}
+
 export async function accessReportData({ config, reportId, username = '', rid = '', vote, user, logger = console }) {
   if (!hasWordpressReportsConfig(config)) {
     return { status: 503, payload: { ok: false, error: 'La consulta requiere configurar la integracion con WordPress.' } };

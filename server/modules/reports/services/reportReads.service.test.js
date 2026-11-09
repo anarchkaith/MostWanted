@@ -4,7 +4,7 @@ import express from 'express';
 import { registerReportsRoutes } from '../http/reports.routes.js';
 import { registerExpedientesRoutes } from '../../expedientes/http/expedientes.routes.js';
 import { registerCasesRoutes } from '../../expedientes/http/cases.routes.js';
-import { accessReportData } from './reportReads.service.js';
+import { accessReportData, readPublicPlayerProfile } from './reportReads.service.js';
 import { createCaseReportsSource } from '../../expedientes/services/caseReports.service.js';
 
 const config = { enabled: true, baseUrl: 'https://wordpress.test', apiSecret: 'test-secret', timeoutMs: 1000 };
@@ -101,6 +101,23 @@ test('username-only lookups resolve RID server-side and enrich a player with no 
     assert.equal(result.payload.player.rid, '171334841');
     assert.deepEqual(result.payload.player.names.map(entry => entry.name), ['Magnate-_-420', 'Rorrooh']);
     assert.ok(result.payload.player.avatars.length > 0);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('public lookup returns sc-cache names and avatars without WordPress reports', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const href = String(url);
+    if (href.startsWith('https://sc-cache.com/n/')) return Response.json({ id: 78584080 });
+    if (href.startsWith('https://sc-cache.com/r/')) return Response.json([{ name: 'BetterCallsSaul', time: 1761102672 }]);
+    throw new Error(`Unexpected request: ${href}`);
+  };
+  try {
+    const result = await readPublicPlayerProfile({ username: 'BetterCallsSaul' });
+    assert.equal(result.player.rid, '78584080');
+    assert.deepEqual(result.player.names, [{ name: 'BetterCallsSaul', time: 1761102672 }]);
+    assert.equal(result.player.avatars.length, 2);
+    assert.equal(result.player.reports, undefined);
   } finally { globalThis.fetch = originalFetch; }
 });
 

@@ -72,13 +72,13 @@ export function registerAiRoutes(app, deps) {
     requireNonEmptyBody,
     requireBodyObject,
     mapUpstreamError,
-    getReportesSnapshot,
+    getReportesForAi,
   } = deps;
 
   const ensureAiProviderMiddleware = ensureAiProvider(aiConfig);
 
   app.post('/api/ia-chat', rateLimits.ai, requireAiSession, ensureAiProviderMiddleware, requireNonEmptyBody, enforceAiDailyQuota, withAiErrorHandler(async (req, res) => {
-    const reportes = getReportesSnapshot(rootDir);
+    const reportes = await getReportesForAi();
     const result = await executeChatUseCase({ config: aiConfig, body: req.body, reportes });
     if (!result.ok) {
       return res.status(result.status).json({ error: result.error, details: result.details });
@@ -95,7 +95,7 @@ export function registerAiRoutes(app, deps) {
   }, 'El clasificador de intencion no respondio a tiempo.', 'No se pudo clasificar la consulta.', mapUpstreamError));
 
   app.post('/api/ia-report-correlation', rateLimits.ai, requireAiSession, ensureAiProviderMiddleware, requireNonEmptyBody, enforceAiDailyQuota, withAiErrorHandler(async (req, res) => {
-    const reportes = getReportesSnapshot(rootDir);
+    const reportes = await getReportesForAi();
     const result = await executeReportCorrelationUseCase({ config: aiConfig, body: req.body, reportes });
     if (!result.ok) {
       return res.status(result.status).json({ error: result.error, details: result.details });

@@ -6,7 +6,7 @@ import { canViewPrivateAccounts } from '../../../shared/auth/accountAdmin.js';
 import { getAccountDashboard, parseDashboardQuery } from '../services/accountDashboard.service.js';
 import { searchArchive } from '../services/archiveSearch.service.js';
 import { editReport } from '../services/editReport.service.js';
-import { accessReportData } from '../services/reportReads.service.js';
+import { accessReportData, readPublicPlayerProfile } from '../services/reportReads.service.js';
 
 /**
  * Registra endpoints de salud, alta de reporte y antecedentes por jugador.
@@ -97,6 +97,15 @@ export function registerReportsRoutes(app, deps) {
       config: wordpressReportsConfig, username: req.query.username || '', rid: req.query.rid || '',
     });
     return res.status(result.status).json(result.payload);
+  });
+  app.get('/api/players/public-lookup', rateLimits.general, async (req, res) => {
+    const username = typeof req.query.username === 'string' ? req.query.username.trim() : '';
+    const rid = typeof req.query.rid === 'string' ? req.query.rid : '';
+    if ((!username && !rid) || username.length > 128 || (rid && !/^\d{1,30}$/.test(rid))) {
+      return res.status(400).json({ ok: false, error: 'Indica un nombre o RID valido.' });
+    }
+    const result = await readPublicPlayerProfile({ username, rid });
+    return res.json(result);
   });
   app.get('/api/reports/:id', rateLimits.general, requirePrivateSession, async (req, res) => {
     const result = await accessReportData({ config: wordpressReportsConfig, reportId: req.params.id });

@@ -6,6 +6,7 @@ import session from 'express-session';
 import { createAiConfig } from '../ai/config.js';
 import { createWordpressReportsConfig } from '../reports/wordpressConfig.js';
 import { buildPlayerInsightsWithScCache, getReportesSnapshot } from '../reportes/store.js';
+import { createWordpressReportesSource } from '../reportes/wordpressReportesSource.js';
 import { RATE_LIMITS } from '../middleware/rateLimiter.js';
 import { mapUpstreamError, requireObjectBody } from '../middleware/requestValidation.js';
 import { createMaybeRequireSessionAuth } from '../shared/auth/sessionAuth.js';
@@ -64,6 +65,10 @@ export function createApp({ rootDir, isProduction }) {
     roleIds: new Set(String(process.env.DISCORD_STAFF_ROLE_IDS || '').split(',').map((id) => id.trim()).filter(Boolean)),
   });
   const getCaseReports = createCaseReportsSource({ config: wordpressReportsConfig });
+  const getReportesForAi = createWordpressReportesSource({
+    config: wordpressReportsConfig,
+    fallback: () => getReportesSnapshot(rootDir),
+  });
   const generateCaseSummary = createCaseSummaryGenerator({ config: aiConfig });
   const publishCaseSummary = createCaseSummaryPublisher({ rootDir, config: wordpressReportsConfig });
   const refreshPlayerCase = async ({ nickname, rid, reportId }) => {
@@ -162,6 +167,7 @@ export function createApp({ rootDir, isProduction }) {
     maybeRequireSessionAuth,
     mapUpstreamError,
     getReportesSnapshot,
+    getReportesForAi,
     buildPlayerInsightsWithScCache,
   });
 

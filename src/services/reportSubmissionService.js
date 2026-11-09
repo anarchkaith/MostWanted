@@ -105,6 +105,22 @@ export async function fetchWordpressPlayerInsights({ username = '', rid = '', si
   return payload?.player ?? null;
 }
 
+export async function fetchPublicPlayerLookup({ username = '', rid = '', signal } = {}, buildUrl = buildApiUrl) {
+  const params = new URLSearchParams();
+  if (username) params.set('username', username);
+  if (rid) params.set('rid', String(rid));
+
+  const response = await fetch(buildUrl(`/players/public-lookup?${params}`), {
+    method: 'GET',
+    cache: 'no-store',
+    signal,
+    headers: { Accept: 'application/json' },
+  });
+
+  const payload = await readApiResponse(response, 'No se pudo consultar el perfil público.');
+  return payload?.player ?? null;
+}
+
 export async function submitWordpressCommunityVerificationVote({
   reportId,
   voteType,

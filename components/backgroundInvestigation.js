@@ -1,5 +1,5 @@
 ﻿import { BLOCKED_REPORTED_USERNAME_MESSAGE, isBlockedReportedUsername } from './blockedUsernames';
-import { fetchWordpressPlayerInsights } from '../src/services/reportSubmissionService';
+import { fetchPublicPlayerLookup, fetchWordpressPlayerInsights } from '../src/services/reportSubmissionService';
 import { mergePlayerProfile } from '../src/services/playerProfile';
 
 const CORS_ANYWHERE_BASE_URL = 'https://cors-anywhere.herokuapp.com/';
@@ -22,7 +22,13 @@ function extractPanelAvatarsFromInsights(reportInsights = null) {
 }
 
 async function getPlayerReportInsights({ username, rid = '' }) {
-  return fetchWordpressPlayerInsights({ username, rid, signal: AbortSignal.timeout(12000) });
+  try {
+    return await fetchWordpressPlayerInsights({ username, rid, signal: AbortSignal.timeout(12000) });
+  } catch (error) {
+    // Sin sesión, WordPress no responde: se usa el perfil público (nombres y avatares externos).
+    if (error?.status !== 401) throw error;
+    return fetchPublicPlayerLookup({ username, rid, signal: AbortSignal.timeout(12000) });
+  }
 }
 
 function createHttpStatusError(status) {

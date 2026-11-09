@@ -165,6 +165,16 @@ export async function getWordpressOwnedReports({ config, ownerDiscordId, page, p
   });
 }
 
+export async function getWordpressReportsPage({ config, page, perPage, logger = console }) {
+  const params = new URLSearchParams({ page: String(page), per_page: String(perPage) });
+  return requestWordpressApi({
+    config, logger, method: 'GET',
+    path: `/wp-json/mostwanted/v1/reports?${params}`,
+    operation: 'Reports list',
+    useAuth: true,
+  });
+}
+
 export async function requestWordpressReportEdit({ config, reportId, actor, changes, revision, logger = console }) {
   const path = `/wp-json/mostwanted/v1/reports/${reportId}/edit`;
   return requestWordpressApi({
