@@ -131,12 +131,42 @@
   word-break: break-word;
 }
 
+.wizard-step__button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+
+.wizard-step__button:hover .wizard-step__number {
+  border-color: var(--color-cream);
+}
+
+.wizard-step__button:focus-visible {
+  outline: 2px solid var(--color-red-alert);
+  outline-offset: 4px;
+}
+
+.wizard-step__button:disabled {
+  cursor: default;
+}
+
 .wizard-step__number--active ~ .wizard-step__label {
   color: var(--color-cream);
   font-weight: bold;
 }
 
 /* Encabezado del paso */
+.wizard-step-header__title:focus {
+  outline: none;
+}
+
 .wizard-step-header {
   padding: 24px;
   background: var(--surface-raised);

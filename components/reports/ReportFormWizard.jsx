@@ -12,15 +12,22 @@ import ReportInfractionPreload from './ReportInfractionPreload';
 import SubmitErrorMessage from './SubmitErrorMessage';
 import { applyInfractionSuggestion, removeInfractionSuggestion } from '../../src/services/reportKeywords.js';
 
-function StepIndicator({ currentStep }) {
+function StepIndicator({ currentStep, onSelect, disabled }) {
   return <ol className="wizard-steps" aria-label="Progreso del reporte" style={{ gridTemplateColumns: `repeat(${REPORT_WIZARD_STEPS.length}, 1fr)` }}>
-    {REPORT_WIZARD_STEPS.map((step, index) => <li key={step.id} className="wizard-step"
-      aria-current={currentStep === index ? 'step' : undefined}>
-      <span className={`wizard-step__number${currentStep === index ? ' wizard-step__number--active' : currentStep > index ? ' wizard-step__number--done' : ''}`}>
-        {currentStep > index ? '✓' : index + 1}
-      </span>
-      <span className="wizard-step__label">{step.label}</span>
-    </li>)}
+    {REPORT_WIZARD_STEPS.map((step, index) => {
+      const content = <>
+        <span className={`wizard-step__number${currentStep === index ? ' wizard-step__number--active' : currentStep > index ? ' wizard-step__number--done' : ''}`}>
+          {currentStep > index ? '✓' : index + 1}
+        </span>
+        <span className="wizard-step__label">{step.label}</span>
+      </>;
+      return <li key={step.id} className="wizard-step" aria-current={currentStep === index ? 'step' : undefined}>
+        {currentStep > index
+          ? <button type="button" className="wizard-step__button" disabled={disabled}
+            aria-label={`Volver al paso ${index + 1}: ${step.label}`} onClick={() => onSelect(index)}>{content}</button>
+          : content}
+      </li>;
+    })}
   </ol>;
 }
 
@@ -209,7 +216,7 @@ export default function ReportFormWizard({
         {isDemo && <div className="cyber-banner-short mw-cyber-banner">
           <span><SpecialTextContent><strong>Modo de demostración</strong></SpecialTextContent> Datos de prueba. Los envíos son reales.</span>
         </div>}
-        <StepIndicator currentStep={currentStep} />
+        <StepIndicator currentStep={currentStep} onSelect={goToStep} disabled={isSubmitting || checking} />
         <div className="wizard-step-header">
           <p className="wizard-step-header__progress">Paso {currentStep + 1} de {REPORT_WIZARD_STEPS.length}</p>
           <h3 ref={titleRef} tabIndex={-1} className="wizard-step-header__title">{step.title}</h3>
