@@ -1,5 +1,6 @@
 import { TIPOS_ETIQUETAS } from '../shared/constants/tiposEtiquetas.js';
 import { buildCrewLink } from '../../shared/crewLink.js';
+import { isValidVideoLink, isVideoLinkEvidence, MAX_VIDEO_LINKS, VIDEO_LINK_CONTENT_TYPE } from '../../shared/videoLinks.js';
 
 function toTrimmedString(value) {
   return typeof value === 'string' ? value.trim() : '';
@@ -27,6 +28,7 @@ const ALLOWED_EVIDENCE_CONTENT_TYPES = new Set([
   'video/webm',
   'video/quicktime',
   'video/mov',
+  VIDEO_LINK_CONTENT_TYPE,
 ]);
 
 const ALLOWED_INVESTIGATION_STATUSES = new Set([
@@ -247,13 +249,22 @@ export function validateIncomingReportSubmission(body = {}) {
   const analysis = sanitizeAnalysis(report?.analysis);
   const source = toTrimmedString(body?.source || report?.source) || 'mostwanted-web';
   const rawEvidence = Array.isArray(body?.evidence) ? body.evidence : [];
+  const rawVideoLinkCount = rawEvidence.filter(isVideoLinkEvidence).length;
 
-  // Las evidencias ahora son opcionales (0-5)
-  if (rawEvidence.length > 5) {
+  // Las evidencias ahora son opcionales (0-5 archivos y hasta MAX_VIDEO_LINKS links de video)
+  if (rawEvidence.length - rawVideoLinkCount > 5) {
     return {
       ok: false,
       status: 400,
       error: 'El reporte puede incluir máximo 5 evidencias.',
+    };
+  }
+
+  if (rawVideoLinkCount > MAX_VIDEO_LINKS) {
+    return {
+      ok: false,
+      status: 400,
+      error: `El reporte puede incluir máximo ${MAX_VIDEO_LINKS} links de video.`,
     };
   }
 
@@ -314,6 +325,15 @@ export function validateIncomingReportSubmission(body = {}) {
       ok: false,
       status: 400,
       error: `El contentType ${unsupportedContentType.contentType} no esta soportado.`,
+    };
+  }
+
+  const invalidVideoLink = evidence.find((item) => isVideoLinkEvidence(item) && !isValidVideoLink(item.url));
+  if (invalidVideoLink) {
+    return {
+      ok: false,
+      status: 400,
+      error: 'Los links de video deben ser URLs HTTP o HTTPS.',
     };
   }
 

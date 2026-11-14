@@ -1,5 +1,6 @@
 import { TIPOS_ETIQUETAS } from '../shared/constants/tiposEtiquetas.js';
 import { buildCrewLink } from '../../shared/crewLink.js';
+import { isValidVideoLink, isVideoLinkEvidence, MAX_VIDEO_LINKS } from '../../shared/videoLinks.js';
 
 const MAX_DISCORD_EMBEDS_PER_MESSAGE = 10;
 const MOSTWANTED_WEB_URL = 'https://mostwanted.kaithsrebels.com';
@@ -126,6 +127,10 @@ function buildReasonQuote(text, maxLength = 1024) {
   return truncateText(`>>> ${text}`, maxLength);
 }
 
+function toLinkButton({ label, url, emoji }) {
+  return { type: 2, style: 5, label: truncateText(label, 80), url, emoji: { name: emoji } };
+}
+
 function getWordpressReportFromPlayer(player = {}) {
   const reports = Array.isArray(player?.reports) ? player.reports : [];
   if (reports.length === 0) return null;
@@ -232,6 +237,10 @@ export function buildDiscordReportPayload({ report = {}, reporter = {}, evidence
   if (videoValue) {
     fields.push({ name: '📼 Evidencias de Video', value: videoValue, inline: false });
   }
+  const videoLinkButtons = evidence
+    .filter((item) => isVideoLinkEvidence(item) && isValidVideoLink(item.url))
+    .slice(0, MAX_VIDEO_LINKS)
+    .map((item, index) => toLinkButton({ label: item.name || `Video ${index + 1}`, url: item.url, emoji: '▶️' }));
 
   // Discord agrupa en una galería los embeds de un mismo mensaje que comparten la misma url.
   const galleryEmbeds = galleryImageUrls
@@ -272,8 +281,9 @@ export function buildDiscordReportPayload({ report = {}, reporter = {}, evidence
           { label: 'Aportar información', url: playerUrl, emoji: 'ℹ️' },
           { label: 'Reportar a un jugador', url: `${MOSTWANTED_WEB_URL}/denunciar`, emoji: '🚨' },
           { label: 'Ver lista de reportes', url: `${MOSTWANTED_WEB_URL}/#reportes-lista`, emoji: '📋' },
-        ].map(({ label, url, emoji }) => ({ type: 2, style: 5, label, url, emoji: { name: emoji } })),
+        ].map(toLinkButton),
       },
+      ...(videoLinkButtons.length > 0 ? [{ type: 1, components: videoLinkButtons }] : []),
     ],
     allowed_mentions: { parse: [] },
   };

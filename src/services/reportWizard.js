@@ -5,8 +5,8 @@ export const REPORT_WIZARD_STEPS = [
     id: 'evidence',
     label: 'Pruebas',
     title: 'Cuenta lo que viste',
-    description: 'Explícalo con tus palabras y adjunta capturas si las tienes. Los datos del jugador son opcionales.',
-    fields: ['nickname', 'investigation_status', 'rid', 'crews', 'aliases', 'avatar1', 'avatar2', 'ip', 'time', 'reason', 'evidence'],
+    description: 'Explícalo con tus palabras y adjunta capturas o links de video si los tienes. Los datos del jugador son opcionales.',
+    fields: ['nickname', 'investigation_status', 'rid', 'crews', 'aliases', 'avatar1', 'avatar2', 'ip', 'time', 'reason', 'evidence', 'videoLinks'],
   },
   {
     id: 'infraction',

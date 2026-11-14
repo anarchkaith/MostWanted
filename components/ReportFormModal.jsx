@@ -19,6 +19,7 @@ const initialValues = {
   typesOfInfraction: [],
   reason: '',
   evidence: [],
+  videoLinks: '',
   labels: [],
 };
 

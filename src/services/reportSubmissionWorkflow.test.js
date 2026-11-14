@@ -103,6 +103,29 @@ test('reports without selected evidence remain supported', async () => {
   assert.deepEqual(result.evidence, []);
 });
 
+test('video links are saved as link evidence after uploaded images and never submitted as report fields', async () => {
+  const result = await runReportSubmission({
+    values: { ...values, videoLinks: 'https://youtu.be/abc\n https://www.medal.tv/clip/1  https://youtu.be/abc' },
+    images, upload: async () => evidence,
+    save: async ({ report, evidence: saved }) => {
+      assert.equal('videoLinks' in report, false);
+      assert.deepEqual(saved, [
+        ...evidence,
+        { url: 'https://youtu.be/abc', name: 'Video 1 (youtu.be)', contentType: 'text/uri-list' },
+        { url: 'https://www.medal.tv/clip/1', name: 'Video 2 (medal.tv)', contentType: 'text/uri-list' },
+      ]);
+      return { ok: true };
+    },
+  });
+  assert.equal(result.evidence.length, 3);
+  for (const videoLinks of ['javascript:alert(1)', 'https://a.test/1 https://a.test/2 https://a.test/3 https://a.test/4']) {
+    await assert.rejects(runReportSubmission({
+      values: { ...values, videoLinks }, images: [], upload: async () => [],
+      save: () => assert.fail('Report saved with invalid video links'),
+    }), /links de video/);
+  }
+});
+
 test('Discord and refresh warnings retain confirmed save without repeating upload or save', async () => {
   for (const fails of [false, true]) {
     const warnings = [];

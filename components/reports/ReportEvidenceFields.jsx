@@ -1,8 +1,9 @@
 import { ErrorMessage, Field, useFormikContext } from 'formik';
 import ImageUpload from '../ImageUpload';
 import ReasonImproveButton from './ReasonImproveButton';
+import { MAX_VIDEO_LINKS } from '../../shared/videoLinks.js';
 
-export default function ReportEvidenceFields({ imageUploadRef, onImagesChange, onBlockedChange, existingEvidence, maxImages = 5, maxReasonLength = 500 }) {
+export default function ReportEvidenceFields({ imageUploadRef, onImagesChange, onBlockedChange, existingEvidence, maxImages = 5, maxReasonLength = 500, showVideoLinks = false }) {
   const { values, errors, touched, isSubmitting } = useFormikContext();
   return <div className="rfm-motivo-row">
     <div className="rfm-panel mw-cyber-panel" style={{ display: 'flex', flexDirection: 'column' }}>
@@ -30,6 +31,16 @@ export default function ReportEvidenceFields({ imageUploadRef, onImagesChange, o
         {maxImages > 0
           ? <ImageUpload ref={imageUploadRef} onImagesChange={onImagesChange} onBlockedChange={onBlockedChange} maxImages={maxImages} globalPaste={false} disabled={isSubmitting} />
           : <p className="rfm-note">Quita una evidencia guardada para añadir otra.</p>}
+        {showVideoLinks && <div className="form-group" style={{ marginTop: '0.75rem', marginBottom: 0 }}>
+          <label htmlFor="videoLinks" className="form-group__label">Links de video <span className="rfm-optional">Hasta {MAX_VIDEO_LINKS}</span></label>
+          <div className="cyber-input-full mw-cyber-input">
+            <Field as="textarea" id="videoLinks" name="videoLinks" rows={2} disabled={isSubmitting}
+              aria-invalid={Boolean(touched.videoLinks && errors.videoLinks)} aria-describedby="videoLinks-hint"
+              className="form-group__textarea" placeholder={'https://youtu.be/...\nhttps://medal.tv/...'} style={{ resize: 'vertical' }} />
+          </div>
+          <span id="videoLinks-hint" className="form-group__hint">YouTube, Medal, Streamable u otro sitio. Uno por línea.</span>
+          <ErrorMessage name="videoLinks" component="span" className="form-group__hint" style={{ color: '#ff3333', display: 'block' }} />
+        </div>}
       </div>
     </div>
   </div>;

@@ -4,7 +4,7 @@ Plataforma comunitaria de reportes para rastrear jugadores tóxicos (modders, gr
 
 ## Características principales
 
-- **Reportes con evidencia**: formulario completo con nickname, crew, alias, RID, IP, tipo de infracción, nivel de corrupción e imágenes de prueba subidas a ImgBB.
+- **Reportes con evidencia**: formulario completo con nickname, crew, alias, RID, IP, tipo de infracción, nivel de corrupción e imágenes de prueba subidas a ImgBB, más hasta 3 links de video (YouTube, Medal, etc.).
 - **Sistema de votos comunitario**: la comunidad puede validar o rechazar reportes mediante upvotes/downvotes.
 - **Perfiles por jugador**: URL directa por nombre exacto (`/jugador/{nickname}`), conservando mayúsculas y guiones bajos, con historial completo de reportes.
 - **Asistente IA**: chat integrado (gateway de IA de H.E.X.; Ollama local opcional) para consultar rankings, estadísticas, correlaciones y análisis tácticos sobre los reportes.
@@ -347,6 +347,8 @@ El mensaje incluye una fila de botones de enlace (componentes `type: 2`, `style:
 - **Ver lista de reportes**: abre `https://mostwanted.kaithsrebels.com/#reportes-lista`.
 
 El **nombre del jugador** sigue siendo el título del embed y abre su perfil en Rockstar Social Club.
+
+Si el reporte trae links de video (hasta 3, campo «Links de video» del formulario), se agregan como una segunda fila de botones de enlace «▶️ Video N (sitio)». Se guardan en `evidence` con `contentType: 'text/uri-list'` (ver [shared/videoLinks.js](shared/videoLinks.js)) y no cuentan para el límite de 5 imágenes; en la web se muestran como enlaces y nunca como imagen.
 
 Los webhooks normales (no creados por una aplicación) ignoran `components` salvo que la URL lleve `?with_components=true`, y aun así solo aceptan componentes no interactivos. Por eso el backend agrega ese parámetro al enviar y usa únicamente botones de enlace (`style: 5`, con `url` y sin `custom_id`); un botón con `url` y otro estilo hace que Discord responda 400 `{"components":["0"]}`. Votar desde Discord no está disponible; el voto se hace en la web. Las vistas previas automáticas de enlaces compartidos (Open Graph) no admiten botones.
 

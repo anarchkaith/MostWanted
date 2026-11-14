@@ -1,5 +1,6 @@
 ﻿import * as Yup from 'yup';
 import { BLOCKED_REPORTED_USERNAME_MESSAGE, isBlockedReportedUsername } from './blockedUsernames';
+import { MAX_VIDEO_LINKS, parseVideoLinks } from '../shared/videoLinks.js';
 
 export const reportFormValidationSchema = Yup.object({
   investigation_status: Yup.string()
@@ -72,6 +73,11 @@ export const reportFormValidationSchema = Yup.object({
     .required('El motivo es obligatorio'),
 
   evidence: Yup.array().default([]),
+
+  videoLinks: Yup.string()
+    .nullable()
+    .test('video-links-valid', 'Usa links de video HTTP o HTTPS válidos, uno por línea.', value => parseVideoLinks(value).invalid.length === 0)
+    .test('video-links-max', `Puedes añadir hasta ${MAX_VIDEO_LINKS} links de video.`, value => parseVideoLinks(value).links.length <= MAX_VIDEO_LINKS),
 
   labels: Yup.array(),
 });

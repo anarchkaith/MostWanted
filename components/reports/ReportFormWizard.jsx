@@ -11,6 +11,7 @@ import ReportEvidenceFields from './ReportEvidenceFields';
 import ReportInfractionPreload from './ReportInfractionPreload';
 import SubmitErrorMessage from './SubmitErrorMessage';
 import { applyInfractionSuggestion, removeInfractionSuggestion } from '../../src/services/reportKeywords.js';
+import { parseVideoLinks } from '../../shared/videoLinks.js';
 
 function StepIndicator({ currentStep, onSelect, disabled }) {
   return <ol className="wizard-steps" aria-label="Progreso del reporte" style={{ gridTemplateColumns: `repeat(${REPORT_WIZARD_STEPS.length}, 1fr)` }}>
@@ -42,6 +43,7 @@ function ReviewDialog({ open, values, images, isSubmitting, onEdit, onConfirm, c
 
   const categories = values.typesOfInfraction.map(key => TIPOS_ETIQUETAS.find(type => type.key === key)?.nombre || key);
   const optional = [['RID', values.rid], ['Crews', values.crews], ['Otros nombres', values.aliases]].filter(([, value]) => value);
+  const videoLinkCount = parseVideoLinks(values.videoLinks).links.length;
   return <dialog ref={dialogRef} className="wizard-review-dialog" aria-labelledby="wizard-review-title"
     onCancel={event => { event.preventDefault(); if (!isSubmitting) onEdit(); }}>
     {open && <div className="wizard-review-dialog__panel">
@@ -64,7 +66,8 @@ function ReviewDialog({ open, values, images, isSubmitting, onEdit, onConfirm, c
         <div className="wizard-review__row"><dt>Lo que pasó</dt><dd className="wizard-review__reason">{values.reason}</dd></div>
         <div className="wizard-review__row">
           <dt>Pruebas</dt>
-          <dd>{images.length ? `${images.length} ${images.length === 1 ? 'imagen adjunta' : 'imágenes adjuntas'}` : <span className="wizard-review__warn">Sin imágenes · tu reporte tendrá menos peso</span>}</dd>
+          <dd>{images.length ? `${images.length} ${images.length === 1 ? 'imagen adjunta' : 'imágenes adjuntas'}` : <span className="wizard-review__warn">Sin imágenes · tu reporte tendrá menos peso</span>}
+            {videoLinkCount > 0 && <> · {videoLinkCount} {videoLinkCount === 1 ? 'link de video' : 'links de video'}</>}</dd>
         </div>
       </dl>
       <footer className="wizard-review-dialog__footer">
@@ -238,6 +241,7 @@ export default function ReportFormWizard({
               <ReportAdditionalDetails variant="inline" ridLocked={ridLocked} />
             </ReportPlayerIdentity>
             <ReportEvidenceFields imageUploadRef={imageUploadRef} onImagesChange={onImagesChange}
+              showVideoLinks
               onBlockedChange={onEvidenceBlockedChange} />
           </div>
           <div className="wizard-section" hidden={currentStep !== REPORT_INFRACTION_STEP}>

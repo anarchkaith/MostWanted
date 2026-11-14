@@ -262,6 +262,24 @@ runTest('buildDiscordReportPayload enlaza el nombre al perfil y muestra los enla
   assert.deepEqual(payload.allowed_mentions, { parse: [] });
 });
 
+runTest('los links de video se validan aparte de los archivos y se muestran como botones en Discord', () => {
+  const link = (url) => ({ url, name: 'Video 1 (youtu.be)', contentType: 'text/uri-list' });
+  const images = Array.from({ length: 5 }, (_, index) => ({ url: `https://i.test/${index}.png`, name: `img${index}`, contentType: 'image/png' }));
+  const body = (evidence) => ({ report: { nickname: 'Player', reason: 'Motivo documentado', investigation_status: 'not_found' }, evidence });
+
+  const accepted = validateIncomingReportSubmission(body([...images, link('https://youtu.be/abc')]));
+  assert.equal(accepted.ok, true);
+  assert.equal(validateIncomingReportSubmission(body(['1', '2', '3', '4'].map((id) => link(`https://youtu.be/${id}`)))).ok, false);
+  assert.equal(validateIncomingReportSubmission(body([link('javascript:alert(1)')])).ok, false);
+
+  const payload = buildDiscordReportPayload({ report: { id: 5, nickname: 'Player', reason: 'Motivo' }, evidence: accepted.value.evidence });
+  assert.equal(payload.components.length, 2);
+  assert.deepEqual(payload.components[1].components, [
+    { type: 2, style: 5, label: 'Video 1 (youtu.be)', url: 'https://youtu.be/abc', emoji: { name: '▶️' } },
+  ]);
+  assert.equal(payload.embeds.some((embed) => embed.image?.url === 'https://youtu.be/abc'), false);
+});
+
 await runAsyncTest('sendReportToDiscordWebhook pide a Discord respetar los botones con with_components', async () => {
   const previous = process.env.DISCORD_WEBHOOK_URL;
   process.env.DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1/token?wait=true';

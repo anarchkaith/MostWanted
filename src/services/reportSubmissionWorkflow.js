@@ -1,6 +1,12 @@
+import { buildVideoLinkEvidence, MAX_VIDEO_LINKS, parseVideoLinks } from '../../shared/videoLinks.js';
+
 export async function runReportSubmission({ values, images, apiKey, user, upload, save, onSaved, logger = console }) {
   const report = { ...values, nickname: String(values.nickname || '').trim() };
   delete report.evidence;
+  delete report.videoLinks;
+  const { links: videoLinks, invalid: invalidVideoLinks } = parseVideoLinks(values.videoLinks);
+  if (invalidVideoLinks.length > 0) throw new Error('Revisa los links de video: deben ser URLs HTTP o HTTPS.');
+  if (videoLinks.length > MAX_VIDEO_LINKS) throw new Error(`Puedes añadir hasta ${MAX_VIDEO_LINKS} links de video.`);
   const reporter = { id: user?.id || '', name: user?.username || 'Anónimo', email: user?.email || '' };
   
   // Primero validar y subir evidencias (solo si hay)
@@ -40,6 +46,7 @@ export async function runReportSubmission({ values, images, apiKey, user, upload
   }
   
   // Ahora sí, guardar el reporte con las evidencias verificadas
+  evidence = [...evidence, ...buildVideoLinkEvidence(videoLinks)];
   const result = await save({ report, reporter, evidence });
   
   let warning = result.warning || '';
