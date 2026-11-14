@@ -280,7 +280,6 @@ export function buildDiscordReportPayload({ report = {}, reporter = {}, evidence
           { label: reportUrl === MOSTWANTED_WEB_URL ? 'Ver reportes en la web' : 'Ver reporte y votar', url: reportUrl, emoji: '🗳️' },
           { label: 'Aportar información', url: playerUrl, emoji: 'ℹ️' },
           { label: 'Reportar a un jugador', url: `${MOSTWANTED_WEB_URL}/denunciar`, emoji: '🚨' },
-          { label: 'Ver lista de reportes', url: `${MOSTWANTED_WEB_URL}/#reportes-lista`, emoji: '📋' },
         ].map(toLinkButton),
       },
       ...(videoLinkButtons.length > 0 ? [{ type: 1, components: videoLinkButtons }] : []),

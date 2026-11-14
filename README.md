@@ -344,7 +344,6 @@ El mensaje incluye una fila de botones de enlace (componentes `type: 2`, `style:
 - **Ver reporte y votar**: abre `https://mostwanted.kaithsrebels.com/reporte/<id>`. Si el login es necesario, la web vuelve a esa ruta después de iniciar sesión. Sin un ID válido el botón dice «Ver reportes en la web» y abre la web general, no un reporte inexistente.
 - **Aportar información**: abre la ficha del jugador (`/jugador/<nickname>`) para usar «Registrar reporte».
 - **Reportar a un jugador**: abre `/denunciar`, el formulario de reporte de la web.
-- **Ver lista de reportes**: abre `https://mostwanted.kaithsrebels.com/#reportes-lista`.
 
 El **nombre del jugador** sigue siendo el título del embed y abre su perfil en Rockstar Social Club.
 
