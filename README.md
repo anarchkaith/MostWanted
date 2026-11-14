@@ -339,16 +339,16 @@ npm run test:reports
 
 Cuando se envía un reporte, el backend publica un embed en Discord con la ficha del jugador: apodo, crews, estado, RID (oculto como spoiler), aliases (solo si son distintos del apodo), etiquetas, tipos de infracción, motivo y "Evidencias de Video" (solo si hay evidencias de video). Las imágenes van en una galería de embeds que comparten la misma URL, y las etiquetas se muestran en texto pequeño (`-# `).
 
-El mensaje incluye enlaces dentro del embed, sin depender de componentes o botones:
+El mensaje incluye una fila de botones de enlace (componentes `type: 2`, `style: 5`) debajo del embed:
 
-- **Ver reporte y votar**: aparece debajo del encabezado «Reporte de jugador» y abre `https://mostwanted.kaithsrebels.com/reporte/<id>`. Si el login es necesario, la web vuelve a esa ruta después de iniciar sesión. Sin un ID válido se muestra un enlace general a la web, no a un reporte inexistente.
-- **Nombre del jugador**: es el título del embed y abre su perfil en Rockstar Social Club.
-- **Reportar a un jugador**: abre `https://mostwanted.kaithsrebels.com/#reportar`, que lleva directo al formulario de reporte de la web.
+- **Ver reporte y votar**: abre `https://mostwanted.kaithsrebels.com/reporte/<id>`. Si el login es necesario, la web vuelve a esa ruta después de iniciar sesión. Sin un ID válido el botón dice «Ver reportes en la web» y abre la web general, no un reporte inexistente.
+- **Aportar información**: abre la ficha del jugador (`/jugador/<nickname>`) para usar «Registrar reporte».
+- **Reportar a un jugador**: abre `/denunciar`, el formulario de reporte de la web.
 - **Ver lista de reportes**: abre `https://mostwanted.kaithsrebels.com/#reportes-lista`.
 
-Los webhooks normales de Discord pueden ignorar `components`; los enlaces Markdown del embed no requieren bot. Votar desde Discord no está disponible; el voto se hace en la web.
+El **nombre del jugador** sigue siendo el título del embed y abre su perfil en Rockstar Social Club.
 
-El webhook incluye **Aportar información sobre este jugador**, que abre su ficha para usar «Registrar reporte», **Reportar a un jugador**, que abre `/denunciar`, y **Ver reporte y votar** para el reporte concreto. Las vistas previas automaticas de enlaces compartidos no admiten botones personalizados desde Open Graph. Los botones reales en mensajes requieren una integracion compatible con componentes (bot o webhook de aplicacion); no se simulan botones en la imagen ni se agregan componentes que el webhook actual pueda ignorar.
+Los webhooks normales (no creados por una aplicación) ignoran `components` salvo que la URL lleve `?with_components=true`, y aun así solo aceptan componentes no interactivos. Por eso el backend agrega ese parámetro al enviar y usa únicamente botones de enlace (`style: 5`, con `url` y sin `custom_id`); un botón con `url` y otro estilo hace que Discord responda 400 `{"components":["0"]}`. Votar desde Discord no está disponible; el voto se hace en la web. Las vistas previas automáticas de enlaces compartidos (Open Graph) no admiten botones.
 
 El envío de notificaciones está limitado por `DISCORD_WEBHOOK_MIN_INTERVAL_MS` (por defecto 45 segundos).
 

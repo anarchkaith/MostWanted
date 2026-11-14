@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { buildWordpressReportPayload } from './payload.js';
 import { validateIncomingReportSubmission } from './validation.js';
-import { buildDiscordReportPayload } from './discordReportEmbed.js';
+import { buildDiscordReportPayload, sendReportToDiscordWebhook } from './discordReportEmbed.js';
 import { buildDiscordAvatarUrl, attachSessionAvatarToReporter } from '../shared/auth/discordAvatar.js';
 import { TIPOS_ETIQUETAS } from '../../components/tiposEtiquetas.js';
 
@@ -25,6 +25,16 @@ function findLabelIdByName(name = '') {
 function runTest(name, fn) {
   try {
     fn();
+    console.log(`PASS ${name}`);
+  } catch (error) {
+    console.error(`FAIL ${name}`);
+    throw error;
+  }
+}
+
+async function runAsyncTest(name, fn) {
+  try {
+    await fn();
     console.log(`PASS ${name}`);
   } catch (error) {
     console.error(`FAIL ${name}`);
@@ -197,7 +207,7 @@ runTest('buildDiscordReportPayload agrupa RID, crews e infracciones como campos 
 
   const fields = payload.embeds[0].fields;
   assert.deepEqual(fields.slice(0, 3), [
-    { name: 'RID', value: '123', inline: true },
+    { name: 'RID', value: '||123||', inline: true },
     { name: '👥 Crews', value: '[Crew Uno](https://socialclub.rockstargames.com/crew/crew_uno)', inline: true },
     { name: '🚥 Tipos de infraccion', value: 'Modder', inline: true },
   ]);
@@ -230,7 +240,7 @@ runTest('crews conserva la URL de Social Club en WordPress y Discord', () => {
   assert.equal(payload.embeds[0].fields.find(field => field.name.includes('Crews')).inline, true);
 });
 
-runTest('buildDiscordReportPayload enlaza el nombre al perfil y el reporte desde el embed sin componentes', () => {
+runTest('buildDiscordReportPayload enlaza el nombre al perfil y muestra los enlaces como botones', () => {
   const payload = buildDiscordReportPayload({
     report: { id: 5, nickname: 'Jugador123', rid: '123', reason: 'Motivo', typesOfInfraction: [], labels: [], time: Date.now() },
     reporter: { name: 'Kaith' },
@@ -238,11 +248,35 @@ runTest('buildDiscordReportPayload enlaza el nombre al perfil y el reporte desde
   const embed = payload.embeds[0];
   assert.equal(embed.title, 'Jugador123');
   assert.equal(embed.url, 'https://socialclub.rockstargames.com/members/Jugador123/');
-  assert.equal(embed.description, '**Reporte de jugador**\n[Ver reporte y votar](https://mostwanted.kaithsrebels.com/reporte/5)');
-  assert.equal(embed.fields.find(({ name }) => name.includes('Enlaces')).value,
-    '[Aportar información sobre este jugador](https://mostwanted.kaithsrebels.com/jugador/Jugador123)\n[Reportar a un jugador](https://mostwanted.kaithsrebels.com/denunciar)\n[Ver lista de reportes](https://mostwanted.kaithsrebels.com/#reportes-lista)');
-  assert.equal(Object.hasOwn(payload, 'components'), false);
+  assert.equal(embed.description, '**Reporte de jugador**');
+  assert.equal(embed.fields.some(({ name }) => name.includes('Enlaces')), false);
+  const [row] = payload.components;
+  assert.equal(row.type, 1);
+  assert.ok(row.components.every((button) => button.type === 2 && button.style === 5 && !('custom_id' in button)));
+  assert.deepEqual(row.components.map(({ label, url }) => [label, url]), [
+    ['Ver reporte y votar', 'https://mostwanted.kaithsrebels.com/reporte/5'],
+    ['Aportar información', 'https://mostwanted.kaithsrebels.com/jugador/Jugador123'],
+    ['Reportar a un jugador', 'https://mostwanted.kaithsrebels.com/denunciar'],
+    ['Ver lista de reportes', 'https://mostwanted.kaithsrebels.com/#reportes-lista'],
+  ]);
   assert.deepEqual(payload.allowed_mentions, { parse: [] });
+});
+
+await runAsyncTest('sendReportToDiscordWebhook pide a Discord respetar los botones con with_components', async () => {
+  const previous = process.env.DISCORD_WEBHOOK_URL;
+  process.env.DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1/token?wait=true';
+  let calledUrl = '';
+  try {
+    const result = await sendReportToDiscordWebhook(
+      { report: { id: 5, nickname: 'Jugador123', reason: 'Motivo' } },
+      { fetchImpl: async (url) => { calledUrl = url; return { ok: true, status: 204 }; } },
+    );
+    assert.equal(result.ok, true);
+  } finally {
+    if (previous === undefined) delete process.env.DISCORD_WEBHOOK_URL;
+    else process.env.DISCORD_WEBHOOK_URL = previous;
+  }
+  assert.equal(calledUrl, 'https://discord.com/api/webhooks/1/token?wait=true&with_components=true');
 });
 
 runTest('buildDiscordReportPayload codifica el perfil y conserva la URL compartida de la galeria', () => {
@@ -252,7 +286,7 @@ runTest('buildDiscordReportPayload codifica el perfil y conserva la URL comparti
   });
   assert.equal(payload.embeds[0].title, 'Jugador #1');
   assert.equal(payload.embeds[0].url, 'https://socialclub.rockstargames.com/members/Jugador%20%231/');
-  assert.match(payload.embeds[0].description, /\/reporte\/42\)/);
+  assert.equal(payload.components[0].components[0].url, 'https://mostwanted.kaithsrebels.com/reporte/42');
   assert.equal(payload.embeds.length, 2);
   assert.equal(payload.embeds[1].url, payload.embeds[0].url);
   assert.equal(payload.embeds[1].image.url, 'https://example.com/evidence.png');
@@ -262,8 +296,10 @@ runTest('buildDiscordReportPayload respeta el limite del titulo y no inventa enl
   for (const id of [undefined, 0, -1, 'invalido', 1.5]) {
     const payload = buildDiscordReportPayload({ report: { id, nickname: 'a'.repeat(300), time: Date.now() } });
     assert.equal(payload.embeds[0].title.length, 256);
-    assert.equal(payload.embeds[0].description,
-      '**Reporte de jugador**\n[Ver reportes en la web](https://mostwanted.kaithsrebels.com)');
+    assert.deepEqual(
+      [payload.components[0].components[0].label, payload.components[0].components[0].url],
+      ['Ver reportes en la web', 'https://mostwanted.kaithsrebels.com'],
+    );
   }
 });
 

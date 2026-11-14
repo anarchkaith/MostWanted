@@ -216,7 +216,7 @@ export function buildDiscordReportPayload({ report = {}, reporter = {}, evidence
   const rid = toDisplayText(report.rid);
 
   const fields = [];
-  if (rid) fields.push({ name: 'RID', value: truncateText(rid, 1024), inline: true });
+  if (rid) fields.push({ name: 'RID', value: `||${truncateText(rid.replace(/\|/g, ''), 1020)}||`, inline: true });
   if (crewValue) fields.push({ name: '👥 Crews', value: crewValue, inline: true });
   if (infractions.length > 0) {
     fields.push({ name: '🚥 Tipos de infraccion', value: truncateText(infractions.join(', '), 1024), inline: true });
@@ -232,11 +232,6 @@ export function buildDiscordReportPayload({ report = {}, reporter = {}, evidence
   if (videoValue) {
     fields.push({ name: '📼 Evidencias de Video', value: videoValue, inline: false });
   }
-  fields.push({
-    name: '🔗 Enlaces',
-    value: `[Aportar información sobre este jugador](${playerUrl})\n[Reportar a un jugador](${MOSTWANTED_WEB_URL}/denunciar)\n[Ver lista de reportes](${MOSTWANTED_WEB_URL}/#reportes-lista)`,
-    inline: false,
-  });
 
   // Discord agrupa en una galería los embeds de un mismo mensaje que comparten la misma url.
   const galleryEmbeds = galleryImageUrls
@@ -255,7 +250,7 @@ export function buildDiscordReportPayload({ report = {}, reporter = {}, evidence
           ...(reporterAvatarUrl ? { icon_url: reporterAvatarUrl } : {}),
         },
         title: truncateText(toTrimmedString(report.nickname), 256),
-        description: `**Reporte de jugador**\n[${reportUrl === MOSTWANTED_WEB_URL ? 'Ver reportes en la web' : 'Ver reporte y votar'}](${reportUrl})`,
+        description: '**Reporte de jugador**',
         url: profileUrl,
         color: embedColor,
         fields,
@@ -267,6 +262,18 @@ export function buildDiscordReportPayload({ report = {}, reporter = {}, evidence
         timestamp: new Date(normalizeTimestamp(report.time)).toISOString(),
       },
       ...galleryEmbeds,
+    ],
+    // Los webhooks normales solo aceptan botones de enlace (style 5) y requieren ?with_components=true.
+    components: [
+      {
+        type: 1,
+        components: [
+          { label: reportUrl === MOSTWANTED_WEB_URL ? 'Ver reportes en la web' : 'Ver reporte y votar', url: reportUrl, emoji: '🗳️' },
+          { label: 'Aportar información', url: playerUrl, emoji: 'ℹ️' },
+          { label: 'Reportar a un jugador', url: `${MOSTWANTED_WEB_URL}/denunciar`, emoji: '🚨' },
+          { label: 'Ver lista de reportes', url: `${MOSTWANTED_WEB_URL}/#reportes-lista`, emoji: '📋' },
+        ].map(({ label, url, emoji }) => ({ type: 2, style: 5, label, url, emoji: { name: emoji } })),
+      },
     ],
     allowed_mentions: { parse: [] },
   };
@@ -313,9 +320,20 @@ export async function sendDiscordReportForWordpressPlayer({
   return postDiscordPayload({ webhookUrl, payload: buildDiscordReportPayload(source), fetchImpl });
 }
 
+function withComponentsQuery(webhookUrl, payload) {
+  if (!Array.isArray(payload?.components) || payload.components.length === 0) return webhookUrl;
+  try {
+    const url = new URL(webhookUrl);
+    url.searchParams.set('with_components', 'true');
+    return url.toString();
+  } catch {
+    return webhookUrl;
+  }
+}
+
 async function postDiscordPayload({ webhookUrl, payload, fetchImpl }) {
   try {
-    const response = await fetchImpl(webhookUrl, {
+    const response = await fetchImpl(withComponentsQuery(webhookUrl, payload), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
