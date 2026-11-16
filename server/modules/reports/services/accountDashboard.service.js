@@ -1,6 +1,9 @@
 import { getWordpressAccounts } from '../../../reports/wordpressClient.js';
 
 const RECENT_MS = 5 * 60 * 1000;
+// Dirección por defecto de cada columna ordenable cuando el cliente no pide una explícita
+// (clic en encabezado de tabla o selector "Ordenar"); conserva el orden histórico por columna.
+export const SORT_DEFAULT_DIR = { lastAccess: 'desc', reports: 'desc', name: 'asc', firstAccess: 'desc', presence: 'desc' };
 
 export function parseDashboardQuery(query) {
   const integer = (key, fallback) => {
@@ -13,11 +16,13 @@ export function parseDashboardQuery(query) {
   const maxReports = integer('maxReports', Number.MAX_SAFE_INTEGER);
   const status = query.status ?? 'all';
   const sort = query.sort ?? 'lastAccess';
+  const dir = query.dir ?? SORT_DEFAULT_DIR[sort];
   const search = query.search ?? '';
   if (page < 1 || minReports > maxReports || typeof search !== 'string' || search.length > 200
       || !['all', 'recent', 'session', 'offline'].includes(status)
-      || !['lastAccess', 'reports', 'name', 'firstAccess'].includes(sort)) throw new Error('invalid_filters');
-  return { page, minReports, maxReports, status, sort, search: search.trim().toLocaleLowerCase('es') };
+      || !Object.keys(SORT_DEFAULT_DIR).includes(sort)
+      || !['asc', 'desc'].includes(dir)) throw new Error('invalid_filters');
+  return { page, minReports, maxReports, status, sort, dir, search: search.trim().toLocaleLowerCase('es') };
 }
 
 export async function readActiveSessions(store, now) {
@@ -52,7 +57,7 @@ export async function getAccountDashboard({ config, sessionStore, filters, now =
       if (!/^\d+$/.test(item?.identity?.id) || !Array.isArray(item.reportIds)
           || item.reportIds.some(id => !Number.isSafeInteger(id) || id < 1)
           || !Number.isSafeInteger(item.reportCount) || item.reportCount < item.reportIds.length
-          || !Number.isSafeInteger(item.loginCount) || item.loginCount < 0
+          || !Array.isArray(item.loginHistory) || item.loginHistory.some(moment => typeof moment !== 'string' || !Number.isFinite(Date.parse(moment)))
           || accounts.has(item.identity.id)) throw new Error('invalid_private_accounts_response_update_plugin');
       const sessions = byUser.get(item.identity.id) || [];
       accounts.set(item.identity.id, {
@@ -89,11 +94,21 @@ export async function getAccountDashboard({ config, sessionStore, filters, now =
     return matchesText && matchesStatus && item.reportCount >= filters.minReports && item.reportCount <= filters.maxReports;
   });
   const date = value => Date.parse(value) || 0;
+  const presenceScore = item => (item.recentlyActive ? 2 : item.sessionCount > 0 ? 1 : 0);
+  const sortValue = item => {
+    switch (filters.sort) {
+      case 'reports': return item.reportCount;
+      case 'name': return (item.identity.globalName || item.identity.username || '').toLocaleLowerCase('es');
+      case 'firstAccess': return date(item.firstAccess);
+      case 'presence': return presenceScore(item);
+      default: return date(item.lastAccess);
+    }
+  };
+  const dirSign = filters.dir === 'asc' ? 1 : -1;
   items.sort((a, b) => {
-    const order = filters.sort === 'reports' ? b.reportCount - a.reportCount
-      : filters.sort === 'name' ? (a.identity.globalName || a.identity.username || '').localeCompare(b.identity.globalName || b.identity.username || '', 'es')
-      : filters.sort === 'firstAccess' ? date(b.firstAccess) - date(a.firstAccess)
-      : date(b.lastAccess) - date(a.lastAccess);
+    const valueA = sortValue(a);
+    const valueB = sortValue(b);
+    const order = typeof valueA === 'string' ? dirSign * valueA.localeCompare(valueB, 'es') : dirSign * (valueA - valueB);
     return order || a.identity.id.localeCompare(b.identity.id);
   });
   const offset = (filters.page - 1) * 20;

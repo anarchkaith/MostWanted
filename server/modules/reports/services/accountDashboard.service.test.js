@@ -8,7 +8,7 @@ const now = Date.parse('2026-11-03T20:00:00Z');
 const iso = offset => new Date(now + offset).toISOString();
 const account = (id, reportCount = 0) => ({
   identity: { id: String(id), username: `User${id}`, globalName: `Name${id}`, email: `${id}@example.test` },
-  reportIds: reportCount ? [Number(id)] : [], reportCount, loginCount: 2,
+  reportIds: reportCount ? [Number(id)] : [], reportCount, loginHistory: [iso(-10000), iso(-20000)],
   firstAccess: iso(-100000), lastAccess: iso(-Number(id) * 1000), lastLogin: iso(-10000), lastEvent: 'active',
 });
 const activeSession = (id, activity = 0, expires = 60000) => ({
@@ -69,9 +69,20 @@ test('filters globally before pagination and keeps global statistics unfiltered'
   assert.equal((await dashboard({ page: '4' }, { readAccounts })).items.length, 0);
 });
 
+test('sorts by presence and supports reversing the default direction per column', async () => {
+  const byPresence = await dashboard({ sort: 'presence' });
+  assert.deepEqual(byPresence.items.map(item => item.identity.id), ['1', '2', '3']);
+  const byPresenceAsc = await dashboard({ sort: 'presence', dir: 'asc' });
+  assert.deepEqual(byPresenceAsc.items.map(item => item.identity.id), ['3', '2', '1']);
+  const byReportsAsc = await dashboard({ sort: 'reports', dir: 'asc' });
+  assert.deepEqual(byReportsAsc.items.map(item => item.identity.id), ['3', '2', '1']);
+  const byNameDesc = await dashboard({ sort: 'name', dir: 'desc' });
+  assert.deepEqual(byNameDesc.items.map(item => item.identity.id), ['3', '2', '1']);
+});
+
 test('rejects invalid filters, old plugin responses and failed upstream/session stores', async () => {
   for (const query of [{ page: '0' }, { page: '2.5' }, { page: [] }, { minReports: '-1' },
-    { minReports: '3', maxReports: '2' }, { status: 'fake' }, { search: ['a'] }, { sort: 'fake' }]) {
+    { minReports: '3', maxReports: '2' }, { status: 'fake' }, { search: ['a'] }, { sort: 'fake' }, { dir: 'fake' }]) {
     assert.throws(() => parseDashboardQuery(query), /invalid_filters/);
   }
   for (const payload of [

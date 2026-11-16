@@ -13,7 +13,7 @@ globalThis.fetch = async (url, options) => {
   calls++;
   assert.match(url, /accounts\/private\?page=1$/);
   assert.ok(options.headers.Authorization);
-  return new Response(JSON.stringify({ ok: true, items: [{ identity: { id: '123', email: 'private@test' }, reportIds: [7], reportCount: 70, loginCount: 1 }], hasMore: false }));
+  return new Response(JSON.stringify({ ok: true, items: [{ identity: { id: '123', email: 'private@test' }, reportIds: [7], reportCount: 70, loginHistory: ['2026-01-01T00:00:00.000Z'] }], hasMore: false }));
 };
 async function request(user, query = {}) {
   const res = { code: 200, headers: {}, set(k, v) { this.headers[k] = v; return this; },

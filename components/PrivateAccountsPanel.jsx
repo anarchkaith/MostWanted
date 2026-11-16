@@ -10,8 +10,17 @@ import Skeleton from './ui/Skeleton';
 import Modal from './ui/Modal';
 import '../styles/AdminDashboard.css';
 
-const INITIAL_FILTERS = { search: '', status: 'all', minReports: '', maxReports: '', sort: 'lastAccess' };
+const INITIAL_FILTERS = { search: '', status: 'all', minReports: '', maxReports: '', sort: 'lastAccess', dir: '' };
 const displayDate = value => value ? formatCaseDate(value, true) : 'Sin registro';
+// Debe reflejar SORT_DEFAULT_DIR del backend (server/modules/reports/services/accountDashboard.service.js)
+// para que la flecha de orden mostrada coincida con el orden real al cargar o cambiar de columna.
+const SORT_DEFAULT_DIR = { lastAccess: 'desc', reports: 'desc', name: 'asc', firstAccess: 'desc', presence: 'desc' };
+const COLUMN_SORTS = [
+  { key: 'name', label: 'Identidad verificada' },
+  { key: 'presence', label: 'Presencia' },
+  { key: 'reports', label: 'Reportes' },
+  { key: 'lastAccess', label: 'Último acceso registrado' },
+];
 
 export default function PrivateAccountsPanel({ onNavigate }) {
   const [page, setPage] = useState(1);
@@ -72,6 +81,14 @@ export default function PrivateAccountsPanel({ onNavigate }) {
     setFilters(INITIAL_FILTERS);
     setPage(1);
   };
+  const activeDir = filters.dir || SORT_DEFAULT_DIR[filters.sort];
+  const sortByColumn = key => {
+    const dir = key === filters.sort ? (activeDir === 'asc' ? 'desc' : 'asc') : SORT_DEFAULT_DIR[key];
+    const next = { ...filters, sort: key, dir };
+    setFilters(next);
+    setDraft(next);
+    setPage(1);
+  };
 
   return <main className="admin-dashboard" aria-labelledby="admin-title">
     <header className="admin-heading">
@@ -115,16 +132,24 @@ export default function PrivateAccountsPanel({ onNavigate }) {
         </select></label>
         <label>Reportes desde<input type="number" min="0" step="1" placeholder="0" {...field('minReports')} /></label>
         <label>Reportes hasta<input type="number" min={draft.minReports || '0'} step="1" placeholder="Sin límite" {...field('maxReports')} /></label>
-        <label>Ordenar<select {...field('sort')}>
+        <label>Ordenar<select value={draft.sort} onChange={event => setDraft(current => ({ ...current, sort: event.target.value, dir: SORT_DEFAULT_DIR[event.target.value] }))}>
           <option value="lastAccess">Última actividad</option><option value="reports">Más reportes</option>
-          <option value="name">Nombre A–Z</option><option value="firstAccess">Registro más reciente</option>
+          <option value="name">Nombre A–Z</option><option value="presence">Presencia</option>
+          <option value="firstAccess">Registro más reciente</option>
         </select></label>
         <div className="admin-filters__actions"><Button type="submit" disabled={loading}>Aplicar filtros</Button><Button variant="secondary" onClick={clearFilters}>Limpiar</Button></div>
       </form>
       {data && <>
         <div className="admin-table-scroll" tabIndex={0} role="region" aria-label="Tabla de usuarios, desplazable horizontalmente">
           <table className="admin-table">
-            <thead><tr><th scope="col">Identidad verificada</th><th scope="col">Presencia</th><th scope="col">Reportes</th><th scope="col">Último acceso registrado</th><th scope="col">Detalle privado</th></tr></thead>
+            <thead><tr>
+              {COLUMN_SORTS.map(({ key, label }) => <th scope="col" key={key} aria-sort={filters.sort === key ? (activeDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                <button type="button" className="admin-table__sort" disabled={loading} onClick={() => sortByColumn(key)}>
+                  {label}<span aria-hidden="true">{filters.sort === key ? (activeDir === 'asc' ? ' ▲' : ' ▼') : ''}</span>
+                </button>
+              </th>)}
+              <th scope="col">Detalle privado</th>
+            </tr></thead>
             <tbody>{data.items.map(item => <tr key={item.identity.id}>
               <td><div className="admin-user"><DiscordAvatar user={item.identity} /><div>
                 <strong className="notranslate" translate="no">{item.identity.globalName || item.identity.username || item.identity.id}</strong>
@@ -165,7 +190,6 @@ export default function PrivateAccountsPanel({ onNavigate }) {
         <div><dt>Último inicio de sesión</dt><dd>{displayDate(selectedAccount.lastLogin)}</dd></div>
         <div><dt>Último evento</dt><dd>{{ login: 'Inicio de sesión', active: 'Actividad', report: 'Envío de reporte' }[selectedAccount.lastEvent] || selectedAccount.lastEvent || 'Sin registro'}</dd></div>
         <div><dt>Presencia</dt><dd>{selectedAccount.recentlyActive ? 'Actividad reciente' : selectedAccount.sessionCount ? 'Sesión vigente' : 'Sin sesión'}</dd></div>
-        <div><dt>Inicios contabilizados desde 0.6.15</dt><dd>{selectedAccount.loginCount}</dd></div>
       </dl>
       <h3>Sesiones vigentes ({selectedAccount.sessionCount})</h3>
       {selectedAccount.sessions.length ? <ul className="admin-account-sessions">{selectedAccount.sessions.map((session, index) => <li key={index}>
@@ -174,6 +198,10 @@ export default function PrivateAccountsPanel({ onNavigate }) {
           <div><dt>Actividad</dt><dd>{displayDate(session.lastActivity)}</dd></div>
           <div><dt>Caduca</dt><dd>{displayDate(session.expiresAt)}</dd></div></dl>
       </li>)}</ul> : <p>Sin sesiones vigentes.</p>}
+      <h3>Registro de inicios de sesión</h3>
+      {selectedAccount.loginHistory.length === 50 && <p>Se muestran hasta los 50 inicios más recientes.</p>}
+      {selectedAccount.loginHistory.length ? <ol className="admin-account-logins">{selectedAccount.loginHistory.map((moment, index) =>
+        <li key={index}>{displayDate(moment)}</li>)}</ol> : <p>Sin inicios de sesión registrados.</p>}
       <h3>Reportes vinculados ({selectedAccount.reportCount})</h3>
       {selectedAccount.reportCount > selectedAccount.reportIds.length && <p>Se enlazan hasta 50 reportes recientes. El contador y los filtros incluyen todos.</p>}
       {selectedAccount.reportIds.length ? <div className="admin-report-links">{selectedAccount.reportIds.map(id =>

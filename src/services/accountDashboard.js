@@ -4,7 +4,8 @@ export function validateAccountDashboard(payload) {
   if (payload?.ok !== true || !Array.isArray(payload.items) || !count(payload.total)
       || typeof payload.hasMore !== 'boolean' || !date(payload.generatedAt) || payload.recentWindowMinutes !== 5
       || !['users', 'reports', 'usersWithSession', 'sessions', 'recentlyActive', 'unsyncedUsers'].every(key => count(payload.summary?.[key]))
-      || payload.items.some(item => !item?.identity?.id || !count(item.reportCount) || !count(item.loginCount)
+      || payload.items.some(item => !item?.identity?.id || !count(item.reportCount)
+        || !Array.isArray(item.loginHistory) || item.loginHistory.some(moment => !date(moment))
         || !count(item.sessionCount) || typeof item.recentlyActive !== 'boolean'
         || !Array.isArray(item.reportIds) || item.reportIds.some(id => !Number.isSafeInteger(id) || id < 1)
         || !Array.isArray(item.sessions) || item.sessions.length !== item.sessionCount

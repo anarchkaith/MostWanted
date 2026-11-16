@@ -36,10 +36,14 @@ function mw_record_account($identity, $event) {
     }
     $previous = get_post_meta($id, '_mw_identity', true);
     if (is_array($previous) && $identity['email'] === '') $identity['email'] = $previous['email'] ?? '';
-    $values = ['_mw_identity' => $identity, '_mw_last_access' => gmdate('c'), '_mw_last_event' => $event];
+    $now = gmdate('c');
+    $values = ['_mw_identity' => $identity, '_mw_last_access' => $now, '_mw_last_event' => $event];
     if ($event === 'login') {
-        $values['_mw_last_login'] = gmdate('c');
-        $values['_mw_login_count'] = (int) get_post_meta($id, '_mw_login_count', true) + 1;
+        $values['_mw_last_login'] = $now;
+        $history = get_post_meta($id, '_mw_login_history', true);
+        $history = is_array($history) ? $history : [];
+        array_unshift($history, $now);
+        $values['_mw_login_history'] = array_slice($history, 0, 50);
     }
     foreach ($values as $key => $value) {
         if (update_post_meta($id, $key, wp_slash($value)) === false && get_post_meta($id, $key, true) !== $value) {
@@ -83,7 +87,7 @@ function mw_rest_private_accounts($request) {
             'lastLogin' => get_post_meta($id, '_mw_last_login', true),
             'lastAccess' => get_post_meta($id, '_mw_last_access', true),
             'lastEvent' => get_post_meta($id, '_mw_last_event', true),
-            'loginCount' => (int) get_post_meta($id, '_mw_login_count', true),
+            'loginHistory' => is_array($history = get_post_meta($id, '_mw_login_history', true)) ? array_values($history) : [],
             'reportCount' => (int) $report_query->found_posts,
             'reportIds' => array_map('intval', $reports)];
     }
@@ -120,6 +124,17 @@ function mw_render_private_identity($post) {
         if ($value) echo '<dt>' . esc_html($label) . '</dt><dd>' . esc_html($value) . '</dd>';
     }
     echo '</dl>';
+    if ($post->post_type === 'mw_account') {
+        $history = get_post_meta($post->ID, '_mw_login_history', true);
+        echo '<h4>Registro de inicios de sesion (hasta 50)</h4>';
+        if (is_array($history) && $history) {
+            echo '<ul>';
+            foreach ($history as $moment) echo '<li>' . esc_html($moment) . '</li>';
+            echo '</ul>';
+        } else {
+            echo '<p>Sin inicios de sesion registrados.</p>';
+        }
+    }
     if ($post->post_type === 'mw_account' && !empty($identity['id'])) {
         $reports = get_posts(['post_type' => 'mw_report', 'post_status' => 'any', 'numberposts' => 50,
             'fields' => 'ids', 'meta_key' => '_mw_owner_discord_id', 'meta_value' => $identity['id']]);
