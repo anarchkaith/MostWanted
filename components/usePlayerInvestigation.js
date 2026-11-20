@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { investigatePlayerBackground } from './backgroundInvestigation';
 import { isBlockedReportedUsername } from './blockedUsernames';
 
@@ -37,6 +37,23 @@ export default function usePlayerInvestigation({ request, initialInvestigation =
     return () => { active = false; };
   }, [request]);
 
-  useEffect(() => () => callbacks.current.onLoadingChange?.(false), []);
-  return { investigation, isLoading, error };
+  // Recarga la ficha tras editarla; no depende de `request`, que solo dispara la búsqueda inicial.
+  const reload = useCallback(() => {
+    if (!investigation) return;
+    setIsLoading(true);
+    setError(null);
+    callbacks.current.onLoadingChange?.(true);
+    investigatePlayerBackground(investigation.username || '', investigation.rid || '')
+      .then(result => {
+        setInvestigation(result);
+        callbacks.current.onChange?.(result);
+      })
+      .catch(cause => setError(cause.message))
+      .finally(() => {
+        setIsLoading(false);
+        callbacks.current.onLoadingChange?.(false);
+      });
+  }, [investigation]);
+
+  return { investigation, isLoading, error, reload };
 }

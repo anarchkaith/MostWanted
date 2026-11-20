@@ -17,7 +17,7 @@ import { mergePlayerProfile } from '../../src/services/playerProfile';
 import { playerPath, readPlayerRoute } from '../../src/services/playerRoute';
 import { resolvePlayerRid } from '../../shared/playerIdentity';
 
-export default function InvestigationDesk({ initialPlayer, onPlayerResolved, reportsError, path, onNavigate, onOpenReport, onStartReport, mapReport, canManageCases, revision }) {
+export default function InvestigationDesk({ initialPlayer, onPlayerResolved, reportsError, path, onNavigate, onOpenReport, onStartReport, mapReport, canManageCases, canEditPlayers, revision }) {
   const [selection] = useState(() => {
     const routePlayer = readPlayerRoute(path).player;
     return routePlayer && (routePlayer.nickname !== initialPlayer?.nickname || routePlayer.rid && routePlayer.rid !== initialPlayer?.rid) ? routePlayer : initialPlayer;
@@ -108,6 +108,7 @@ export default function InvestigationDesk({ initialPlayer, onPlayerResolved, rep
               reports={linkedReports}
               investigateToken={1}
               variant="dossier"
+              canEditPlayers={canEditPlayers}
               onInvestigationChange={onInvestigationChange}
               caseManagement={caseManagement}
               classification={classification}

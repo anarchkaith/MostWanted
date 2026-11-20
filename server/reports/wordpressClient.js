@@ -184,6 +184,14 @@ export async function requestWordpressReportEdit({ config, reportId, actor, chan
   });
 }
 
+export async function requestWordpressPlayerEdit({ config, identity, actor, changes, logger = console }) {
+  return requestWordpressApi({
+    config, logger, method: 'POST', path: '/wp-json/mostwanted/v1/players/edit',
+    operation: 'Private player editing', useAuth: true,
+    body: { identity, actor, changes },
+  });
+}
+
 export async function searchWordpressArchive({ config, query, page, logger = console }) {
   const params = new URLSearchParams({ q: query, page: String(page), per_page: '50' });
   return requestWordpressApi({

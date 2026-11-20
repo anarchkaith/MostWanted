@@ -72,12 +72,16 @@ export function mergePlayerProfile({ username = '', rid = '', profile = null, re
   for (const crew of list(profile?.crews)) addCrew(crew, 0, current);
   if (profile?.activeCrew) addCrew(profile.activeCrew, 0, current);
   const nameHistory = [...names.values()].sort((a, b) => b.time - a.time);
+  const activeCrewKey = text(reportInsights?.activeCrew).toLowerCase();
   return {
     name: profile?.name || reportInsights?.username || username || `RID ${rid}`,
     aliases: [...new Set(nameHistory.map(entry => entry.name))],
     nameHistory,
     crews: [...new Set([...crews.values()].map(entry => entry.name))],
-    crewHistory: [...crews.values()].sort((a, b) => b.time - a.time),
+    crewHistory: [...crews.values()].sort((a, b) => b.time - a.time).map(entry => ({
+      ...entry,
+      isActive: Boolean(activeCrewKey) && entry.name.toLowerCase() === activeCrewKey,
+    })),
     historicalAvatars: [...avatars.values()].sort((a, b) => b.time - a.time),
   };
 }

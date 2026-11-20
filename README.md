@@ -18,7 +18,7 @@ El navegador ya no descarga el archivo completo al iniciar ni consulta WordPress
 
 WordPress exige ese secreto en listados, detalle, consulta de jugadores, antecedentes y votos. Las CPT `mw_report` y `mw_player` dejan de exponerse por REST nativa `wp/v2`; el visor administrativo WordPress se mantiene. Las respuestas protegidas son `private, no-store`. La antigua copia completa `mostwanted_reportes` se elimina del navegador, no se usa como fallback y los votos solo conservan su preferencia local. HEX recibe los datos de la vista en memoria o utiliza su fuente de servidor, no lee el archivo completo desde localStorage.
 
-**Despliegue obligatorio y coordinado:** frontend, backend, PHP de vistas previas y plugin **0.7.3**. Reutilizar el mismo secreto existente en el entorno PHP como `WORDPRESS_API_SECRET`; no ponerlo en variables `VITE_*`, JavaScript, URLs ni archivos públicos. Sin ese secreto las vistas previas fallan explícitamente con 503. Purgar respuestas antiguas de WordPress/CDN; actualizar solo la web no cierra una API WordPress antigua. Verificar sin sesión: las rutas `/api/reports/search`, `/api/reports/:id`, `/api/reports/player-insights` y `/api/cases/lookup` deben responder 401, y las lecturas WordPress sin secreto deben denegarse. No hay un proxy web para listar todo el archivo.
+**Despliegue obligatorio y coordinado:** frontend, backend, PHP de vistas previas y plugin **0.7.6**. Reutilizar el mismo secreto existente en el entorno PHP como `WORDPRESS_API_SECRET`; no ponerlo en variables `VITE_*`, JavaScript, URLs ni archivos públicos. Sin ese secreto las vistas previas fallan explícitamente con 503. Purgar respuestas antiguas de WordPress/CDN; actualizar solo la web no cierra una API WordPress antigua. Verificar sin sesión: las rutas `/api/reports/search`, `/api/reports/:id`, `/api/reports/player-insights` y `/api/cases/lookup` deben responder 401, y las lecturas WordPress sin secreto deben denegarse. No hay un proxy web para listar todo el archivo.
 
 Esto bloquea extracción anónima por esas APIs y elimina la descarga masiva inicial; **no impide que una persona autenticada copie o automatice las consultas que tiene permitidas**. Se conservan los límites de solicitudes existentes. Las vistas previas compartidas HTML/PNG siguen publicando la información limitada diseñada para compartir enlaces; no son un listado JSON privado ni una garantía de confidencialidad de lo que aparece en esas tarjetas.
 
@@ -254,6 +254,7 @@ Validacion local: `npm run test:metadata` (requiere PHP CLI con GD, iconv, DOM y
 | `/api/reports` | POST | Valida y guarda un reporte en WordPress, luego lo notifica a Discord |
 | `/api/reports/health` | GET | Estado de la integración con WordPress; devuelve 503 si no está configurada y 502 si falla |
 | `/api/reports/player-insights` | GET | Antecedentes acotados de un jugador (`username`, `rid`); exige sesión |
+| `/api/reports/player-insights/edit` | POST | Edita alias manuales y crew activo de un jugador (`identity`, `changes`); solo administradora |
 | `/api/reports/:id` | GET | Un reporte publicado por ID; exige sesión |
 | `/api/reports/search` | GET | Búsqueda paginada de identidades; exige sesión |
 | `/api/reports/:id/community-verification` | POST | Voto con identidad derivada de la sesión, nunca del cliente |

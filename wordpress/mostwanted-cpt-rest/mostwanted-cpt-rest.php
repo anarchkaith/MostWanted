@@ -2,7 +2,7 @@
 /**
  * Plugin Name: MostWanted CPT + REST
  * Description: CPT de jugadores/reportes y API REST para ingesta y consulta desde MostWanted.
- * Version: 0.7.5
+ * Version: 0.7.6
  * Author: KaithHacks
  */
 
@@ -18,6 +18,7 @@ require_once __DIR__ . DIRECTORY_SEPARATOR . 'player-summary.php';
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'account-activity.php';
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'search.php';
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'report-edit.php';
+require_once __DIR__ . DIRECTORY_SEPARATOR . 'player-edit.php';
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'report-readonly.php';
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'report-fields.php';
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'avatar-rehost.php';
@@ -1532,6 +1533,9 @@ function mw_build_player_insights($player_post_id) {
         $add_name($alias['alias'], $alias['time']);
     }
     $add_name($item['nickname'], $last_seen_unix);
+    foreach (mw_player_manual_aliases($player_post_id) as $alias) {
+        $add_name($alias, 0);
+    }
 
     usort($names, static function ($a, $b) {
         return $b['time'] <=> $a['time'];
@@ -1552,6 +1556,10 @@ function mw_build_player_insights($player_post_id) {
             $active_crew = $crew_name;
         }
     }
+    $active_crew_override = mw_player_active_crew_override($player_post_id);
+    if ($active_crew_override !== null) {
+        $active_crew = $active_crew_override;
+    }
 
     return [
         'username' => $item['nickname'],
@@ -1560,6 +1568,7 @@ function mw_build_player_insights($player_post_id) {
         'activeCrew' => $active_crew,
         'crews' => mw_unique_strings($crew_names, 25),
         'crewHistory' => mw_safe_meta_array($player_post_id, '_mw_crews_data'),
+        'manualAliases' => mw_player_manual_aliases($player_post_id),
         'names' => array_slice($names, 0, 60),
         'avatars' => array_values(array_filter([$item['avatar1'], $item['avatar2']], static function ($url) {
             return $url !== '';

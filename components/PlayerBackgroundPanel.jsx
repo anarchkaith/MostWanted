@@ -6,6 +6,7 @@ import PlayerIdentification from './player/PlayerIdentification';
 import PlayerAvatarHistory from './player/PlayerAvatarHistory';
 import PlayerNameHistory from './player/PlayerNameHistory';
 import PlayerCrewHistory from './player/PlayerCrewHistory';
+import PlayerInsightsEditor from './player/PlayerInsightsEditor';
 import PlayerDossierFile from './player/PlayerDossierFile';
 import Skeleton from './ui/Skeleton';
 import WarningNotice from './ui/WarningNotice';
@@ -24,9 +25,10 @@ export default function PlayerBackgroundPanel({
   caseManagement = null,
   classification = null,
   verification = null,
+  canEditPlayers = false,
 }) {
   const request = useMemo(() => investigateToken > 0 ? { username, rid, token: investigateToken } : null, [username, rid, investigateToken]);
-  const { investigation, isLoading, error } = usePlayerInvestigation({
+  const { investigation, isLoading, error, reload } = usePlayerInvestigation({
     request, initialInvestigation, onChange: onInvestigationChange, onLoadingChange: onInvestigatingChange,
   });
   const [expandedAvatar, setExpandedAvatar] = useState(null);
@@ -78,6 +80,9 @@ export default function PlayerBackgroundPanel({
           {investigation?.warnings?.length > 0 && <div className="warning-notice-stack">
             {investigation.warnings.map(warning => <WarningNotice key={`${investigation.timestamp}-${warning}`} error={warning} />)}
           </div>}
+
+          {canEditPlayers && investigation?.reportInsights && <PlayerInsightsEditor
+            insights={investigation.reportInsights} username={username} rid={rid} onSaved={reload} />}
 
           {variant === 'dossier' && <PlayerDossierFile investigation={investigation} username={username} rid={rid} isLoading={isLoading} error={error}
             names={otherNameEntries} crews={crewEntries} historicalAvatars={displayedProfile?.historicalAvatars || []}

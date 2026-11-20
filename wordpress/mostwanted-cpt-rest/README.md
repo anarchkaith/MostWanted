@@ -4,6 +4,8 @@ Plugin WordPress para registrar CPT de jugadores/reportes y exponer endpoints RE
 
 ## 1) Instalacion rapida
 
+Version 0.7.6: añade ediciones manuales de antecedentes del jugador, solo para la administradora. `POST /players/edit` guarda en `_mw_player_overrides` alias manuales (hasta 30) y el crew activo elegido entre los crews conocidos (o ninguno). Las sincronizaciones de reportes no tocan esos datos ni el historial automático de crews. `player-insights` devuelve `manualAliases` y aplica el crew activo manual. Desplegar frontend, backend y plugin juntos; sin 0.7.6 el endpoint responde 404 y la edición falla explícitamente.
+
 Version 0.7.5: reemplaza el contador `loginCount`/`_mw_login_count` por `loginHistory`/`_mw_login_history`, un registro de hasta 50 fechas de inicio de sesion por cuenta (la mas reciente primero), en `/accounts/private` y en el administrador WordPress de la ficha. Evita presentar un total que nunca puede ser exacto para cuentas previas a esta funcionalidad; en su lugar expone las fechas concretas que si se registraron. No reconstruye inicios de sesion anteriores a la introduccion de este registro. Desplegar frontend, backend y plugin juntos; un contrato antiguo (`loginCount`) devuelve un error explicito.
 
 Version 0.7.4: elimina por completo la inyeccion automatica de datos en `the_content`. El plugin solo ofrece campos y fuentes de datos para las plantillas: no genera una ficha, tabla ni JSON en la pagina del reporte. El visor de campos y los datos internos permanecen exclusivamente en el administrador WordPress. No carga CSS en el frontend ni modifica el fondo de `body`; el diseno pertenece al tema y a Elementor.
@@ -131,7 +133,8 @@ Salvo `/health`, todos estos endpoints requieren el secreto backend en `Authoriz
 - `GET /players/ai-summary?rid=...` (o `nickname=...`): exige secreto del backend; devuelve los reportes publicados de la identidad y su revision para sincronizar un resumen. No genera IA.
 - `POST /players/ai-summary`: exige secreto del backend; recibe `{nickname, rid, text, sourceRevision}` y persiste el resumen si la revision sigue vigente. Devuelve 409 si cambiaron los reportes; nunca admite una publicacion para una fuente vacia. Solo el texto, fecha y cantidad de reportes se devuelven en las lecturas publicas del jugador, junto a `stale`; no se publican tokens internos ni el secreto.
 - `GET /players/lookup?rid=...` o `playerId=...` o `nickname=...`
-- `GET /player-insights?username=...&rid=...`: perfil para el panel de antecedentes (`names[{name,time}]`, `avatars`, `crews`, `activeCrew`, `reportCount`, `lastReportAt`). Responde `player: null` si no existe.
+- `GET /player-insights?username=...&rid=...`: perfil para el panel de antecedentes (`names[{name,time}]`, `avatars`, `crews`, `activeCrew`, `manualAliases`, `reportCount`, `lastReportAt`). Responde `player: null` si no existe.
+- `POST /players/edit` (requiere permiso de ingesta y `actor.isAdmin` verdadero): recibe `{identity:{username|rid}, actor:{id,isAdmin}, changes:{aliases?, activeCrew?}}`. `aliases` reemplaza la lista de alias manuales; `activeCrew` debe coincidir con un crew conocido (sin distinguir mayúsculas) o ser `""` para ninguno. Devuelve `{ok, found, player}`; 403 sin administración, 400 datos inválidos, 404 jugador no encontrado.
 - `POST /players/load-default` (requiere token): carga jugador de prueba con datos completos (default: `1R0N_STR1K3R`)
 
 `GET /health` ahora incluye `secretConfigured` para diagnostico rapido.

@@ -9,6 +9,7 @@ export default function PlayerCrewHistory({ entries, ready }) {
     <div className="pbp-current__crews">
       {entries.map(crew => <span key={`${crew.name}-${crew.source}`} className="pbp-chip">
         <a href={crew.url} target="_blank" rel="noopener noreferrer"><strong>{crew.name}</strong></a>
+        {crew.isActive && <span className="pbp-chip__badge"> Activo</span>}
         <PlayerObservations entry={crew} />
       </span>)}
     </div>

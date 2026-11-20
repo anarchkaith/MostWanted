@@ -6,6 +6,7 @@ import { canViewPrivateAccounts } from '../../../shared/auth/accountAdmin.js';
 import { getAccountDashboard, parseDashboardQuery } from '../services/accountDashboard.service.js';
 import { searchArchive } from '../services/archiveSearch.service.js';
 import { editReport } from '../services/editReport.service.js';
+import { editPlayer } from '../services/editPlayer.service.js';
 import { accessReportData, readPublicPlayerProfile } from '../services/reportReads.service.js';
 
 /**
@@ -33,6 +34,11 @@ export function registerReportsRoutes(app, deps) {
   };
   app.get('/api/reports/:id/edit', rateLimits.general, privateReport, reportEdit(true));
   app.post('/api/reports/:id/edit', rateLimits.webhook, privateReport, requireNonEmptyBody, reportEdit(false));
+
+  app.post('/api/reports/player-insights/edit', rateLimits.webhook, privateReport, requireNonEmptyBody, async (req, res) => {
+    const result = await editPlayer({ config: wordpressReportsConfig, user: getSessionUser(req), body: req.body });
+    return res.status(result.status).json(result.payload);
+  });
 
   app.get('/api/reports/search', rateLimits.general, requirePrivateSession, async (req, res) => {
     const result = await searchArchive({
