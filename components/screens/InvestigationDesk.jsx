@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { unwrapMarkdownFence } from '../markdownUtils';
 import PlayerBackgroundPanel from '../PlayerBackgroundPanel';
+import PlayerResearchStats from '../player/PlayerResearchStats';
 import CaseStaffPanel from '../CaseStaffPanel';
 import CyberButtonLabel from '../ui/CyberButtonLabel';
 import ErrorAlert from '../ui/ErrorAlert';
@@ -114,6 +115,7 @@ export default function InvestigationDesk({ initialPlayer, onPlayerResolved, rep
               classification={classification}
               verification={verification}
             />
+            {player.rid && <PlayerResearchStats key={player.rid} rid={player.rid} />}
             {canManageCases && dossier && !loading && !error && <CaseStaffPanel key={dossier.id} caseId={dossier.id} currentStatus={dossier.status} onChanged={refresh} />}
           </>}
         </section>

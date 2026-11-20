@@ -35,6 +35,10 @@ export default defineConfig(({ mode }) => {
           timeout: 120000,
           proxyTimeout: 120000,
         },
+        '/api/external': {
+          target: backendTarget,
+          changeOrigin: true,
+        },
         '/api/reports': {
           target: backendTarget,
           changeOrigin: true,

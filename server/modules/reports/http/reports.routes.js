@@ -6,6 +6,7 @@ import { canViewPrivateAccounts } from '../../../shared/auth/accountAdmin.js';
 import { getAccountDashboard, parseDashboardQuery } from '../services/accountDashboard.service.js';
 import { searchArchive } from '../services/archiveSearch.service.js';
 import { searchCrews } from '../services/crewSearch.service.js';
+import { createSocialClubProxy } from '../services/socialClubProxy.service.js';
 import { editReport } from '../services/editReport.service.js';
 import { editPlayer } from '../services/editPlayer.service.js';
 import { accessReportData, readPublicPlayerProfile } from '../services/reportReads.service.js';
@@ -50,6 +51,16 @@ export function registerReportsRoutes(app, deps) {
 
   app.get('/api/reports/crews/search', rateLimits.general, requirePrivateSession, async (req, res) => {
     const result = await searchCrews({ query: req.query.q });
+    return res.status(result.status).json(result.payload);
+  });
+
+  const socialClub = createSocialClubProxy();
+  app.get('/api/external/socialclub/players', rateLimits.general, async (req, res) => {
+    const result = await socialClub.searchPlayers({ name: req.query.name });
+    return res.status(result.status).json(result.payload);
+  });
+  app.get('/api/external/socialclub/career', rateLimits.general, async (req, res) => {
+    const result = await socialClub.getCareer({ rid: req.query.rid, platform: req.query.platform ?? undefined });
     return res.status(result.status).json(result.payload);
   });
 
