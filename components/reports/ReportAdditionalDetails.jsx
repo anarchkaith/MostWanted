@@ -1,7 +1,10 @@
 import { ErrorMessage, Field, useFormikContext } from 'formik';
+import CrewSearch from '../CrewSearch';
 
 export default function ReportAdditionalDetails({ initialPlayer, editMode = false, variant, ridLocked = false }) {
-  const { values, errors, touched, isSubmitting } = useFormikContext();
+  const { values, errors, touched, isSubmitting, setFieldValue } = useFormikContext();
+  const crewField = <CrewSearch id="crews" value={values.crews} disabled={isSubmitting}
+    onChange={crews => setFieldValue('crews', crews)} />;
   const ridResolved = editMode || Boolean(initialPlayer?.rid) || values.investigation_status === 'resolved';
   if (variant === 'inline') return <div className="rfm-inline-details">
     {!ridLocked && <div className="form-group">
@@ -19,10 +22,7 @@ export default function ReportAdditionalDetails({ initialPlayer, editMode = fals
       </div>}
       <div className="form-group">
         <label htmlFor="crews" className="form-group__label">Crews</label>
-        <div className="cyber-input-full mw-cyber-input">
-          <Field type="text" id="crews" name="crews" aria-invalid={Boolean(touched.crews && errors.crews)}
-            className="form-group__input" placeholder="Separadas por coma" autoComplete="off" disabled={isSubmitting} />
-        </div>
+        {crewField}
         <ErrorMessage name="crews" component="span" className="form-group__hint" style={{ color: '#ff3333' }} />
       </div>
     </div>
@@ -42,10 +42,7 @@ export default function ReportAdditionalDetails({ initialPlayer, editMode = fals
       </div>
       <div className="form-group" style={{ marginBottom: 0 }}>
         <label htmlFor="crews" className="form-group__label">Crews</label>
-        <div className="cyber-input-full mw-cyber-input">
-          <Field type="text" id="crews" name="crews" aria-invalid={Boolean(touched.crews && errors.crews)}
-            className="form-group__input" placeholder="Separadas por coma" autoComplete="off" disabled={isSubmitting} />
-        </div>
+        {crewField}
         <ErrorMessage name="crews" component="span" className="form-group__hint" style={{ color: '#ff3333' }} />
       </div>
     </div>

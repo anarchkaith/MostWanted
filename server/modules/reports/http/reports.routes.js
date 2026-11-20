@@ -5,6 +5,7 @@ import { getOwnedReports } from '../services/ownedReports.service.js';
 import { canViewPrivateAccounts } from '../../../shared/auth/accountAdmin.js';
 import { getAccountDashboard, parseDashboardQuery } from '../services/accountDashboard.service.js';
 import { searchArchive } from '../services/archiveSearch.service.js';
+import { searchCrews } from '../services/crewSearch.service.js';
 import { editReport } from '../services/editReport.service.js';
 import { editPlayer } from '../services/editPlayer.service.js';
 import { accessReportData, readPublicPlayerProfile } from '../services/reportReads.service.js';
@@ -44,6 +45,11 @@ export function registerReportsRoutes(app, deps) {
     const result = await searchArchive({
       config: wordpressReportsConfig, query: req.query.q, page: req.query.page ?? 1,
     });
+    return res.status(result.status).json(result.payload);
+  });
+
+  app.get('/api/reports/crews/search', rateLimits.general, requirePrivateSession, async (req, res) => {
+    const result = await searchCrews({ query: req.query.q });
     return res.status(result.status).json(result.payload);
   });
 

@@ -1,0 +1,188 @@
+.crew-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  grid-template-areas:
+    'media identity action'
+    'media facts action';
+  align-items: center;
+  gap: 8px 14px;
+  width: 100%;
+  min-height: 44px;
+  padding: 12px;
+  border: 0;
+  border-bottom: 1px solid var(--surface-border);
+  background: transparent;
+  color: var(--color-cream);
+  text-align: left;
+  cursor: pointer;
+}
+
+.crew-card:hover,
+.crew-card[aria-selected='true'] {
+  background: #302020;
+  box-shadow: inset 3px 0 var(--color-red-alert);
+}
+
+.crew-card:focus-visible {
+  outline: 2px solid var(--color-cream);
+  outline-offset: -2px;
+}
+
+.crew-card::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  right: 0;
+  top: 50%;
+  width: 250px;
+  height: 158px;
+  transform: translateY(-50%);
+  background: url('https://s.rsg.sc/sc/images/common/crew-type-250x158.png') 0 var(--crew-type-y, -790px) no-repeat;
+  filter: brightness(0) invert(1);
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+.crew-card[data-crew-type='chatterBoxes'] { --crew-type-y: 0px; }
+.crew-card[data-crew-type='thrillSeekers'] { --crew-type-y: -158px; }
+.crew-card[data-crew-type='rebels'] { --crew-type-y: -316px; }
+.crew-card[data-crew-type='soldiers'] { --crew-type-y: -474px; }
+.crew-card[data-crew-type='allStars'] { --crew-type-y: -632px; }
+
+.crew-card__media {
+  grid-area: media;
+  display: grid;
+  justify-items: center;
+  align-self: start;
+  gap: 6px;
+  width: max-content;
+  min-width: 56px;
+}
+
+.crew-card__emblem {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  background: #0d0d0d;
+  border: 1px solid var(--surface-border);
+}
+
+.crew-card__emblem--empty { display: block; }
+
+.crew-card__identity {
+  grid-area: identity;
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.crew-card__name {
+  font-size: 1.05rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  overflow-wrap: anywhere;
+}
+
+.crew-card__motto {
+  font-size: 1rem;
+  font-style: italic;
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.crew-card__facts {
+  grid-area: facts;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  min-width: 0;
+}
+
+.crew-card__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+.crew-card__stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.crew-card__icon { flex: none; }
+
+.crew-card__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.crew-card__badge {
+  padding: 3px 8px;
+  border: 1px solid var(--surface-border);
+  background: #0d0d0d;
+  font: 0.6875rem/1.4 var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.crew-card__badge--icon {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 6px;
+}
+
+.crew-card__created {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.crew-card__action {
+  grid-area: action;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--color-cream-dark);
+  color: var(--color-cream);
+}
+
+.crew-card:hover .crew-card__action,
+.crew-card[aria-selected='true'] .crew-card__action {
+  border-color: var(--color-red-alert);
+}
+
+@media (max-width: 560px) {
+  .crew-card {
+    grid-template-columns: 44px minmax(0, 1fr);
+    grid-template-areas:
+      'media identity'
+      'facts facts'
+      'action action';
+  }
+
+  .crew-card__emblem {
+    width: 44px;
+    height: 44px;
+  }
+
+  .crew-card__media {
+    min-width: 44px;
+  }
+
+  .crew-card__action {
+    width: 44px;
+    height: 44px;
+  }
+}
