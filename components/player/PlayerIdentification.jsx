@@ -2,10 +2,13 @@ import Skeleton from '../ui/Skeleton';
 import CurrentPlayerAvatars from './CurrentPlayerAvatars';
 import SocialClubProfileLink from './SocialClubProfileLink';
 import { createPlayerAvatarSlots } from '../../src/services/playerAvatarState';
+import { formatReportDate } from '../../src/services/casePresentation';
 
 export default function PlayerIdentification({ investigation, username, rid, isLoading, error, onOpenAvatar }) {
   const playerName = investigation?.nombre || username || `RID ${rid}`;
   const socialClubName = playerName === `RID ${investigation?.rid || rid}` ? username : playerName;
+  const nameEntry = investigation?.reportInsights?.names?.find(entry => String(entry?.name || '').trim().toLowerCase() === playerName.trim().toLowerCase());
+  const nameDate = nameEntry?.time ? formatReportDate(Number(nameEntry.time) * 1000) : '';
   const accountStatus = investigation?.accountStatus;
   const stats = [
     { label: 'Reportes previos', value: investigation?.reportInsights ? String(investigation.reportInsights.reportCount ?? 'Desconocido') : 'Desconocido' },
@@ -21,6 +24,7 @@ export default function PlayerIdentification({ investigation, username, rid, isL
             <div className="pbp-current__name notranslate" translate="no">{playerName}</div>
             <SocialClubProfileLink name={socialClubName} />
           </div>
+          {nameDate && <div className="pbp-status-detail">Registrado el {nameDate}</div>}
           <dl className="pbp-identity-rid"><dt>RID (Rockstar ID)</dt><dd>{investigation?.rid || rid || 'Sin confirmar'}</dd></dl>
         </div>
       </div>
