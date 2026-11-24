@@ -73,13 +73,14 @@ export function registerAiRoutes(app, deps) {
     requireBodyObject,
     mapUpstreamError,
     getReportesForAi,
+    getPlayerIntel,
   } = deps;
 
   const ensureAiProviderMiddleware = ensureAiProvider(aiConfig);
 
   app.post('/api/ia-chat', rateLimits.ai, requireAiSession, ensureAiProviderMiddleware, requireNonEmptyBody, enforceAiDailyQuota, withAiErrorHandler(async (req, res) => {
     const reportes = await getReportesForAi();
-    const result = await executeChatUseCase({ config: aiConfig, body: req.body, reportes });
+    const result = await executeChatUseCase({ config: aiConfig, body: req.body, reportes, getPlayerIntel });
     if (!result.ok) {
       return res.status(result.status).json({ error: result.error, details: result.details });
     }

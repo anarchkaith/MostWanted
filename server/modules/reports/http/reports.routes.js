@@ -54,13 +54,15 @@ export function registerReportsRoutes(app, deps) {
     return res.status(result.status).json(result.payload);
   });
 
-  const socialClub = createSocialClubProxy();
+  const socialClub = deps.socialClub || createSocialClubProxy();
   app.get('/api/external/socialclub/players', rateLimits.general, async (req, res) => {
     const result = await socialClub.searchPlayers({ name: req.query.name });
     return res.status(result.status).json(result.payload);
   });
   app.get('/api/external/socialclub/career', rateLimits.general, async (req, res) => {
-    const result = await socialClub.getCareer({ rid: req.query.rid, platform: req.query.platform ?? undefined });
+    const result = await socialClub.getCareer({
+      rid: req.query.rid, platform: req.query.platform ?? undefined, section: req.query.section ?? undefined,
+    });
     return res.status(result.status).json(result.payload);
   });
 

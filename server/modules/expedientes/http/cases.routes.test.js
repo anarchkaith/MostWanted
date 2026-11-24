@@ -38,7 +38,8 @@ assert.deepEqual(matchReports([report(1)], { nickname: 'Player', rid: '999' }), 
 
 let reports = [report(1)];
 let unavailable = false;
-const source = async () => { if (unavailable) throw new Error('offline'); return reports; };
+let sourceCalls = 0;
+const source = async () => { sourceCalls++; if (unavailable) throw new Error('offline'); return reports; };
 let server;
 try {
   const empty = await readCase({ rootDir, source: async () => [], nickname: 'Empty' });
@@ -117,6 +118,18 @@ try {
   assert.equal(publicRead.case.classification.stale, false);
   await fetch(base, { headers });
   assert.equal(summaryCalls, 1, 'HTTP reads reuse the persisted classification');
+  const sourceCallsBeforePoll = sourceCalls;
+  const storageBeforePoll = fs.readFileSync(path.join(rootDir, 'data', 'expedientes.json'), 'utf8');
+  const poll = await fetch(`${base}/classification`);
+  assert.equal(poll.status, 200);
+  assert.equal(poll.headers.get('cache-control'), 'private, no-store');
+  const classification = await poll.json();
+  assert.equal(classification.classification.text, 'Resumen público de denuncias no verificadas.');
+  assert.equal(JSON.stringify(classification).includes('PRIVATE'), false);
+  assert.equal(sourceCalls, sourceCallsBeforePoll, 'Polling does not contact the reports source');
+  assert.equal(summaryCalls, 1, 'Polling does not generate another summary');
+  assert.equal(fs.readFileSync(path.join(rootDir, 'data', 'expedientes.json'), 'utf8'), storageBeforePoll, 'Polling does not rewrite the case');
+  assert.equal((await fetch(`http://127.0.0.1:${server.address().port}/api/cases/not-found/classification`)).status, 404);
   assert.equal((await fetch(`${base}/staff`)).status, 401);
   assert.equal((await fetch(`${base}/staff`, { headers })).status, 200);
   role = false;
@@ -175,6 +188,15 @@ try {
   assert.deepEqual(readExpedientes(rootDir)[0].notes, ['LEGACY_PRIVATE'], 'legacy unattributed text is not rewritten');
   // Corruption is an explicit failure, not an empty database that a later write can destroy.
   fs.writeFileSync(path.join(rootDir, 'data', 'expedientes.json'), '{broken');
+  const loggedErrors = [];
+  const originalError = console.error;
+  try {
+    console.error = (...args) => loggedErrors.push(args);
+    assert.equal((await fetch(`${base}/classification`)).status, 503);
+  } finally {
+    console.error = originalError;
+  }
+  assert.match(loggedErrors[0][0], /No se pudo consultar el análisis HEX/);
   assert.equal((await fetch(`${base}/notes`, { method: 'POST', headers, body: '{"text":"must fail"}' })).status, 503);
   assert.equal(fs.readFileSync(path.join(rootDir, 'data', 'expedientes.json'), 'utf8'), '{broken');
 

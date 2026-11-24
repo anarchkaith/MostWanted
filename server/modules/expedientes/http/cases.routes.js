@@ -1,13 +1,13 @@
 import { createRequireCaseStaff } from '../../../shared/auth/discordStaff.js';
 import { getSessionUser } from '../../../shared/auth/sessionAuth.js';
-import { manageCase, readCase, staffCase } from '../services/cases.service.js';
+import { manageCase, readCase, readCaseClassification, staffCase } from '../services/cases.service.js';
 
-export function registerCasesRoutes(app, { rootDir, rateLimits, requireBodyObject, verifyCaseStaff, getCaseReports, generateCaseSummary, publishCaseSummary }) {
+export function registerCasesRoutes(app, { rootDir, rateLimits, requireBodyObject, verifyCaseStaff, getCaseReports, generateCaseSummary, publishCaseSummary, getPlayerIntel }) {
   const staffAccess = createRequireCaseStaff(verifyCaseStaff);
   const read = async (req, res, query) => {
     res.set('Cache-Control', 'private, no-store');
     try {
-      const result = await readCase({ rootDir, source: getCaseReports, generateCaseSummary, publishCaseSummary, ...query });
+      const result = await readCase({ rootDir, source: getCaseReports, generateCaseSummary, publishCaseSummary, getPlayerIntel, ...query });
       return res.status(result.status).json(result.payload);
     } catch {
       return res.status(503).json({ ok: false, error: 'case_storage_unavailable' });
@@ -20,6 +20,16 @@ export function registerCasesRoutes(app, { rootDir, rateLimits, requireBodyObjec
       return res.status(400).json({ ok: false, error: 'invalid_player_query' });
     }
     return read(req, res, { nickname, rid });
+  });
+  app.get('/api/cases/:caseId/classification', rateLimits.general, (req, res) => {
+    res.set('Cache-Control', 'private, no-store');
+    try {
+      const result = readCaseClassification({ rootDir, id: req.params.caseId });
+      return res.status(result ? 200 : 404).json(result ? { ok: true, ...result } : { ok: false, error: 'case_not_found' });
+    } catch (error) {
+      console.error('[cases] No se pudo consultar el análisis HEX guardado:', error);
+      return res.status(503).json({ ok: false, error: 'case_storage_unavailable' });
+    }
   });
   app.get('/api/cases/:caseId', rateLimits.general, (req, res) => read(req, res, { id: req.params.caseId }));
   app.get('/api/cases/:caseId/staff', rateLimits.general, staffAccess, (req, res) => {

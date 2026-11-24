@@ -1,12 +1,13 @@
 import { getWordpressSummarySource, postWordpressPlayerSummary } from '../../../reports/wordpressClient.js';
 import { publicReport } from './caseReports.service.js';
 import { summaryInput } from './caseSummary.service.js';
+import { INTEL_POLICY_VERSION } from '../../intel/services/playerIntel.service.js';
 import { updateExpedientes } from './expedientesStore.service.js';
 
 export function createCaseSummaryPublisher({ rootDir, config, logger = console }) {
   return async (item) => {
     const summary = item?.aiSummary;
-    if (!summary?.text || summary.publishedFingerprint === summary.fingerprint
+    if (!summary?.text || summary.policyVersion !== INTEL_POLICY_VERSION || summary.publishedFingerprint === summary.fingerprint
       || Date.parse(summary.publishRetryAfter) > Date.now()) return item;
     let publicationError = null;
     try {

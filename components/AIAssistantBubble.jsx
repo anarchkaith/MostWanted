@@ -43,7 +43,7 @@ function AssistantReply({ text, animate }) {
   );
 }
 
-export default function AIAssistantBubble({ isAuthenticated = false, onSessionExpired, reports = [] }) {
+export default function AIAssistantBubble({ isAuthenticated = false, onSessionExpired, reports = [], focusPlayer = null }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -204,7 +204,10 @@ export default function AIAssistantBubble({ isAuthenticated = false, onSessionEx
           messages: updatedMessages,
           candidateUsuarios,
           candidateCategories,
-          buildContext: (text, intent) => buildReportesChatContext(text, intent, reports),
+          buildContext: (text, intent) => ({
+            ...buildReportesChatContext(text, intent, reports),
+            ...(focusPlayer ? { playerContext: focusPlayer } : {}),
+          }),
           chatEndpoint: IA_ENDPOINT,
           intentEndpoint: INTENT_ENDPOINT,
           signal: controller.signal,

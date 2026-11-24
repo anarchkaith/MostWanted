@@ -6,8 +6,11 @@ const MAX_CACHE_ENTRIES = 500;
 const NAME_PATTERN = /^[A-Za-z0-9_-]{1,32}$/;
 const RID_PATTERN = /^\d{1,30}$/;
 const AVATAR_HOSTS = new Set(['prod-avatars.akamaized.net', 'prod.cloud.rockstargames.com']);
-const CAREER_PLATFORMS = new Set(['pc', 'ps4', 'ps5', 'xboxone']);
+const CAREER_PLATFORMS = new Set(['pc', 'pcalt', 'ps4', 'ps5', 'xboxone', 'xboxsx']);
 const DEFAULT_CAREER_PLATFORM = 'pc';
+const CAREER_SECTIONS = new Set(['overview', 'stats', 'weapons', 'vehicles', 'awards']);
+const CAREER_LEVELS = new Set(['basic', 'bronze', 'silver', 'gold', 'platinum']);
+const HTML_ENTITIES = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'" };
 
 const UNAVAILABLE = { status: 502, error: 'No se pudo consultar Social Club. Intentá de nuevo en unos minutos.' };
 
@@ -27,8 +30,24 @@ function toAccount(account) {
   return { rid: String(account.rockstarId ?? ''), name: String(account.name ?? ''), avatarUrl: safeAvatarUrl(account.avatarUrl), crew };
 }
 
+function decodeEntities(value) {
+  return String(value).replace(/&(?:amp|lt|gt|quot|#39);/g, entity => HTML_ENTITIES[entity]);
+}
+
 function toCareerRow(row) {
-  return { category: String(row.category), key: String(row.key), label: String(row.label), value: String(row.value) };
+  const careerRow = {
+    category: decodeEntities(row.category), key: String(row.key),
+    label: decodeEntities(row.label), value: decodeEntities(row.value),
+  };
+  if (typeof row.level === 'string' && CAREER_LEVELS.has(row.level.toLowerCase())) {
+    careerRow.level = row.level.toLowerCase();
+  }
+  return careerRow;
+}
+
+function toCareerCategory(category) {
+  if (!category || typeof category.name !== 'string' || typeof category.label !== 'string') return null;
+  return { name: decodeEntities(category.name), label: decodeEntities(category.label) };
 }
 
 function isCareerRow(row) {
@@ -41,14 +60,24 @@ function isCareerRow(row) {
  */
 export function createSocialClubProxy({ fetchImpl = fetch, logger = console, now = () => Date.now() } = {}) {
   const cache = new Map();
+  const pending = new Map();
 
   async function cached(key, ttlMs, load) {
     const hit = cache.get(key);
     if (hit && hit.expiresAt > now()) return hit.payload;
-    const payload = await load();
-    cache.set(key, { payload, expiresAt: now() + ttlMs });
-    if (cache.size > MAX_CACHE_ENTRIES) cache.delete(cache.keys().next().value);
-    return payload;
+    if (pending.has(key)) return pending.get(key);
+    const request = (async () => {
+      const payload = await load();
+      cache.set(key, { payload, expiresAt: now() + ttlMs });
+      if (cache.size > MAX_CACHE_ENTRIES) cache.delete(cache.keys().next().value);
+      return payload;
+    })();
+    pending.set(key, request);
+    try {
+      return await request;
+    } finally {
+      pending.delete(key);
+    }
   }
 
   async function getJson(path, params) {
@@ -83,7 +112,7 @@ export function createSocialClubProxy({ fetchImpl = fetch, logger = console, now
     }
   }
 
-  async function getCareer({ rid, platform = DEFAULT_CAREER_PLATFORM }) {
+  async function getCareer({ rid, platform = DEFAULT_CAREER_PLATFORM, section = 'overview' }) {
     const cleanRid = typeof rid === 'string' ? rid.trim() : '';
     if (!RID_PATTERN.test(cleanRid)) {
       return { status: 400, payload: { ok: false, error: 'Indica un RID válido.' } };
@@ -92,14 +121,20 @@ export function createSocialClubProxy({ fetchImpl = fetch, logger = console, now
     if (!CAREER_PLATFORMS.has(cleanPlatform)) {
       return { status: 400, payload: { ok: false, error: 'Plataforma no soportada.' } };
     }
+    if (!CAREER_SECTIONS.has(section)) {
+      return { status: 400, payload: { ok: false, error: 'Sección no soportada.' } };
+    }
     try {
-      const payload = await cached(`career:${cleanPlatform}:${cleanRid}`, CAREER_TTL_MS, async () => {
-        const body = await getJson('career', { platform: cleanPlatform, section: 'overview', id: cleanRid });
+      const payload = await cached(`career:${section}:${cleanPlatform}:${cleanRid}`, CAREER_TTL_MS, async () => {
+        const body = await getJson('career', { platform: cleanPlatform, section, id: cleanRid });
         if (!body || !Array.isArray(body.rows)) throw new Error('invalid_socialclub_career_response');
         return {
           ok: true,
           hasCareer: body.hasCareer === true,
           nickname: String(body.player?.nickname ?? ''),
+          categories: Array.isArray(body.categories)
+            ? body.categories.map(toCareerCategory).filter(Boolean)
+            : [],
           rows: body.rows.filter(isCareerRow).map(toCareerRow),
         };
       });
@@ -109,5 +144,5 @@ export function createSocialClubProxy({ fetchImpl = fetch, logger = console, now
     }
   }
 
-  return { searchPlayers, getCareer };
+  return { searchPlayers, getCareer, platforms: [...CAREER_PLATFORMS] };
 }

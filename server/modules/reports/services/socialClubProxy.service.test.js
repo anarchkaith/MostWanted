@@ -75,6 +75,37 @@ test('career requests use the selected platform and cache it separately', async 
   assert.equal(calls.length, 2);
 });
 
+test('all career sections and platforms are whitelisted, cached apart and keep safe metadata', async () => {
+  const calls = [];
+  const fetchImpl = async url => {
+    const params = new URL(url).searchParams;
+    calls.push([params.get('section'), params.get('platform')]);
+    return jsonResponse({
+      hasCareer: true,
+      categories: [{ name: 'Money', label: 'Money &amp; more', extra: 'discarded' }, { name: 7, label: 'Invalid' }],
+      rows: [
+        { category: 'Money', key: 'MONEY_SPENT_WEAPON_ARMOR', label: 'Spent on weapons &amp; armor', value: '$31.3M', level: 'GOLD' },
+        { category: 'Money', key: 'unsafe', label: 'Unsafe', value: 'x', level: '<img>' },
+      ],
+    });
+  };
+  const proxy = createSocialClubProxy({ fetchImpl, logger: silentLogger });
+
+  const sections = ['overview', 'stats', 'weapons', 'vehicles', 'awards'];
+  for (const section of sections) {
+    const result = await proxy.getCareer({ rid: '166688426', section, platform: section === 'awards' ? 'pcalt' : 'pc' });
+    assert.equal(result.status, 200);
+    assert.equal(result.payload.rows[0].label, 'Spent on weapons & armor');
+    assert.equal(result.payload.rows[0].level, 'gold');
+    assert.equal(Object.hasOwn(result.payload.rows[1], 'level'), false);
+    assert.deepEqual(result.payload.categories, [{ name: 'Money', label: 'Money & more' }]);
+  }
+  assert.deepEqual(calls, sections.map(section => [section, section === 'awards' ? 'pcalt' : 'pc']));
+  assert.equal((await proxy.getCareer({ rid: '166688426', section: 'unknown' })).status, 400);
+  assert.equal((await proxy.getCareer({ rid: '166688426', platform: 'ps3' })).status, 400);
+  assert.equal(calls.length, sections.length);
+});
+
 test('upstream failures return 502 and are not cached', async () => {
   let calls = 0;
   const fetchImpl = async () => {
@@ -89,4 +120,32 @@ test('upstream failures return 502 and are not cached', async () => {
   assert.equal(second.status, 502);
   assert.equal(first.payload.ok, false);
   assert.equal(calls, 2);
+});
+
+test('simultaneous career requests share one upstream request and failed requests can be retried', async () => {
+  let calls = 0;
+  let fail = false;
+  const proxy = createSocialClubProxy({
+    logger: silentLogger,
+    fetchImpl: async () => {
+      calls++;
+      await new Promise(resolve => setImmediate(resolve));
+      return jsonResponse({ hasCareer: false, rows: [] }, !fail);
+    },
+  });
+  const [first, second] = await Promise.all([
+    proxy.getCareer({ rid: '123' }), proxy.getCareer({ rid: '123' }),
+  ]);
+  assert.equal(first.status, 200);
+  assert.equal(second.status, 200);
+  assert.equal(calls, 1);
+
+  fail = true;
+  const failures = await Promise.all([
+    proxy.getCareer({ rid: '456' }), proxy.getCareer({ rid: '456' }),
+  ]);
+  assert.ok(failures.every(result => result.status === 502));
+  assert.equal(calls, 2);
+  await proxy.getCareer({ rid: '456' });
+  assert.equal(calls, 3, 'Un fallo compartido no impide un intento posterior');
 });

@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import { readExpedientes, updateExpedientes } from './expedientesStore.service.js';
 import { matchReports, normalizeName, normalizeRid, publicReport } from './caseReports.service.js';
 import { publicClassification, refreshCaseSummary } from './caseSummary.service.js';
+import { refreshCaseIntel } from './caseIntel.service.js';
 
 function findCase(items, { id, nickname, rid }) {
   if (id) return items.find((item) => item.expedienteId === id);
@@ -21,7 +22,12 @@ export function publicCase(item, reports = item.caseSnapshot?.reports || []) {
   };
 }
 
-export async function readCase({ rootDir, source, generateCaseSummary, publishCaseSummary, id, nickname = '', rid = '', awaitSummary = false }) {
+export function readCaseClassification({ rootDir, id }) {
+  const item = findCase(readExpedientes(rootDir), { id });
+  return item ? { classification: publicClassification(item) } : null;
+}
+
+export async function readCase({ rootDir, source, generateCaseSummary, publishCaseSummary, getPlayerIntel, id, nickname = '', rid = '', awaitSummary = false }) {
   rid = normalizeRid(rid);
   let item = findCase(readExpedientes(rootDir), { id, nickname, rid });
   if (id && !item) return { status: 404, payload: { ok: false, error: 'case_not_found' } };
@@ -79,7 +85,8 @@ export async function readCase({ rootDir, source, generateCaseSummary, publishCa
     if (generateCaseSummary) {
       // La IA puede tardar hasta 45 s; el resumen se actualiza en segundo plano y la respuesta no espera.
       const caseId = item.expedienteId;
-      const refreshing = refreshCaseSummary({ rootDir, id: caseId, generate: generateCaseSummary })
+      const refreshing = refreshCaseIntel({ rootDir, id: caseId, getPlayerIntel })
+        .then((state) => (state.pending ? null : refreshCaseSummary({ rootDir, id: caseId, generate: generateCaseSummary })))
         .then((done) => (publishCaseSummary && done && publicClassification(done, reports)?.stale === false
           ? publishCaseSummary(done) : done));
       refreshing.catch((cause) => console.error('[cases] Falló la actualización en segundo plano de HEX:', cause));

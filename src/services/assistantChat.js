@@ -67,6 +67,7 @@ async function resolveIntent({ userText, messages, candidateUsuarios, candidateC
 
 function buildChatRequest(messages, context) {
   const body = { messages: normalizeMessages(messages) };
+  if (context?.playerContext) body.playerContext = context.playerContext;
   if (!context?.useReportesDb) return body;
   body.useReportesDb = true;
   if (context.reportQuery) body.reportQuery = context.reportQuery;

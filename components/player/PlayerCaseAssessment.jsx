@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import Skeleton from '../ui/Skeleton';
+import ErrorAlert from '../ui/ErrorAlert';
 import { formatCaseDate } from '../../src/services/casePresentation';
 import SpecialTextContent from '../ui/SpecialTextContent';
 
@@ -56,7 +57,7 @@ const markdownComponents = {
   th: withSpecialText('th'),
 };
 
-export function PlayerCaseClassification({ classification, text, loading }) {
+export function PlayerCaseClassification({ classification, text, loading, waiting, summaryError, onRetry }) {
   return <section className="case-section case-classification">
     <h3>Análisis HEX</h3>
     {loading && !text ? <Skeleton label="Cargando análisis HEX…" rows={6} /> : text ? <>
@@ -64,10 +65,13 @@ export function PlayerCaseClassification({ classification, text, loading }) {
         <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={markdownComponents}>{text}</ReactMarkdown>
       </div>
       <p className="case-muted">Resumen generado por HEX · {classification.reportCount} reporte(s) · {formatCaseDate(classification.updatedAt, true)}</p>
+      {classification.intelStatus === 'partial' && <p className="case-muted">HEX utilizó información parcial del jugador; algunas fuentes no estuvieron disponibles.</p>}
+      {classification.intelStatus === 'unavailable' && <p className="case-muted">Este análisis solo incluye los reportes; los datos externos del jugador no estuvieron disponibles.</p>}
     </> : null}
-    {classification?.stale && <p className="case-muted" role="status">Resumen pendiente de actualizar.</p>}
+    {classification?.stale && text && <p className="case-muted" role="status">Resumen pendiente de actualizar.</p>}
     {classification?.error && <p className="rfm-submit-error" role="alert">{classification.error}</p>}
-    {!loading && classification?.pending && <Skeleton label="Generando análisis HEX…" rows={3} />}
+    {summaryError && <ErrorAlert error={summaryError} onRetry={onRetry} retryLabel="Actualizar análisis" />}
+    {!loading && !summaryError && (classification?.pending || waiting) && <Skeleton label="Generando análisis HEX…" rows={3} />}
   </section>;
 }
 

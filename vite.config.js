@@ -63,6 +63,12 @@ export default defineConfig(({ mode }) => {
           timeout: 180000,
           proxyTimeout: 180000,
         },
+        '/api/players': {
+          target: backendTarget,
+          changeOrigin: true,
+          timeout: 60000,
+          proxyTimeout: 60000,
+        },
         '/auth': {
           target: backendTarget,
           changeOrigin: true,

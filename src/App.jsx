@@ -23,7 +23,7 @@ import useReportArchive from './hooks/useReportArchive';
 import { isSearchLanding } from './services/appNavigation';
 import { mapWordpressReportToReporte } from './services/reportViewModel';
 import { resolvePlayerRid } from '../shared/playerIdentity';
-import { playerPath } from './services/playerRoute';
+import { playerPath, readPlayerRoute } from './services/playerRoute';
 
 function App() {
   const [caseRevision, setCaseRevision] = useState(0);
@@ -235,6 +235,7 @@ function App() {
         reports={user ? reportes : []}
         isAuthenticated={isAuthChecked && Boolean(user?.id)}
         onSessionExpired={expireSession}
+        focusPlayer={user ? readPlayerRoute(path).player : null}
       />
     </div>
   );

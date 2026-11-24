@@ -3,6 +3,7 @@ import { registerAiRoutes } from '../modules/ai/http/ai.routes.js';
 import { registerExpedientesRoutes } from '../modules/expedientes/http/expedientes.routes.js';
 import { registerCasesRoutes } from '../modules/expedientes/http/cases.routes.js';
 import { registerReportsRoutes } from '../modules/reports/http/reports.routes.js';
+import { registerIntelRoutes } from '../modules/intel/http/intel.routes.js';
 import { registerSystemRoutes } from '../modules/system/http/system.routes.js';
 
 /**
@@ -15,5 +16,6 @@ export function registerRoutes(app, deps) {
   registerExpedientesRoutes(app, deps);
   registerCasesRoutes(app, deps);
   registerReportsRoutes(app, deps);
+  registerIntelRoutes(app, deps);
   registerSystemRoutes(app, deps);
 }

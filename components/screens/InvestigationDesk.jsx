@@ -38,7 +38,7 @@ export default function InvestigationDesk({ initialPlayer, onPlayerResolved, rep
   const caseId = route.caseId;
   const lookupPlayer = foundPlayer || selection || route.player;
   const requestPlayer = selection || route.player;
-  const { payload, loading, error, refresh } = usePlayerCase({
+  const { payload, loading, error, summaryPending, summaryError, refresh } = usePlayerCase({
     caseId, nickname: requestPlayer?.nickname, rid: requestPlayer?.rid, revision,
   });
   const dossier = payload?.case || null;
@@ -52,8 +52,10 @@ export default function InvestigationDesk({ initialPlayer, onPlayerResolved, rep
   }, [foundPlayer, path, onNavigate]);
 
   const classificationText = unwrapMarkdownFence(dossier?.classification?.text || '').trim();
-  const classification = player && (loading || classificationText || dossier?.classification?.pending || dossier?.classification?.error) &&
-    <PlayerCaseClassification classification={dossier?.classification} text={classificationText} loading={loading} />;
+  const classification = player && (loading || classificationText || dossier?.classification?.pending
+    || dossier?.classification?.error || summaryPending || summaryError) &&
+    <PlayerCaseClassification classification={dossier?.classification} text={classificationText} loading={loading}
+      waiting={summaryPending} summaryError={summaryError} onRetry={refresh} />;
   const verification = player && (loading || votes.total > 0) && <PlayerCommunityVerification votes={votes} loading={loading} />;
   const caseManagement = player && (
     <div className="pbp-identity-actions">

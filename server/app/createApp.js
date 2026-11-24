@@ -15,6 +15,8 @@ import { createCaseReportsSource } from '../modules/expedientes/services/caseRep
 import { createCaseSummaryGenerator } from '../modules/expedientes/services/caseSummary.service.js';
 import { createCaseSummaryPublisher } from '../modules/expedientes/services/caseSummaryPublication.service.js';
 import { readCase } from '../modules/expedientes/services/cases.service.js';
+import { createSocialClubProxy } from '../modules/reports/services/socialClubProxy.service.js';
+import { createPlayerIntel } from '../modules/intel/services/playerIntel.service.js';
 import { registerRoutes } from './registerRoutes.js';
 
 function readWebhookAllowedOrigins() {
@@ -71,8 +73,10 @@ export function createApp({ rootDir, isProduction }) {
   });
   const generateCaseSummary = createCaseSummaryGenerator({ config: aiConfig });
   const publishCaseSummary = createCaseSummaryPublisher({ rootDir, config: wordpressReportsConfig });
+  const socialClub = createSocialClubProxy();
+  const { getPlayerIntel } = createPlayerIntel({ socialClub });
   const refreshPlayerCase = async ({ nickname, rid, reportId }) => {
-    const result = await readCase({ rootDir, source: getCaseReports, generateCaseSummary, publishCaseSummary, nickname, rid });
+    const result = await readCase({ rootDir, source: getCaseReports, generateCaseSummary, publishCaseSummary, getPlayerIntel, nickname, rid });
     if (!result.payload.ok || result.payload.source.stale) throw new Error('case_reports_refresh_failed');
     if (!result.payload.case || (reportId != null && !result.payload.case.reportIds.some((id) => String(id) === String(reportId)))) {
       throw new Error('new_report_not_available_for_summary');
@@ -154,6 +158,8 @@ export function createApp({ rootDir, isProduction }) {
     generateCaseSummary,
     publishCaseSummary,
     refreshPlayerCase,
+    socialClub,
+    getPlayerIntel,
     authFrontendSuccessUrl,
     authFrontendFailureUrl,
     authAllowedDiscordUserIds,

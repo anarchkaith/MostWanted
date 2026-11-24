@@ -19,6 +19,11 @@ function toHexReporte(report) {
     motivo: report.reason,
     fecha: report.createdAt || '',
     etiquetas: labels,
+    crews: (report.crews || [])
+      .map((crew) => (typeof crew === 'string' ? crew : crew?.name))
+      .filter(Boolean)
+      .slice(0, 8),
+    aliases: (report.aliases || []).filter((alias) => typeof alias === 'string' && alias).slice(0, 8),
   };
 }
 

@@ -75,6 +75,12 @@ try {
   assert.equal(writes, 4, 'Never publish a summary against a different WordPress snapshot');
   assert.ok(mismatched.payload.case.classification.error);
   assert.equal(generations, 4);
+  const legacy = structuredClone(readExpedientes(rootDir)[0]);
+  delete legacy.aiSummary.policyVersion;
+  legacy.aiSummary.publishRetryAfter = null;
+  const beforeLegacy = { reads, writes };
+  await publishCaseSummary(legacy);
+  assert.deepEqual({ reads, writes }, beforeLegacy, 'A summary using retired criteria must not be republished');
   console.log('OK persisted AI summary publication, content invalidation, retries, source checks and no generation on votes/visits');
 } finally {
   globalThis.fetch = originalFetch;

@@ -15,6 +15,12 @@ function safeText(value, maxLength = 180) {
     : '';
 }
 
+function safeList(value, limit, maxLength) {
+  return Array.isArray(value)
+    ? value.slice(0, limit).map((item) => safeText(item, maxLength)).filter(Boolean)
+    : [];
+}
+
 function sanitizeReports(reportes) {
   if (!Array.isArray(reportes)) return [];
 
@@ -22,12 +28,13 @@ function sanitizeReports(reportes) {
     .map((report) => ({
       id: safeText(report?.id, 80) || null,
       usuario: safeText(report?.usuario, 100),
+      rid: safeText(report?.rid, 20) || null,
       categoria: safeText(report?.categoria, 80) || 'sin_categoria',
       motivo: safeText(report?.motivo),
       fecha: safeText(report?.fecha, 80),
-      etiquetas: Array.isArray(report?.etiquetas)
-        ? report.etiquetas.slice(0, 8).map((tag) => safeText(tag, 60)).filter(Boolean)
-        : [],
+      etiquetas: safeList(report?.etiquetas, 8, 60),
+      crews: safeList(report?.crews, 8, 80),
+      aliases: safeList(report?.aliases, 8, 60),
     }))
     .filter((report) => report.usuario);
 }
@@ -97,6 +104,23 @@ function getCommonTerms(reports) {
     .map(([term, reportsWithTerm]) => ({ term, reportsWithTerm }));
 }
 
+function getSharedCrews(reports) {
+  const usersByCrew = new Map();
+  for (const report of reports) {
+    for (const crew of report.crews) {
+      const key = crew.toLocaleLowerCase();
+      const entry = usersByCrew.get(key) || { crew, usuarios: new Set() };
+      entry.usuarios.add(report.usuario);
+      usersByCrew.set(key, entry);
+    }
+  }
+  return [...usersByCrew.values()]
+    .filter((entry) => entry.usuarios.size > 1)
+    .map((entry) => ({ crew: entry.crew, totalUsuarios: entry.usuarios.size, usuarios: [...entry.usuarios].slice(0, 15) }))
+    .sort((a, b) => b.totalUsuarios - a.totalUsuarios || a.crew.localeCompare(b.crew))
+    .slice(0, 15);
+}
+
 function buildReadAllResult(reports, params = {}) {
   const byUser = new Map();
   const byCategoryAndUser = new Map();
@@ -136,6 +160,7 @@ function buildReadAllResult(reports, params = {}) {
     porCategoria: countBy(reports, (report) => report.categoria),
     rankingPorCategoria,
     ...(requestedCategory ? { categoriaConsultada: requestedCategory, rankingCategoria: categoryRanking } : {}),
+    crewsCompartidas: getSharedCrews(reports),
     rankingUsuarios: [...byUser.values()]
       .sort((a, b) => b.totalReportes - a.totalReportes || a.usuario.localeCompare(b.usuario))
       .slice(0, 50),
@@ -145,13 +170,14 @@ function buildReadAllResult(reports, params = {}) {
 function buildDetailResult(reports, params = {}) {
   const user = safeText(params.usuario, 100);
   const reportId = safeText(params.reportId, 80);
+  const rid = safeText(params.rid, 20);
   const matches = reports.filter((report) => reportId
     ? report.id === reportId
-    : user && report.usuario.toLocaleLowerCase() === user.toLocaleLowerCase());
+    : (user && report.usuario.toLocaleLowerCase() === user.toLocaleLowerCase()) || (rid && report.rid === rid));
 
   return {
     herramienta: 'get_report_detail',
-    objetivo: reportId ? { reportId } : { usuario: user || null },
+    objetivo: reportId ? { reportId } : { usuario: user || null, ...(rid ? { rid } : {}) },
     totalCoincidencias: matches.length,
     reportes: matches.slice(0, 30),
   };

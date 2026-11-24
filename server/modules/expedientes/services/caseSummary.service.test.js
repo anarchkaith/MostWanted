@@ -37,9 +37,11 @@ try {
   assert.equal(calls, 1);
   assert.equal(first.payload.case.classification.stale, false);
   assert.equal(first.payload.case.classification.reportCount, 1);
+  assert.equal(first.payload.case.classification.intelStatus, 'unavailable');
   assert.match(first.payload.case.classification.text, /Resumen HEX/);
   assert.equal(JSON.stringify(first).includes('PRIVATE'), false);
   assert.equal(readExpedientes(rootDir)[0].aiSummary.text, first.payload.case.classification.text);
+  assert.equal(readExpedientes(rootDir)[0].aiSummary.intelStatus, 'unavailable');
   await readCase(query);
   assert.equal(calls, 1, 'reloads reuse the persisted summary');
   reports[0].communityVerification = { up: 12, down: 4 };
