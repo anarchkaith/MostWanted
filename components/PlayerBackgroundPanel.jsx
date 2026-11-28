@@ -1,7 +1,8 @@
-﻿import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import usePlayerInvestigation from './usePlayerInvestigation';
 import ImageViewer from './ImageViewer';
 import { mergePlayerProfile } from '../src/services/playerProfile';
+import { fetchSocialClubAccount } from '../src/services/socialClubCareer';
 import PlayerIdentification from './player/PlayerIdentification';
 import PlayerAvatarHistory from './player/PlayerAvatarHistory';
 import PlayerNameHistory from './player/PlayerNameHistory';
@@ -32,12 +33,49 @@ export default function PlayerBackgroundPanel({
     request, initialInvestigation, onChange: onInvestigationChange, onLoadingChange: onInvestigatingChange,
   });
   const [expandedAvatar, setExpandedAvatar] = useState(null);
+  const [crewAttempt, setCrewAttempt] = useState(0);
+  const [crewLookup, setCrewLookup] = useState({ status: 'idle', crew: null, error: '' });
   const closeAvatar = React.useCallback(() => setExpandedAvatar(null), []);
+  const resolvedRid = investigation?.rid || rid;
+  const lookupName = investigation?.nombre && !investigation.nombre.startsWith('RID ')
+    ? investigation.nombre : username;
+  const crewLookupKey = `${resolvedRid}:${lookupName}`;
+
+  useEffect(() => {
+    if (variant !== 'dossier' || !investigation || !resolvedRid || !lookupName) {
+      setCrewLookup({ status: 'idle', crew: null, error: '' });
+      return;
+    }
+    const controller = new AbortController();
+    setCrewLookup({ key: crewLookupKey, status: 'loading', crew: null, error: '' });
+    fetchSocialClubAccount({ username: lookupName, rid: resolvedRid, signal: controller.signal })
+      .then(({ account, crewDetails }) => {
+        if (controller.signal.aborted) return;
+        const crew = account?.crew || null;
+        const detailsStatus = crewDetails?.status;
+        const hasDetails = detailsStatus === 'ready' && crewDetails.data
+          && typeof crewDetails.data === 'object' && !Array.isArray(crewDetails.data);
+        setCrewLookup({
+          key: crewLookupKey,
+          status: !account ? 'not-found' : crew && !hasDetails && detailsStatus !== 'not_found' ? 'details-error' : 'ready',
+          crew: crew ? { ...crew, details: hasDetails ? crewDetails.data : null } : null,
+          detailsStatus,
+          error: '',
+        });
+      })
+      .catch(error => {
+        if (!controller.signal.aborted) setCrewLookup({ key: crewLookupKey, status: 'error', crew: null, error: error.message });
+      });
+    return () => controller.abort();
+  }, [investigation, resolvedRid, lookupName, crewLookupKey, crewAttempt, variant]);
+
+  const currentCrewLookup = crewLookup.key === crewLookupKey ? crewLookup : { status: 'idle', crew: null };
 
   const displayedProfile = useMemo(() => investigation ? mergePlayerProfile({
     username, rid: investigation.rid || rid, profile: investigation.currentProfile,
     reportInsights: investigation.reportInsights, reports: reports || [], currentAvatars: investigation.avatares || [],
-  }) : null, [investigation, username, rid, reports]);
+    socialClubCrew: currentCrewLookup.crew,
+  }) : null, [investigation, username, rid, reports, currentCrewLookup.crew]);
   const displayedName = normalizeName(investigation?.nombre || displayedProfile?.name);
   const otherNameEntries = useMemo(() => (displayedProfile?.nameHistory || [])
     .filter(entry => normalizeName(entry.name) !== displayedName), [displayedProfile, displayedName]);
@@ -86,6 +124,7 @@ export default function PlayerBackgroundPanel({
 
           {variant === 'dossier' && <PlayerDossierFile investigation={investigation} username={username} rid={rid} isLoading={isLoading} error={error}
             names={otherNameEntries} crews={crewEntries} historicalAvatars={displayedProfile?.historicalAvatars || []}
+            crewLookup={currentCrewLookup} onRetryCrew={() => setCrewAttempt(value => value + 1)}
             onOpenAvatar={setExpandedAvatar} classification={classification} verification={verification} caseManagement={caseManagement} />}
 
           {variant !== 'dossier' && investigation && <div className="pbp-current">

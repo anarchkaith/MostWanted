@@ -26,6 +26,53 @@ test('player search keeps only public fields, safe avatars and valid RIDs', asyn
   assert.match(calls[0], /^https:\/\/app\.socialclubplus\.com\/api\/players\?name=Sazxinxxx$/);
 });
 
+test('crew details require exact player RID and crew ID and cache successful lookups', async () => {
+  const urls = [];
+  const fetchImpl = async url => {
+    urls.push(url);
+    if (url.startsWith('https://app.socialclubplus.com/')) return jsonResponse({ accounts: [
+      { rockstarId: '123', name: 'Player', crew: { id: '68841088', name: 'Kaith Rebels', tag: 'HOPE', color: '#8470FF' } },
+      { rockstarId: '456', name: 'Player', crew: { id: '999', name: 'Other' } },
+    ] });
+    return jsonResponse({ status: true, crews: [
+      { crewId: 7, crewName: 'Kaith Rebels', crewMotto: 'Wrong', memberCount: 1 },
+      { crewId: 68841088, crewName: 'Kaith Rebels', crewMotto: 'Correct', memberCount: 281, division: '101-1000', crewType: 'rebels', isPrivate: true },
+    ] });
+  };
+  const proxy = createSocialClubProxy({ fetchImpl, logger: silentLogger });
+  const result = await proxy.searchPlayers({ name: 'Player', crewForRid: '123' });
+  assert.deepEqual(result.payload.crewDetails, { status: 'ready', data: {
+    crewMotto: 'Correct', memberCount: 281, division: '101-1000', crewType: 'rebels',
+    createdAt: '', isPrivate: true, isOpen: false,
+  } });
+  await proxy.searchPlayers({ name: 'Player', crewForRid: '123' });
+  assert.equal(urls.length, 2);
+  assert.equal((await proxy.searchPlayers({ name: 'Player', crewForRid: '999' })).payload.crewDetails.status, 'not_applicable');
+  assert.equal(urls.length, 2, 'A nonmatching RID must not trigger a crew search');
+  assert.equal((await proxy.searchPlayers({ name: 'Player', crewForRid: '456' })).payload.crewDetails.status, 'not_found');
+});
+
+test('failed crew details preserve player data and can be retried', async () => {
+  let crewCalls = 0;
+  const proxy = createSocialClubProxy({
+    logger: silentLogger,
+    fetchImpl: async url => {
+      if (url.startsWith('https://app.socialclubplus.com/')) return jsonResponse({ accounts: [
+        { rockstarId: '123', name: 'Player', crew: { id: '1', name: 'Crew', tag: 'TAG' } },
+      ] });
+      crewCalls++;
+      return crewCalls === 1 ? jsonResponse({}, false) : jsonResponse({ status: true, crews: [{ crewId: 1, crewName: 'Crew' }] });
+    },
+  });
+  const failed = await proxy.searchPlayers({ name: 'Player', crewForRid: '123' });
+  assert.equal(failed.status, 200);
+  assert.equal(failed.payload.accounts[0].crew.tag, 'TAG');
+  assert.equal(failed.payload.crewDetails.status, 'unavailable');
+  assert.equal((await proxy.searchPlayers({ name: 'Player', crewForRid: '123' })).payload.crewDetails.status, 'ready');
+  assert.equal(crewCalls, 2);
+  assert.equal((await proxy.searchPlayers({ name: 'Player', crewForRid: 'invalid' })).status, 400);
+});
+
 test('invalid input is rejected before calling the upstream', async () => {
   let called = false;
   const proxy = createSocialClubProxy({ fetchImpl: async () => { called = true; return jsonResponse({}); }, logger: silentLogger });

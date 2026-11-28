@@ -38,6 +38,13 @@ test('crew search rejects empty or oversized terms without calling Rockstar', as
   assert.equal((await searchCrews({ query: 'a'.repeat(101), fetchImpl, logger })).status, 400);
 });
 
+test('crew search does not invent a member count when it is absent', async () => {
+  const result = await searchCrews({ query: 'Crew', logger, fetchImpl: async () => new Response(JSON.stringify({
+    status: true, crews: [{ crewId: 1, crewName: 'Crew' }],
+  })) });
+  assert.equal(result.payload.crews[0].memberCount, null);
+});
+
 test('crew search maps upstream failures and malformed bodies to 502', async () => {
   const failing = await searchCrews({ query: 'Ghost', logger, fetchImpl: async () => new Response('', { status: 503 }) });
   const malformed = await searchCrews({ query: 'Ghost', logger, fetchImpl: async () => new Response('{"status":false}', { status: 200 }) });

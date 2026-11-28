@@ -30,6 +30,22 @@ test('crew history links use registered URLs ahead of generated name slugs', () 
     'https://socialclub.rockstargames.com/crew/another-crew');
 });
 
+test('preserves verified Social Club crew details separately from name-only report history', () => {
+  const result = mergePlayerProfile({
+    socialClubCrew: { id: '68841088', name: 'Kaith Rebels', tag: 'HOPE', color: '#8470FF' },
+    reports: [{ id: 7, crews: [{ name: 'Kaith Rebels' }, { name: 'Other Crew' }] }],
+  });
+  assert.equal(result.crewHistory.length, 3);
+  assert.deepEqual(result.crewHistory[0].socialClub, { id: '68841088', tag: 'HOPE', color: '#8470FF', details: null });
+  assert.equal(result.crewHistory[0].isActive, false);
+  assert.equal(result.crewHistory[1].observations[0].reportId, 7);
+  assert.equal(result.crewHistory[1].socialClub, undefined);
+  assert.deepEqual(mergePlayerProfile({ socialClubCrew: { id: '../invalid', name: 'Crew' } }).crewHistory, []);
+  assert.equal(mergePlayerProfile({ socialClubCrew: { id: '1', name: 'Crew', color: 'red' } }).crewHistory[0].socialClub.color, '');
+  const details = { crewMotto: 'Un lema', memberCount: 281 };
+  assert.equal(mergePlayerProfile({ socialClubCrew: { id: '1', name: 'Crew', details } }).crewHistory[0].socialClub.details, details);
+});
+
 const LEGACY_SC_AVATAR = 'https://prod.cloud.rockstargames.com/members/sc/6266/298932732/publish/gta5/mpchars/0.png';
 
 test('recognizes legacy Rockstar portrait images without altering evidence or unrelated archived images', () => {

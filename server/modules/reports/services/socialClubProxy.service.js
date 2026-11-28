@@ -1,3 +1,5 @@
+import { searchCrews } from './crewSearch.service.js';
+
 const SOCIAL_CLUB_API_URL = 'https://app.socialclubplus.com/api';
 const TIMEOUT_MS = 8000;
 const PLAYERS_TTL_MS = 5 * 60 * 1000;
@@ -94,10 +96,13 @@ export function createSocialClubProxy({ fetchImpl = fetch, logger = console, now
     return { status: UNAVAILABLE.status, payload: { ok: false, error: UNAVAILABLE.error } };
   }
 
-  async function searchPlayers({ name }) {
+  async function searchPlayers({ name, crewForRid = '' }) {
     const cleanName = typeof name === 'string' ? name.trim() : '';
     if (!NAME_PATTERN.test(cleanName)) {
       return { status: 400, payload: { ok: false, error: 'Escribe un nickname válido (letras, números, _ o -).' } };
+    }
+    if (crewForRid && (typeof crewForRid !== 'string' || !RID_PATTERN.test(crewForRid))) {
+      return { status: 400, payload: { ok: false, error: 'Indica un RID válido.' } };
     }
     try {
       const payload = await cached(`players:${cleanName.toLowerCase()}`, PLAYERS_TTL_MS, async () => {
@@ -106,7 +111,25 @@ export function createSocialClubProxy({ fetchImpl = fetch, logger = console, now
         const accounts = body.accounts.map(toAccount).filter(account => RID_PATTERN.test(account.rid));
         return { ok: true, accounts };
       });
-      return { status: 200, payload };
+      if (!crewForRid) return { status: 200, payload };
+      const crew = payload.accounts.find(account => account.rid === crewForRid)?.crew;
+      if (!crew || !RID_PATTERN.test(crew.id) || !crew.name.trim()) {
+        return { status: 200, payload: { ...payload, crewDetails: { status: 'not_applicable' } } };
+      }
+      try {
+        const detail = await cached(`crew:${crew.id}:${crew.name.toLowerCase()}`, PLAYERS_TTL_MS, async () => {
+          const result = await searchCrews({ query: crew.name, fetchImpl, logger });
+          if (result.status !== 200) throw new Error('crew_search_unavailable');
+          const match = result.payload.crews.find(entry => entry.crewId === crew.id);
+          if (!match) return { status: 'not_found' };
+          const { crewMotto, memberCount, crewType, division, createdAt, isPrivate, isOpen } = match;
+          return { status: 'ready', data: { crewMotto, memberCount, crewType, division, createdAt, isPrivate, isOpen } };
+        });
+        return { status: 200, payload: { ...payload, crewDetails: detail } };
+      } catch (error) {
+        logger.error('[reports] No se pudieron consultar los detalles de la crew.', { message: error.message });
+        return { status: 200, payload: { ...payload, crewDetails: { status: 'unavailable' } } };
+      }
     } catch (error) {
       return fail(error, '[reports] No se pudo buscar jugadores en Social Club.');
     }

@@ -14,7 +14,7 @@ function toPublicCrew(crew) {
   return {
     crewId,
     crewName: crew.crewName.trim(),
-    memberCount: Number.isSafeInteger(crew.memberCount) && crew.memberCount >= 0 ? crew.memberCount : 0,
+    memberCount: Number.isSafeInteger(crew.memberCount) && crew.memberCount >= 0 ? crew.memberCount : null,
     emblemUrl: /^\d+$/.test(crewId) ? `${ROCKSTAR_CREW_EMBLEM_URL}/${crewId}/publish/emblem/emblem_256.png` : '',
     ...text,
     ...flags,

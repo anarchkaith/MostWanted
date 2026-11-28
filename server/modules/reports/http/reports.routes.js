@@ -56,7 +56,7 @@ export function registerReportsRoutes(app, deps) {
 
   const socialClub = deps.socialClub || createSocialClubProxy();
   app.get('/api/external/socialclub/players', rateLimits.general, async (req, res) => {
-    const result = await socialClub.searchPlayers({ name: req.query.name });
+    const result = await socialClub.searchPlayers({ name: req.query.name, crewForRid: req.query.crewForRid });
     return res.status(result.status).json(result.payload);
   });
   app.get('/api/external/socialclub/career', rateLimits.general, async (req, res) => {

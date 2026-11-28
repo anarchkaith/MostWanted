@@ -63,7 +63,8 @@ export default function CrewCard({ id, index, crew, isActive, onChoose }) {
   const privacy = getCrewPrivacyLabel(crew);
   const PrivacyIcon = privacy === 'Privada' ? LockIcon : GlobeIcon;
   const created = formatCreatedAt(crew.createdAt);
-  const members = `${crew.memberCount} ${crew.memberCount === 1 ? 'miembro' : 'miembros'}`;
+  const members = Number.isSafeInteger(crew.memberCount)
+    ? `${crew.memberCount.toLocaleString('es')} ${crew.memberCount === 1 ? 'miembro' : 'miembros'}` : '';
 
   return (
     <button type="button" role="option" aria-selected={isActive} id={`${id}-option-${index}`}
@@ -79,7 +80,7 @@ export default function CrewCard({ id, index, crew, isActive, onChoose }) {
       </span>
       <span className="crew-card__facts">
         <span className="crew-card__stats">
-          <span className="crew-card__stat"><MembersIcon />{members}</span>
+          {members && <span className="crew-card__stat"><MembersIcon />{members}</span>}
           {crew.division && <span className="crew-card__stat"><DivisionIcon />División {crew.division}</span>}
         </span>
         <span className="crew-card__badges">

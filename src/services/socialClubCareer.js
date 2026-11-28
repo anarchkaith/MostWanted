@@ -135,6 +135,15 @@ export async function fetchSocialClubCareer({
 
 export { parseStatValue };
 
+export async function fetchSocialClubAccount({ username, rid, signal }, buildUrl = buildApiUrl) {
+  const params = new URLSearchParams({ name: username, crewForRid: rid });
+  const response = await fetch(buildUrl(`/external/socialclub/players?${params}`), { signal });
+  const payload = await readApiResponse(response, 'No se pudo consultar la crew de Social Club.');
+  if (!Array.isArray(payload.accounts)) throw new Error('La búsqueda de Social Club tiene un formato inválido.');
+  const account = payload.accounts.find(entry => String(entry.rid) === String(rid)) || null;
+  return { account, crewDetails: payload.crewDetails };
+}
+
 export function careerCategoryLabel(category) {
   return Object.hasOwn(CATEGORY_LABELS, category) ? CATEGORY_LABELS[category] : category;
 }

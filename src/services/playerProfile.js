@@ -9,7 +9,7 @@ const unix = value => {
   return Number.isFinite(parsed) ? Math.floor(parsed / 1000) : 0;
 };
 
-export function mergePlayerProfile({ username = '', rid = '', profile = null, reportInsights = null, reports = [], currentAvatars = [] }) {
+export function mergePlayerProfile({ username = '', rid = '', profile = null, reportInsights = null, reports = [], currentAvatars = [], socialClubCrew = null }) {
   const names = new Map();
   const crews = new Map();
   const avatars = new Map();
@@ -73,15 +73,29 @@ export function mergePlayerProfile({ username = '', rid = '', profile = null, re
   if (profile?.activeCrew) addCrew(profile.activeCrew, 0, current);
   const nameHistory = [...names.values()].sort((a, b) => b.time - a.time);
   const activeCrewKey = text(reportInsights?.activeCrew).toLowerCase();
+  const crewHistory = [...crews.values()].sort((a, b) => b.time - a.time).map(entry => ({
+    ...entry,
+    isActive: Boolean(activeCrewKey) && entry.name.toLowerCase() === activeCrewKey,
+  }));
+  const socialClubLink = socialClubCrew?.name && /^\d+$/.test(String(socialClubCrew.id))
+    ? buildCrewLink(socialClubCrew) : null;
+  if (socialClubLink) {
+    crewHistory.unshift({
+      ...socialClubLink, time: 0, source: current, observations: [], isActive: false,
+      socialClub: {
+        id: String(socialClubCrew.id),
+        tag: text(socialClubCrew.tag),
+        color: /^#[0-9a-f]{6}$/i.test(socialClubCrew.color || '') ? socialClubCrew.color : '',
+        details: socialClubCrew.details || null,
+      },
+    });
+  }
   return {
     name: profile?.name || reportInsights?.username || username || `RID ${rid}`,
     aliases: [...new Set(nameHistory.map(entry => entry.name))],
     nameHistory,
-    crews: [...new Set([...crews.values()].map(entry => entry.name))],
-    crewHistory: [...crews.values()].sort((a, b) => b.time - a.time).map(entry => ({
-      ...entry,
-      isActive: Boolean(activeCrewKey) && entry.name.toLowerCase() === activeCrewKey,
-    })),
+    crews: [...new Set(crewHistory.map(entry => entry.name))],
+    crewHistory,
     historicalAvatars: [...avatars.values()].sort((a, b) => b.time - a.time),
   };
 }

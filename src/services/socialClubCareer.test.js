@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  buildCareerGroups, buildCareerModel, buildWeaponGroups, fetchSocialClubCareer, parseStatValue, searchCareerGroups,
+  buildCareerGroups, buildCareerModel, buildWeaponGroups, fetchSocialClubAccount, fetchSocialClubCareer, parseStatValue, searchCareerGroups,
   SOCIAL_CLUB_CAREER_SECTIONS, SOCIAL_CLUB_PLATFORMS,
 } from './socialClubCareer.js';
 import { careerAwardLevelLabel } from './socialClubCareerEs.js';
@@ -174,6 +174,28 @@ test('requests the selected career section through the internal API', async () =
   try {
     await fetchSocialClubCareer({ rid: '123', platform: 'xboxsx', section: 'awards' }, path => path);
     assert.equal(url, '/external/socialclub/career?rid=123&platform=xboxsx&section=awards');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('selects Social Club accounts by exact RID, never by name alone', async () => {
+  const originalFetch = globalThis.fetch;
+  let url;
+  globalThis.fetch = async value => {
+    url = value;
+    return new Response(JSON.stringify({ ok: true, accounts: [
+      { rid: '456', name: 'Militan___', crew: { id: '2', name: 'Wrong' } },
+      { rid: '123', name: 'Militan___', crew: { id: '1', name: 'Correct', tag: 'TAG' } },
+    ] }));
+  };
+  try {
+    const result = await fetchSocialClubAccount({ username: 'Militan___', rid: '123' }, path => path);
+    assert.equal(url, '/external/socialclub/players?name=Militan___&crewForRid=123');
+    assert.equal(result.account.crew.name, 'Correct');
+    assert.equal((await fetchSocialClubAccount({ username: 'Militan___', rid: '999' }, path => path)).account, null);
+    globalThis.fetch = async () => new Response(JSON.stringify({ ok: true, accounts: {} }));
+    await assert.rejects(fetchSocialClubAccount({ username: 'Militan___', rid: '123' }, path => path), /formato inválido/);
   } finally {
     globalThis.fetch = originalFetch;
   }

@@ -311,17 +311,74 @@
 
 .dz-crews__item {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
   gap: 6px 12px;
   padding: 10px 0;
   border-bottom: 1px solid var(--dz-line);
 }
 
+.dz-crews__emblem {
+  width: 52px;
+  height: 52px;
+  flex: none;
+  object-fit: contain;
+  background: var(--color-black);
+  border: 1px solid var(--dz-line);
+}
+
+.dz-crews__emblem[hidden] { display: none; }
+
+.dz-crews__info {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.dz-crews__identity {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.dz-crews__error {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+}
+
+.dz-crews__motto {
+  margin: 2px 0;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  font-style: italic;
+  overflow-wrap: anywhere;
+}
+
+.dz-crews__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin: 4px 0 0;
+  font-size: 0.75rem;
+}
+
+.dz-crews__facts div { display: flex; gap: 5px; }
+.dz-crews__facts dt { color: var(--color-text-muted); }
+.dz-crews__facts dd { margin: 0; color: var(--dz-ink); }
+
+.dz-crews__error button {
+  color: var(--color-cream);
+  background: none;
+  border: 0;
+  padding: 0;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .dz-crews__name {
   font-weight: 600;
   color: var(--dz-ink);
+  overflow-wrap: anywhere;
 }
 
 @media (min-width: 900px) {
